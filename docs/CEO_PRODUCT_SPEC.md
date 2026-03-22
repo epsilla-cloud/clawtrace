@@ -54,6 +54,9 @@ Chats, charts, notes, and cited traces should become reusable investigation arti
 10. Open and composable control plane
 ClawTrace should fit into existing telemetry, data, and incident ecosystems instead of forcing a closed world.
 
+11. State is part of runtime
+In agent systems, `AGENTS.md`, `SOUL.md`, memory, config, skills, and plugin versions are part of production state. Observability must capture them as first-class runtime inputs.
+
 ## 3) ICP and Market Entry
 
 ## Primary ICP (first 12 months)
@@ -151,11 +154,15 @@ Must-have capabilities:
 7. Correlations should cross product boundaries
 - Inspired by Grafana correlations and Datadog service pivots, users should jump from trace context to related dashboards, incidents, prompts, deployments, or external systems without losing scope.
 
+8. Time machine is a core debugging primitive
+- OpenClaw already has partial versioning primitives across git-backed workspaces, versioned skills, pinned plugins, hooks, and backups, but not a unified run-correlated state history. ClawTrace should close that gap with a first-class state timeline and diff workflow.
+
 ## V1 Surfaces
 
 - Chat Console (primary): conversational analysis, dashboard creation, and alert authoring
 - Agent Health: synthesized status per agent, tool, prompt, and deployment
 - Investigation Workspace: saved chat, charts, notes, queries, and cited traces
+- State Time Machine: state timeline, run-to-run diffs, and last-known-good comparison
 - Run Explorer: searchable list of executions
 - Sessions View: session/thread rollups with user-facing cost and outcome metrics
 - Trace View: hierarchical spans + timeline + graph
@@ -353,6 +360,9 @@ Every major object should link to related telemetry and workflow artifacts: trac
 - Investigation persistence
 Chat transcripts, chart specs, notes, query plans, and trace citations should be stored as first-class investigation records.
 
+- State vector capture
+Every run should capture the effective state vector that shaped behavior: config hash, workspace file hashes, memory snapshot refs, skill versions, plugin versions, slot selection, and tool policy.
+
 - Health synthesis
 Agent Health should be computed from detectors, alert states, eval regressions, cost budget breaches, and deployment changes.
 
@@ -362,7 +372,7 @@ Runs should aggregate cleanly into sessions and threads so we can expose user-fa
 ## 6.3 Data Model (Canonical)
 
 Core IDs:
-- tenant_id, workspace_id, trace_id, span_id, parent_span_id, run_id, session_id, thread_id, agent_id, deployment_id, prompt_id, evaluator_id, dataset_id, investigation_id
+- tenant_id, workspace_id, trace_id, span_id, parent_span_id, run_id, session_id, thread_id, agent_id, deployment_id, prompt_id, evaluator_id, dataset_id, investigation_id, state_snapshot_id
 
 Core span kinds:
 - session
@@ -380,6 +390,8 @@ Core dimensions:
 - model/provider/version
 - prompt_hash/prompt_version
 - tool_name/tool_version
+- config_hash
+- tool_policy_hash
 - token_in/token_out/cached_token
 - latency_ms/queue_ms/retry_count
 - cost_usd (estimated + billed when available)
@@ -394,6 +406,8 @@ Cross-signal entities:
 - saved view / dashboard panel
 - alert rule
 - incident
+- state snapshot
+- state diff
 - prompt version
 - deployment change
 
@@ -409,6 +423,10 @@ Rule-based detectors (V1):
 Agent Health synthesis (V1):
 - combine detector state, active alerts, eval regressions, budget breaches, deployment changes, and incident linkage into a single status per agent/tool/deployment
 - expose blast radius in terms of affected sessions, users, and workflows
+
+State drift detectors (V1):
+- detect behavior regressions after changes to config, `AGENTS.md`, `SOUL.md`, memory summaries, skill versions, plugin versions, or tool policy
+- rank recent state changes by correlation with incident onset
 
 Model-assisted diagnosis (V1.5):
 - probable root-cause classification with confidence
@@ -511,6 +529,44 @@ Safety and trust guardrails:
 - PII-aware redaction in chat responses and chart annotations.
 - Deterministic fallback mode: if ambiguity is high, return top interpretations and ask for one-click confirmation.
 
+## 6.10 State Time Machine Architecture
+
+Goals:
+- capture the effective control-plane state for every run
+- diff any two runs or time ranges
+- correlate state drift with failures, cost spikes, and latency regressions
+- support safe replay and eventual rollback
+
+Capture strategy:
+- prefer native provenance when available:
+  - workspace git commit SHA
+  - pinned skill version
+  - pinned plugin install spec
+- fall back to synthetic snapshots when native provenance is missing:
+  - file hashes for `AGENTS.md`, `SOUL.md`, `USER.md`, `TOOLS.md`, `MEMORY.md`
+  - config hash and selected sub-hashes
+  - memory snapshot refs and summary hashes
+
+Snapshot points:
+- gateway config change
+- plugin install/update/enable/disable
+- skill install/update
+- workspace file change
+- run start
+- run end
+- manual checkpoint or incident creation
+
+Diff surfaces:
+- last good run vs current run
+- before/after deployment
+- before/after prompt or memory change
+- incident onset window
+
+Restore strategy:
+- Phase 0: observe only
+- Phase 1: export/import and replay against prior snapshots
+- Phase 2: guarded rollback for selected artifact classes with confirmation and audit logging
+
 ## 7) Roadmap
 
 ## Phase 0 (0-6 weeks): OpenClaw wedge MVP
@@ -518,6 +574,7 @@ Safety and trust guardrails:
 - Chat-first console v0 (trace Q&A, generated charts, "save dashboard", "create alert")
 - Investigation workspace v0 (save/share chat + charts + notes + cited traces)
 - Agent Health page v0
+- State Time Machine v0 (state vector capture + run-to-run diff)
 - Run explorer + trace view + cost/latency baseline
 - Sessions/threads rollups + unit economics baseline
 - Prebuilt OpenClaw dashboards (operations, cost, failure modes)
@@ -531,6 +588,7 @@ Exit criteria:
 - 5 design partners using daily
 - MTTR reduced >=40% on target workflows
 - >=50% of incident investigations started from chat
+- >=70% of incidents show a correlated state diff when state changed recently
 - >=60% of incidents end with a saved investigation, dashboard, or alert artifact
 - Median time from question -> first chart <=30 seconds
 - Alert false-positive rate <=15% for v0 detector-backed alerts
@@ -538,6 +596,7 @@ Exit criteria:
 ## Phase 1 (6-16 weeks): Team product
 - Incident view with root-cause hypotheses
 - Bad-vs-good run diff
+- State timeline explorer + last-known-good compare
 - Scheduled insights reports and failure clustering
 - Production-to-eval dataset builder
 - Cross-source correlations to external logs, APM, and warehouses
@@ -576,10 +635,11 @@ Mitigation: open-data architecture + best-in-class diagnosis loops + community d
 
 1. Publish canonical event schema v0.1
 2. Define entity model for `Agent Health`, sessions/threads, deployments, prompts, evals, and incidents
-3. Define conversational intent schema + plan-card contract and structural trace query IR
-4. Build chat-first MVP for 3 "golden" incident workflows end-to-end
-5. Implement investigation workspace, prebuilt dashboards, and alert compiler with preview/confirm UX
-6. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
+3. Define state snapshot schema for config, workspace files, memory, skills, plugins, and tool policy
+4. Define conversational intent schema + plan-card contract and structural trace query IR
+5. Build chat-first MVP for 3 "golden" incident workflows end-to-end
+6. Implement investigation workspace, state diff view, prebuilt dashboards, and alert compiler with preview/confirm UX
+7. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
 
 ## 10) Definition of Success (12 Months)
 
