@@ -2,7 +2,7 @@
 
 Last updated: 2026-03-22
 Owner: CEO (with Product + Engineering)
-Status: Draft v2 (chat-first addendum)
+Status: Draft v3 (market-informed plan)
 
 ## 1) Executive Summary
 
@@ -41,6 +41,18 @@ Every incident page should produce a recommended next action.
 
 6. Chat-first by default
 Observability starts with a question, not a navigation tree. The first UI is conversation; dashboards and alerts are generated artifacts.
+
+7. Entity health over page sprawl
+Users should reason through first-class entities such as agent, tool, session, prompt, deployment, and incident, each with a synthesized health state.
+
+8. Query all context
+Agent failures hide in high-cardinality metadata such as prompt version, end user, tool args, memory state, deployment, and workflow path. This context must remain queryable.
+
+9. Investigations are assets
+Chats, charts, notes, and cited traces should become reusable investigation artifacts, not disposable sessions.
+
+10. Open and composable control plane
+ClawTrace should fit into existing telemetry, data, and incident ecosystems instead of forcing a closed world.
 
 ## 3) ICP and Market Entry
 
@@ -116,12 +128,39 @@ Must-have capabilities:
 5. Explainable query planning
 - Show "how answer was computed" (filters, joins, traversals, sampling, confidence caveats).
 
+## 4.3 Market-Validated Product Decisions
+
+1. Agent Health is the center of gravity
+- Inspired by Datadog service health and Dynatrace problem views, ClawTrace should synthesize detector state, eval regressions, alert state, budget breaches, deployment changes, and incidents into one `Agent Health` surface.
+
+2. Structural trace queries are mandatory
+- Inspired by Datadog Trace Queries, users need to search for entire runs by span relationships such as downstream tool calls, parent-child sequences, retries, or memory reads before failures.
+
+3. Investigation workspaces must be first-class
+- Inspired by Datadog notebooks, Dynatrace notebooks, and Honeycomb Canvas, every investigation should combine chat, charts, notes, queries, and cited traces in a persistent, shareable workspace.
+
+4. Sessions and threads matter as much as spans
+- Inspired by Helicone sessions and LangSmith threads, ClawTrace must roll up run-level telemetry into session-level behavior, user journeys, and unit economics.
+
+5. Prebuilt dashboards should exist from day one
+- Inspired by Datadog, Grafana, LangSmith, and Helicone, we should ship opinionated dashboards for OpenClaw operations, cost, and failure modes so teams get value before building anything custom.
+
+6. Production must feed evaluation
+- Inspired by Langfuse, LangSmith, Braintrust, and Phoenix, failed traces should be promotable into datasets, scorecards, and regression tests with minimal friction.
+
+7. Correlations should cross product boundaries
+- Inspired by Grafana correlations and Datadog service pivots, users should jump from trace context to related dashboards, incidents, prompts, deployments, or external systems without losing scope.
+
 ## V1 Surfaces
 
 - Chat Console (primary): conversational analysis, dashboard creation, and alert authoring
+- Agent Health: synthesized status per agent, tool, prompt, and deployment
+- Investigation Workspace: saved chat, charts, notes, queries, and cited traces
 - Run Explorer: searchable list of executions
+- Sessions View: session/thread rollups with user-facing cost and outcome metrics
 - Trace View: hierarchical spans + timeline + graph
 - Incident View: automated failure summary + remediation playbook
+- Prebuilt Dashboards: OpenClaw operations, cost, and failure modes
 - Cost & Performance: per tenant/agent/model/tool budgets
 - Regression Guard: dataset/eval and pre-release gates
 
@@ -180,7 +219,9 @@ PLG funnel
 
 Growth loops
 - Shared incident URLs create inbound invites.
+- Saved investigations and scheduled insight digests pull in new teammates and buyers who are not active dashboard users.
 - Suggested eval datasets created from failures improve stickiness.
+- Production traces promoted into datasets and scorecards create a workflow moat beyond pure debugging.
 - Public integrations (OpenTelemetry, Langfuse export, SIEM hooks) reduce churn risk.
 
 ## 5.4 Enterprise Penetration Strategy
@@ -215,7 +256,21 @@ Enterprise requirements:
 Primary usage meter: traced spans/events
 Secondary meters: retention, advanced detectors, eval runs
 
-## 5.6 Business KPIs
+## 5.6 Strategic Positioning
+
+Against Datadog and Dynatrace:
+- We win by being agent-native, chat-first, and centered on run-time graph causality rather than generic service observability with AI bolted on.
+
+Against Grafana:
+- We keep the open, composable posture but package the agent workflow out of the box so teams do not need to assemble their own agent observability product.
+
+Against Langfuse, LangSmith, Braintrust, Helicone, and Phoenix:
+- We focus more deeply on operational debugging of agent runtime behavior in production, especially for self-hosted and OpenClaw-style systems, while still connecting to evaluation and prompt workflows.
+
+Core strategic claim:
+- ClawTrace is the open control plane for agent reliability: conversational investigations, graph-native causality, and production-to-eval feedback in one product.
+
+## 5.7 Business KPIs
 
 Product KPIs:
 - MTTR per incident
@@ -284,19 +339,41 @@ Iceberg gives durable, low-cost, open storage. PuppyGraph gives connected, graph
 - Alerting service (Slack/Email/Webhook/PagerDuty)
 - Chat orchestration service (NL -> semantic plan -> query -> explanation -> action)
 
+### Market-Informed Architecture Decisions
+
+- Wide event tables plus graph overlay
+ClawTrace should combine Honeycomb-style high-cardinality event querying with PuppyGraph-based relationship traversal, rather than forcing all questions into either a pure graph or pure metric model.
+
+- Structural query and saved views
+Queries should be durable artifacts. Chat prompts should compile to reusable structural queries, saved views, dashboards, and alerts.
+
+- Correlation fabric
+Every major object should link to related telemetry and workflow artifacts: traces, prompts, evals, incidents, deployments, dashboards, and external systems.
+
+- Investigation persistence
+Chat transcripts, chart specs, notes, query plans, and trace citations should be stored as first-class investigation records.
+
+- Health synthesis
+Agent Health should be computed from detectors, alert states, eval regressions, cost budget breaches, and deployment changes.
+
+- Session rollups
+Runs should aggregate cleanly into sessions and threads so we can expose user-facing journeys and unit economics.
+
 ## 6.3 Data Model (Canonical)
 
 Core IDs:
-- tenant_id, workspace_id, trace_id, span_id, parent_span_id, run_id, agent_id
+- tenant_id, workspace_id, trace_id, span_id, parent_span_id, run_id, session_id, thread_id, agent_id, deployment_id, prompt_id, evaluator_id, dataset_id, investigation_id
 
 Core span kinds:
 - session
 - llm_call
 - tool_call
 - memory_op
+- retrieval_op
 - planner_step
 - subagent
 - policy_decision
+- eval_run
 - error
 
 Core dimensions:
@@ -306,7 +383,19 @@ Core dimensions:
 - token_in/token_out/cached_token
 - latency_ms/queue_ms/retry_count
 - cost_usd (estimated + billed when available)
+- outcome_status/severity
+- end_user_id/user_feedback
+- release_version/environment
+- eval_score_names/eval_score_values
 - input/output checksums + optional payload references
+
+Cross-signal entities:
+- agent health object
+- saved view / dashboard panel
+- alert rule
+- incident
+- prompt version
+- deployment change
 
 ## 6.4 Detection and Diagnosis Engine
 
@@ -317,8 +406,13 @@ Rule-based detectors (V1):
 - latency bottleneck concentration
 - cost anomaly per success
 
+Agent Health synthesis (V1):
+- combine detector state, active alerts, eval regressions, budget breaches, deployment changes, and incident linkage into a single status per agent/tool/deployment
+- expose blast radius in terms of affected sessions, users, and workflows
+
 Model-assisted diagnosis (V1.5):
 - probable root-cause classification with confidence
+- recurring pattern clustering across similar runs
 - suggested remediation templates
 - blast radius estimate (who else is affected)
 
@@ -396,7 +490,11 @@ End-to-end flow:
 - Compile query result to chart spec (time series, table, histogram, Sankey, dependency graph).
 - Allow one-click persist as dashboard panel with auto-refresh and owner metadata.
 
-6. Alert compiler
+6. Investigation workspace compiler
+- Persist chat transcripts, chart specs, saved queries, notes, and cited spans as reusable investigation records.
+- Allow one-click promotion of an investigation into a dashboard, runbook, or postmortem.
+
+7. Alert compiler
 - Convert conversational condition to alert DSL:
   - signal definition
   - threshold/window
@@ -404,7 +502,7 @@ End-to-end flow:
   - notification policy
 - Run "noise preview" on historical data before activation.
 
-7. Continuous learning loop
+8. Continuous learning loop
 - Store successful query patterns and user corrections.
 - Improve intent parsing and recommended prompts without training on restricted payloads.
 
@@ -418,7 +516,12 @@ Safety and trust guardrails:
 ## Phase 0 (0-6 weeks): OpenClaw wedge MVP
 - OpenClaw plugin GA
 - Chat-first console v0 (trace Q&A, generated charts, "save dashboard", "create alert")
+- Investigation workspace v0 (save/share chat + charts + notes + cited traces)
+- Agent Health page v0
 - Run explorer + trace view + cost/latency baseline
+- Sessions/threads rollups + unit economics baseline
+- Prebuilt OpenClaw dashboards (operations, cost, failure modes)
+- Structural trace query templates + saved views
 - JSONL + Iceberg sink, basic PuppyGraph mapping
 - Top 5 detectors
 - Alert policy engine v0 with Slack/Webhook notifications
@@ -428,12 +531,16 @@ Exit criteria:
 - 5 design partners using daily
 - MTTR reduced >=40% on target workflows
 - >=50% of incident investigations started from chat
+- >=60% of incidents end with a saved investigation, dashboard, or alert artifact
 - Median time from question -> first chart <=30 seconds
 - Alert false-positive rate <=15% for v0 detector-backed alerts
 
 ## Phase 1 (6-16 weeks): Team product
 - Incident view with root-cause hypotheses
 - Bad-vs-good run diff
+- Scheduled insights reports and failure clustering
+- Production-to-eval dataset builder
+- Cross-source correlations to external logs, APM, and warehouses
 - Alerts + budget policies
 - Hosted cloud alpha
 
@@ -468,15 +575,17 @@ Mitigation: open-data architecture + best-in-class diagnosis loops + community d
 ## 9) Immediate Execution Plan (Next 14 Days)
 
 1. Publish canonical event schema v0.1
-2. Define conversational intent schema + plan-card contract (`analysis`, `visualize`, `dashboard_create`, `alert_create`)
-3. Build chat-first MVP for 3 "golden" incident workflows end-to-end
-4. Implement dashboard compiler + alert compiler with preview/confirm UX
-5. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
+2. Define entity model for `Agent Health`, sessions/threads, deployments, prompts, evals, and incidents
+3. Define conversational intent schema + plan-card contract and structural trace query IR
+4. Build chat-first MVP for 3 "golden" incident workflows end-to-end
+5. Implement investigation workspace, prebuilt dashboards, and alert compiler with preview/confirm UX
+6. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
 
 ## 10) Definition of Success (12 Months)
 
 ClawTrace is considered successful if:
 - It is the default observability plugin recommended in OpenClaw community channels.
 - Teams can diagnose most incidents in one workflow without raw log spelunking.
+- Most incidents produce a reusable artifact such as an investigation, dashboard, alert, or regression dataset.
 - Enterprise customers adopt it as a policy/governance layer for agent reliability.
 - The architecture remains open, portable, and economically scalable.
