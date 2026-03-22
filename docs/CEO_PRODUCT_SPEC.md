@@ -2,7 +2,7 @@
 
 Last updated: 2026-03-22
 Owner: CEO (with Product + Engineering)
-Status: Draft v1
+Status: Draft v2 (chat-first addendum)
 
 ## 1) Executive Summary
 
@@ -39,6 +39,9 @@ Token, latency, and tool costs are first-class dimensions of quality.
 5. Actionability beats dashboards
 Every incident page should produce a recommended next action.
 
+6. Chat-first by default
+Observability starts with a question, not a navigation tree. The first UI is conversation; dashboards and alerts are generated artifacts.
+
 ## 3) ICP and Market Entry
 
 ## Primary ICP (first 12 months)
@@ -73,8 +76,49 @@ Root-cause assistant with confidence scoring across:
 3. Improve
 Diff bad run vs good run, suggest fix, and validate via eval before release.
 
+## 4.1 Why Chat-First (First-Principles Analysis)
+
+Debugging agent systems is an iterative hypothesis loop:
+1. Form a hypothesis ("it was probably tool retries")
+2. Gather evidence (trace spans, timings, payloads)
+3. Refine the hypothesis ("actually memory retrieval was stale")
+4. Take action (fix prompt/tool/policy and set guardrails)
+
+A dashboard-first product optimizes step 2 but forces high cognitive load for steps 1, 3, and 4. A chat-first product reduces this gap by turning intent directly into evidence and actions.
+
+First-principles rationale:
+- Natural language is the lowest-friction query interface under incident pressure.
+- Agent failures are cross-modal (trace, logs, cost, memory, tool output), so users need a unifying interaction primitive.
+- Most teams do not have time to prebuild the right dashboards before incidents happen.
+- "Tell me what changed, why, and what to do" is inherently conversational.
+
+Conclusion:
+Chat is the control plane for observability workflows; visualizations are dynamically materialized from conversation state.
+
+## 4.2 Conversational Observability Requirements
+
+Must-have capabilities:
+1. Ask and answer over traces
+- Example: "Why did run_849 fail after the third tool call?"
+- System returns evidence-backed answer with cited spans and confidence.
+
+2. Dynamic visualization from prompts
+- Example: "Graph p95 latency by tool for agent seo_writer over 7 days."
+- System generates chart and offers "Save as dashboard".
+
+3. Alert creation by conversation
+- Example: "Alert me when retry_count > 3 for publish_tool for 5 minutes."
+- System translates to a policy, previews scope/noise, and confirms activation.
+
+4. Trace-native drill-in
+- Any answer can pivot into call tree, waterfall, and entity graph at exact span/time ranges.
+
+5. Explainable query planning
+- Show "how answer was computed" (filters, joins, traversals, sampling, confidence caveats).
+
 ## V1 Surfaces
 
+- Chat Console (primary): conversational analysis, dashboard creation, and alert authoring
 - Run Explorer: searchable list of executions
 - Trace View: hierarchical spans + timeline + graph
 - Incident View: automated failure summary + remediation playbook
@@ -92,6 +136,7 @@ Open Source (Apache 2.0)
 - OpenClaw native plugin + CLI trace tools
 - Canonical trace/event schema
 - Local dev UI (single-tenant)
+- Local chat interface for conversational trace Q&A and chart generation
 - Basic detectors (timeouts, retries, malformed tool calls)
 
 Commercial Cloud / Enterprise
@@ -99,6 +144,7 @@ Commercial Cloud / Enterprise
 - RBAC + SSO/SAML + SCIM
 - Long retention, tiered storage, governance
 - Advanced detectors and anomaly models
+- Managed conversational workspace memory + shared chat investigation threads
 - Cross-workspace lineage and policy enforcement
 - Enterprise support + SLAs
 
@@ -236,6 +282,7 @@ Iceberg gives durable, low-cost, open storage. PuppyGraph gives connected, graph
 - API service for trace retrieval, incident summaries, and policy checks
 - UI for exploration and incident response
 - Alerting service (Slack/Email/Webhook/PagerDuty)
+- Chat orchestration service (NL -> semantic plan -> query -> explanation -> action)
 
 ## 6.3 Data Model (Canonical)
 
@@ -314,23 +361,75 @@ Unit economics target:
 
 Build:
 - Agent-native schema, detectors, run-diff intelligence, eval integration
+- Conversational query planner, chart compiler, and alert-policy generator
 
 Leverage open ecosystem:
 - OpenTelemetry for interoperability
 - Iceberg ecosystem for table/storage portability
 - PuppyGraph for graph query execution on lakehouse data
 
+## 6.9 Chat-First Technical Architecture
+
+End-to-end flow:
+1. User intent
+- User asks a question in chat (analysis, dashboard, or alert request).
+
+2. Intent and constraint parsing
+- Classify request type: `analysis`, `visualize`, `dashboard_create`, `alert_create`, `alert_modify`.
+- Extract entities: time range, workspace, agent/tool/model filters, aggregation target.
+
+3. Semantic planning layer
+- Translate intent into executable plans:
+  - SQL plan (Iceberg aggregates and raw spans)
+  - Graph traversal plan (PuppyGraph for dependency/causality hops)
+  - Hybrid plan (join graph-derived sets back into tabular metrics)
+- Produce a machine-readable "plan card" for explainability.
+
+4. Execution and evidence
+- Execute plan with budget-aware query limits and tenant-scoped RBAC checks.
+- Return results with provenance:
+  - contributing spans
+  - detector signals used
+  - confidence and caveats
+
+5. Visualization compiler
+- Compile query result to chart spec (time series, table, histogram, Sankey, dependency graph).
+- Allow one-click persist as dashboard panel with auto-refresh and owner metadata.
+
+6. Alert compiler
+- Convert conversational condition to alert DSL:
+  - signal definition
+  - threshold/window
+  - grouping and dedupe
+  - notification policy
+- Run "noise preview" on historical data before activation.
+
+7. Continuous learning loop
+- Store successful query patterns and user corrections.
+- Improve intent parsing and recommended prompts without training on restricted payloads.
+
+Safety and trust guardrails:
+- Strict tenant/workspace authorization before query execution.
+- PII-aware redaction in chat responses and chart annotations.
+- Deterministic fallback mode: if ambiguity is high, return top interpretations and ask for one-click confirmation.
+
 ## 7) Roadmap
 
 ## Phase 0 (0-6 weeks): OpenClaw wedge MVP
 - OpenClaw plugin GA
+- Chat-first console v0 (trace Q&A, generated charts, "save dashboard", "create alert")
 - Run explorer + trace view + cost/latency baseline
 - JSONL + Iceberg sink, basic PuppyGraph mapping
 - Top 5 detectors
+- Alert policy engine v0 with Slack/Webhook notifications
+- Explainability panel showing query plan + cited spans per answer
 
 Exit criteria:
 - 5 design partners using daily
 - MTTR reduced >=40% on target workflows
+- >=50% of incident investigations started from chat
+- Median time from question -> first chart <=30 seconds
+- Alert false-positive rate <=15% for v0 detector-backed alerts
 
 ## Phase 1 (6-16 weeks): Team product
 - Incident view with root-cause hypotheses
@@ -369,10 +468,10 @@ Mitigation: open-data architecture + best-in-class diagnosis loops + community d
 ## 9) Immediate Execution Plan (Next 14 Days)
 
 1. Publish canonical event schema v0.1
-2. Harden OpenClaw plugin install and docs
-3. Build 3 "golden" incident workflows end-to-end
-4. Launch design partner program (10 teams)
-5. Define KPI instrumentation for MTTR, repeat-failure rate, and cost/success
+2. Define conversational intent schema + plan-card contract (`analysis`, `visualize`, `dashboard_create`, `alert_create`)
+3. Build chat-first MVP for 3 "golden" incident workflows end-to-end
+4. Implement dashboard compiler + alert compiler with preview/confirm UX
+5. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
 
 ## 10) Definition of Success (12 Months)
 
