@@ -60,6 +60,9 @@ In agent systems, `AGENTS.md`, `SOUL.md`, memory, config, skills, and plugin ver
 12. Evaluation must score process, not just outcome
 An agent can produce the right answer through the wrong trajectory. Observability should evaluate utility, trajectory quality, efficiency, safety, robustness, and state integrity together.
 
+13. User feedback is ground truth, not decoration
+Production observability should capture explicit and implicit user feedback as a first-class signal for quality, trust, and prioritization.
+
 ## 3) ICP and Market Entry
 
 ## Primary ICP (first 12 months)
@@ -293,6 +296,7 @@ Product KPIs:
 - Cost per successful task
 - P95 end-to-end run latency
 - Trace coverage (% runs with complete causal chain)
+- User-rated success and human-takeover rate
 
 Business KPIs:
 - OSS -> cloud conversion rate
@@ -405,6 +409,8 @@ Core dimensions:
 - cost_usd (estimated + billed when available)
 - outcome_status/severity
 - end_user_id/user_feedback
+- user_feedback_type/user_feedback_score/user_feedback_text_ref
+- human_takeover/reopen_count/retry_same_intent
 - release_version/environment
 - eval_score_names/eval_score_values
 - input/output checksums + optional payload references
@@ -462,6 +468,7 @@ Evaluation methods:
 - reference trajectory matching
 - rule-based invariants
 - LLM-as-judge
+- user feedback labeling and calibration
 - repeated-trial evaluation (`pass@k`)
 - multi-turn simulation
 - fault injection and replay
@@ -473,6 +480,7 @@ Golden dataset strategy:
 - safety and refusal goldens
 - regression goldens from real incidents
 - state-change goldens for prompt/config/memory/plugin changes
+- feedback-derived goldens from negative user reactions and human takeovers
 
 Every high-value workflow should eventually have:
 - a versioned golden dataset
@@ -481,6 +489,7 @@ Every high-value workflow should eventually have:
 - required/forbidden tool constraints
 - a last-known-good baseline
 - a gated success definition that can identify corrupt successes
+- a feedback instrumentation plan for explicit and implicit user signals
 
 ## 6.6 Scalability Plan
 
@@ -624,6 +633,7 @@ Restore strategy:
 - Investigation workspace v0 (save/share chat + charts + notes + cited traces)
 - Agent Health page v0
 - Agent Eval v0 (run scorecards + golden dataset builder)
+- User feedback capture v0 (thumbs, confirmation, takeover, retry/reopen heuristics)
 - State Time Machine v0 (state vector capture + run-to-run diff)
 - Run explorer + trace view + cost/latency baseline
 - Sessions/threads rollups + unit economics baseline
@@ -641,6 +651,7 @@ Exit criteria:
 - >=50% of incident investigations started from chat
 - >=70% of incidents show a correlated state diff when state changed recently
 - every design partner has at least one golden dataset for a core workflow
+- feedback coverage on >=60% of user-facing runs for design-partner workflows
 - >=60% of incidents end with a saved investigation, dashboard, or alert artifact
 - Median time from question -> first chart <=30 seconds
 - Alert false-positive rate <=15% for v0 detector-backed alerts
@@ -691,10 +702,11 @@ Mitigation: open-data architecture + best-in-class diagnosis loops + community d
 2. Define entity model for `Agent Health`, sessions/threads, deployments, prompts, evals, and incidents
 3. Define state snapshot schema for config, workspace files, memory, skills, plugins, and tool policy
 4. Define eval scorecard schema and golden dataset format for agent runs
-5. Define conversational intent schema + plan-card contract and structural trace query IR
-6. Build chat-first MVP for 3 "golden" incident workflows end-to-end
-7. Implement investigation workspace, state diff view, eval scorecards, prebuilt dashboards, and alert compiler with preview/confirm UX
-8. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
+5. Define feedback event schema for explicit and implicit user feedback on runs and sessions
+6. Define conversational intent schema + plan-card contract and structural trace query IR
+7. Build chat-first MVP for 3 "golden" incident workflows end-to-end
+8. Implement investigation workspace, state diff view, eval scorecards, feedback capture, prebuilt dashboards, and alert compiler with preview/confirm UX
+9. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
 
 ## 10) Definition of Success (12 Months)
 
@@ -703,5 +715,6 @@ ClawTrace is considered successful if:
 - Teams can diagnose most incidents in one workflow without raw log spelunking.
 - Most incidents produce a reusable artifact such as an investigation, dashboard, alert, or regression dataset.
 - Teams use ClawTrace to turn production traces into golden datasets and to score both outcomes and trajectories of core agent workflows.
+- Teams use explicit and implicit user feedback to calibrate agent quality and to prioritize regressions that matter to real users.
 - Enterprise customers adopt it as a policy/governance layer for agent reliability.
 - The architecture remains open, portable, and economically scalable.

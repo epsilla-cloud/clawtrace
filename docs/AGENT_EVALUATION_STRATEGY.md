@@ -16,6 +16,7 @@ The opportunity for ClawTrace is not to reinvent eval from scratch. It is to mak
 - evaluate efficiency
 - evaluate safety and policy adherence
 - evaluate robustness and consistency
+- evaluate real user satisfaction and correction signals
 - connect all of that back to real traces, state drift, and operational incidents
 
 ## 2) What Existing Platforms Cover
@@ -77,6 +78,11 @@ This implies a critical product principle:
 - do not score "success" as outcome-only
 - separate nominal completion from policy-compliant completion
 - explicitly surface corrupt success, where a run appears successful but violated procedure, policy, or state constraints along the way
+
+Another first-principles rule:
+- user feedback is one of the few real-world labels we get after deployment
+- feedback should be treated as a noisy but precious signal, not a vanity metric
+- explicit feedback, corrections, abandonment, and human takeover should all feed evaluation
 
 ## 4) Proposed ClawTrace Evaluation Model
 
@@ -182,6 +188,8 @@ Every run in ClawTrace should eventually produce a scorecard with these axes:
 
 Not every run needs every score immediately. Phase 0 can start with deterministic and cheap scores first.
 
+User feedback is a cross-cutting label source across these axes rather than a separate axis by itself.
+
 ## 5) Metrics We Should Support
 
 ## Outcome metrics
@@ -192,6 +200,9 @@ Not every run needs every score immediately. Phase 0 can start with deterministi
 - `reference_match`
 - `user_feedback_score`
 - `resolved_without_human`
+- `thumbs_up_rate`
+- `thumbs_down_rate`
+- `task_acceptance_rate`
 
 ## Trajectory metrics
 
@@ -243,6 +254,29 @@ Not every run needs every score immediately. Phase 0 can start with deterministi
 - `memory_staleness_rate`
 - `policy_drift_correlation`
 
+## User feedback signals
+
+Explicit feedback:
+- thumbs up / thumbs down
+- star rating or CSAT
+- free-text complaint or praise
+- user-confirmed resolution
+
+Implicit feedback:
+- user retries the same intent
+- user edits or rewrites the output
+- human takeover after agent response
+- reopen rate after apparent resolution
+- abandonment after response
+- time to accept or act on output
+
+Feedback handling principles:
+- weight explicit feedback more than implicit heuristics
+- never treat a single signal as ground truth in isolation
+- normalize by workflow type because expectations differ
+- use negative feedback to prioritize new goldens, investigations, and regression tests
+- use positive feedback to identify efficient best-known trajectories worth preserving
+
 ## 6) Golden Test Set Strategy
 
 External benchmarks are useful, but production quality will come from internal goldens.
@@ -276,6 +310,7 @@ Each example should support:
 - forbidden actions
 - latency and cost budgets
 - evaluation rubric
+- expected user-visible success criteria
 
 ## 7) External Benchmarks We Should Respect But Not Overfit To
 
@@ -333,6 +368,9 @@ Benchmark overfitting, weak holdouts, and simulator artifacts can distort result
 4. Production traces should become evaluation assets.
 The best goldens come from real failures and high-value user journeys.
 
+Feedback implication:
+- negative user feedback should be promotable directly into investigations and candidate regression goldens
+
 5. Repeatability matters.
 Agents are stochastic systems; one successful run is not enough.
 
@@ -345,6 +383,11 @@ ClawTrace should ship an `Agent Eval` layer that is trace-native and state-aware
 Ship:
 - run scorecards on outcome, trajectory, efficiency, and safety basics
 - golden dataset builder from traces
+- feedback capture v0:
+  - thumbs up / thumbs down
+  - user-confirmed resolution
+  - human takeover
+  - retry / reopen heuristics
 - simple trajectory evaluators:
   - required tool checks
   - forbidden tool checks
@@ -381,6 +424,7 @@ LangSmith in particular shows that trajectory evaluation is already real.
 ClawTrace should go one step further:
 - score real agent runs, not just offline experiments
 - combine outcome and process
+- use real user feedback as a labeling signal, not just model-judge output
 - treat cost and safety as co-equal axes
 - connect eval regressions to state drift and incidents
 - turn production failures into the next golden dataset
