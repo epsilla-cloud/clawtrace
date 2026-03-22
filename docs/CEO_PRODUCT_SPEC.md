@@ -57,6 +57,9 @@ ClawTrace should fit into existing telemetry, data, and incident ecosystems inst
 11. State is part of runtime
 In agent systems, `AGENTS.md`, `SOUL.md`, memory, config, skills, and plugin versions are part of production state. Observability must capture them as first-class runtime inputs.
 
+12. Evaluation must score process, not just outcome
+An agent can produce the right answer through the wrong trajectory. Observability should evaluate utility, trajectory quality, efficiency, safety, robustness, and state integrity together.
+
 ## 3) ICP and Market Entry
 
 ## Primary ICP (first 12 months)
@@ -157,11 +160,15 @@ Must-have capabilities:
 8. Time machine is a core debugging primitive
 - OpenClaw already has partial versioning primitives across git-backed workspaces, versioned skills, pinned plugins, hooks, and backups, but not a unified run-correlated state history. ClawTrace should close that gap with a first-class state timeline and diff workflow.
 
+9. Agent evaluation should be run-native
+- Existing platforms like Langfuse and LangSmith validate the importance of datasets, experiments, live evaluators, and even trajectory evaluations. ClawTrace should extend this into run-native scorecards tied directly to traces, state changes, and incidents.
+
 ## V1 Surfaces
 
 - Chat Console (primary): conversational analysis, dashboard creation, and alert authoring
 - Agent Health: synthesized status per agent, tool, prompt, and deployment
 - Investigation Workspace: saved chat, charts, notes, queries, and cited traces
+- Eval Studio: golden datasets, trajectory evaluators, scorecards, and experiment comparisons
 - State Time Machine: state timeline, run-to-run diffs, and last-known-good comparison
 - Run Explorer: searchable list of executions
 - Sessions View: session/thread rollups with user-facing cost and outcome metrics
@@ -229,6 +236,7 @@ Growth loops
 - Saved investigations and scheduled insight digests pull in new teammates and buyers who are not active dashboard users.
 - Suggested eval datasets created from failures improve stickiness.
 - Production traces promoted into datasets and scorecards create a workflow moat beyond pure debugging.
+- Trace-native eval scorecards create an upgrade path from observability to continuous improvement, increasing retention and expansion.
 - Public integrations (OpenTelemetry, Langfuse export, SIEM hooks) reduce churn risk.
 
 ## 5.4 Enterprise Penetration Strategy
@@ -403,6 +411,10 @@ Core dimensions:
 
 Cross-signal entities:
 - agent health object
+- eval scorecard
+- golden dataset
+- evaluator
+- experiment
 - saved view / dashboard panel
 - alert rule
 - incident
@@ -434,7 +446,43 @@ Model-assisted diagnosis (V1.5):
 - suggested remediation templates
 - blast radius estimate (who else is affected)
 
-## 6.5 Scalability Plan
+## 6.5 Agent Evaluation Architecture
+
+Evaluation layers:
+- outcome evaluation
+- trajectory evaluation
+- efficiency evaluation
+- safety and policy evaluation
+- robustness evaluation
+- state-aware regression evaluation
+
+Evaluation methods:
+- executable oracles and end-state checks
+- reference-answer comparison
+- reference trajectory matching
+- rule-based invariants
+- LLM-as-judge
+- repeated-trial evaluation (`pass@k`)
+- multi-turn simulation
+- fault injection and replay
+- multi-dimensional gating to distinguish nominal completion from policy-compliant completion
+
+Golden dataset strategy:
+- happy-path goldens
+- edge-case goldens
+- safety and refusal goldens
+- regression goldens from real incidents
+- state-change goldens for prompt/config/memory/plugin changes
+
+Every high-value workflow should eventually have:
+- a versioned golden dataset
+- a run scorecard template
+- budget thresholds
+- required/forbidden tool constraints
+- a last-known-good baseline
+- a gated success definition that can identify corrupt successes
+
+## 6.6 Scalability Plan
 
 Data growth assumptions:
 - 10M+ spans/day by end of year 1 in cloud
@@ -450,7 +498,7 @@ Graph query performance:
 - Keep hot working sets cached in PuppyGraph and API layer
 - Precompute high-value neighborhood indexes for top incident workflows
 
-## 6.6 Cost Model
+## 6.7 Cost Model
 
 Design choices to reduce cost:
 - Open object storage + Iceberg instead of proprietary lock-in stores
@@ -461,7 +509,7 @@ Design choices to reduce cost:
 Unit economics target:
 - Gross margin >75% in cloud at scale
 
-## 6.7 Security and Governance
+## 6.8 Security and Governance
 
 - Workspace and tenant isolation throughout pipeline
 - Encryption at rest and in transit
@@ -469,18 +517,19 @@ Unit economics target:
 - PII detection + redaction pipeline before long-term storage
 - Immutable audit logs for investigation and compliance
 
-## 6.8 Build vs Buy Decisions
+## 6.9 Build vs Buy Decisions
 
 Build:
 - Agent-native schema, detectors, run-diff intelligence, eval integration
 - Conversational query planner, chart compiler, and alert-policy generator
+- trajectory evaluators, run scorecards, and state-aware regression analysis
 
 Leverage open ecosystem:
 - OpenTelemetry for interoperability
 - Iceberg ecosystem for table/storage portability
 - PuppyGraph for graph query execution on lakehouse data
 
-## 6.9 Chat-First Technical Architecture
+## 6.10 Chat-First Technical Architecture
 
 End-to-end flow:
 1. User intent
@@ -529,7 +578,7 @@ Safety and trust guardrails:
 - PII-aware redaction in chat responses and chart annotations.
 - Deterministic fallback mode: if ambiguity is high, return top interpretations and ask for one-click confirmation.
 
-## 6.10 State Time Machine Architecture
+## 6.11 State Time Machine Architecture
 
 Goals:
 - capture the effective control-plane state for every run
@@ -574,6 +623,7 @@ Restore strategy:
 - Chat-first console v0 (trace Q&A, generated charts, "save dashboard", "create alert")
 - Investigation workspace v0 (save/share chat + charts + notes + cited traces)
 - Agent Health page v0
+- Agent Eval v0 (run scorecards + golden dataset builder)
 - State Time Machine v0 (state vector capture + run-to-run diff)
 - Run explorer + trace view + cost/latency baseline
 - Sessions/threads rollups + unit economics baseline
@@ -581,6 +631,7 @@ Restore strategy:
 - Structural trace query templates + saved views
 - JSONL + Iceberg sink, basic PuppyGraph mapping
 - Top 5 detectors
+- baseline trajectory evaluators and budget evaluators
 - Alert policy engine v0 with Slack/Webhook notifications
 - Explainability panel showing query plan + cited spans per answer
 
@@ -589,6 +640,7 @@ Exit criteria:
 - MTTR reduced >=40% on target workflows
 - >=50% of incident investigations started from chat
 - >=70% of incidents show a correlated state diff when state changed recently
+- every design partner has at least one golden dataset for a core workflow
 - >=60% of incidents end with a saved investigation, dashboard, or alert artifact
 - Median time from question -> first chart <=30 seconds
 - Alert false-positive rate <=15% for v0 detector-backed alerts
@@ -596,6 +648,8 @@ Exit criteria:
 ## Phase 1 (6-16 weeks): Team product
 - Incident view with root-cause hypotheses
 - Bad-vs-good run diff
+- reference trajectory matching and compare mode
+- multi-turn simulation and repeated-trial evals
 - State timeline explorer + last-known-good compare
 - Scheduled insights reports and failure clustering
 - Production-to-eval dataset builder
@@ -636,10 +690,11 @@ Mitigation: open-data architecture + best-in-class diagnosis loops + community d
 1. Publish canonical event schema v0.1
 2. Define entity model for `Agent Health`, sessions/threads, deployments, prompts, evals, and incidents
 3. Define state snapshot schema for config, workspace files, memory, skills, plugins, and tool policy
-4. Define conversational intent schema + plan-card contract and structural trace query IR
-5. Build chat-first MVP for 3 "golden" incident workflows end-to-end
-6. Implement investigation workspace, state diff view, prebuilt dashboards, and alert compiler with preview/confirm UX
-7. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
+4. Define eval scorecard schema and golden dataset format for agent runs
+5. Define conversational intent schema + plan-card contract and structural trace query IR
+6. Build chat-first MVP for 3 "golden" incident workflows end-to-end
+7. Implement investigation workspace, state diff view, eval scorecards, prebuilt dashboards, and alert compiler with preview/confirm UX
+8. Harden OpenClaw plugin install/docs and launch design partner program (10 teams)
 
 ## 10) Definition of Success (12 Months)
 
@@ -647,5 +702,6 @@ ClawTrace is considered successful if:
 - It is the default observability plugin recommended in OpenClaw community channels.
 - Teams can diagnose most incidents in one workflow without raw log spelunking.
 - Most incidents produce a reusable artifact such as an investigation, dashboard, alert, or regression dataset.
+- Teams use ClawTrace to turn production traces into golden datasets and to score both outcomes and trajectories of core agent workflows.
 - Enterprise customers adopt it as a policy/governance layer for agent reliability.
 - The architecture remains open, portable, and economically scalable.
