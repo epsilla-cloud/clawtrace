@@ -1,13 +1,19 @@
 .shellWrap {
   min-height: 100vh;
-  padding: 36px 18px 72px;
+  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
   background: var(--ct-page-bg);
   color: var(--ct-text);
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+  overflow: hidden;
 }
 
 .header {
-  max-width: 1440px;
-  margin: 0 auto 18px;
+  margin: 0;
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
 }
 
 .kicker {
@@ -46,12 +52,11 @@
 }
 
 .shell {
-  max-width: 1440px;
-  margin: 0 auto;
-  min-height: var(--ct-shell-min-height);
-  border-radius: var(--ct-shell-radius);
-  border: 1px solid color-mix(in srgb, var(--ct-border) 70%, white);
-  box-shadow: var(--ct-shadow-shell);
+  min-height: 0;
+  height: 100%;
+  border-radius: 0;
+  border: 0;
+  box-shadow: none;
   background: color-mix(in srgb, var(--ct-panel-bg) 90%, var(--ct-panel-subtle));
   display: grid;
   grid-template-columns: 56px var(--ct-shell-portfolio-width) minmax(540px, 1fr) var(--ct-shell-drawer-width);
@@ -429,10 +434,11 @@
 }
 
 .onboarding {
-  margin: 18px auto 0;
-  max-width: 1440px;
+  margin: 0;
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 12px;
+  border-left: 0;
+  border-right: 0;
+  border-radius: 0;
   background: #fff;
   padding: 12px;
 }
@@ -519,10 +525,11 @@
 
   .drawer {
     position: fixed;
-    top: 36px;
-    right: 18px;
-    width: min(420px, calc(100vw - 36px));
-    height: calc(100vh - 72px);
+    top: 12px;
+    right: 12px;
+    width: min(420px, calc(100vw - 24px));
+    height: calc(100vh - 24px);
+    height: calc(100dvh - 24px);
     border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
     border-radius: 12px;
     box-shadow: var(--ct-shadow-shell);
@@ -531,10 +538,6 @@
 }
 
 @media (max-width: 760px) {
-  .shellWrap {
-    padding: 14px;
-  }
-
   .shell {
     grid-template-columns: 1fr;
     min-height: auto;
