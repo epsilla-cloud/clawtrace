@@ -17,6 +17,11 @@ It answers four things:
 
 This is the implementation companion to `DESIGN.md`.
 
+## Exact Implementation Artifacts
+Use these files directly during implementation:
+- `docs/design-specs/clawtrace.tokens.css`
+- `docs/design-specs/clawtrace.interfaces.ts`
+
 ## Scope
 In scope:
 - token definitions and aliases
@@ -232,6 +237,9 @@ These are the new ClawTrace additions.
   --ct-evidence-callout-border: color-mix(in srgb, var(--ct-accent-text) 20%, white);
 }
 ```
+
+This same block is also exported as a copy-paste file:
+- `docs/design-specs/clawtrace.tokens.css`
 
 ## Component Spec
 ### Reuse directly
@@ -564,6 +572,9 @@ interface WorkflowCockpitModel {
 ```
 
 The real engineering schema can be richer, but the UI should not need much more than this to begin building the first vertical slice.
+
+A full prop/interface contract for all planned ClawTrace components is available at:
+- `docs/design-specs/clawtrace.interfaces.ts`
 
 ## Build Order
 ### Step 1: shell and token scaffolding

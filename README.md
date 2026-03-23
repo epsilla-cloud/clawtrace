@@ -3,6 +3,8 @@
 Product planning and strategy spec:
 - [Design System](DESIGN.md)
 - [ClawTrace Atelier Component Spec](docs/design-specs/CLAWTRACE_ATELIER_COMPONENT_SPEC.md)
+- [ClawTrace Token Block](docs/design-specs/clawtrace.tokens.css)
+- [ClawTrace React Interfaces](docs/design-specs/clawtrace.interfaces.ts)
 - [CEO Product Spec](docs/CEO_PRODUCT_SPEC.md)
 - [Observability Market Research](docs/OBSERVABILITY_MARKET_RESEARCH.md)
 - [OpenClaw State Versioning Research](docs/OPENCLAW_STATE_VERSIONING_RESEARCH.md)
