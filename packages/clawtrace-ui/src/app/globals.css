@@ -1,0 +1,47 @@
+@import '../lib/clawtrace.tokens.css';
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: 'Inter', 'SF Pro Text', 'Segoe UI', sans-serif;
+}
+
+body {
+  background: linear-gradient(180deg, #eef1f6 0%, #e8ebf1 100%);
+  color: #0f172a;
+}
+
+.operator {
+  --page-bg: linear-gradient(150deg, #ffffff 0%, #f4f7ff 100%);
+  --panel-bg: #ffffff;
+  --panel-subtle: #f4f7fb;
+  --panel-sidebar: #f0f4fb;
+  --border: #cbd5e1;
+  --text: #111827;
+  --muted: #58657e;
+  --primary: #305ee9;
+  --primary-strong: #1f43b7;
+  --accent: #e8eeff;
+  --accent-text: #1c3d8a;
+  --soft: #f1f5f9;
+  --soft-text: #334155;
+  --agent: #e9f0ff;
+  --agent-text: #1e3a8a;
+  --customer: #f8fafc;
+  --internal: #fff5de;
+  --internal-text: #965100;
+  --event: #e9faee;
+  --event-text: #166534;
+  --warn: #b54708;
+  --focus: rgba(48, 94, 233, 0.2);
+}

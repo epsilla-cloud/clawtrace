@@ -1,0 +1,120 @@
+/*
+  ClawTrace token layer for AgentStudio Atelier Operator.
+  Apply this class at app-root level: <div className="operator clawtrace">...</div>
+*/
+
+.clawtrace {
+  /* Base aliases from Atelier Operator */
+  --ct-page-bg: var(--page-bg);
+  --ct-panel-bg: var(--panel-bg);
+  --ct-panel-subtle: var(--panel-subtle);
+  --ct-panel-sidebar: var(--panel-sidebar);
+  --ct-border: var(--border);
+  --ct-text: var(--text);
+  --ct-muted: var(--muted);
+  --ct-primary: var(--primary);
+  --ct-primary-strong: var(--primary-strong);
+  --ct-accent: var(--accent);
+  --ct-accent-text: var(--accent-text);
+  --ct-soft: var(--soft);
+  --ct-soft-text: var(--soft-text);
+  --ct-focus: var(--focus);
+
+  /* Layout */
+  --ct-shell-rail-width: 56px;
+  --ct-shell-rail-width-expanded: 170px;
+  --ct-shell-portfolio-width: 336px;
+  --ct-shell-drawer-width: 384px;
+  --ct-shell-min-height: 760px;
+  --ct-shell-radius: 16px;
+  --ct-panel-radius: 12px;
+  --ct-control-radius: 10px;
+  --ct-pill-radius: 999px;
+  --ct-control-height: 34px;
+  --ct-tab-height: 28px;
+
+  /* Spacing */
+  --ct-page-padding-x: 18px;
+  --ct-page-padding-top: 36px;
+  --ct-page-padding-bottom: 72px;
+  --ct-gap-1: 4px;
+  --ct-gap-2: 8px;
+  --ct-gap-3: 12px;
+  --ct-gap-4: 16px;
+  --ct-gap-5: 20px;
+  --ct-gap-6: 24px;
+
+  /* Typography */
+  --ct-font-heading: var(--font-heading, 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif);
+  --ct-font-body: var(--font-body, 'Inter', 'SF Pro Text', 'Segoe UI', sans-serif);
+  --ct-text-display: clamp(30px, 4vw, 54px);
+  --ct-text-section-title: 22px;
+  --ct-text-panel-title: 18px;
+  --ct-text-body: 14px;
+  --ct-text-body-sm: 13px;
+  --ct-text-meta: 11px;
+  --ct-text-micro: 10px;
+
+  /* Depth */
+  --ct-shadow-shell: inset 0 1px 0 rgba(255, 255, 255, 0.72), 0 18px 34px -30px rgba(15, 23, 42, 0.42);
+  --ct-shadow-selected: 0 6px 12px -10px color-mix(in srgb, var(--ct-primary) 42%, transparent);
+  --ct-shadow-card: 0 8px 20px -18px rgba(16, 24, 40, 0.35);
+  --ct-shadow-inline: 0 1px 2px rgba(16, 24, 40, 0.1);
+
+  /* Motion */
+  --ct-duration-fast: 140ms;
+  --ct-duration-medium: 180ms;
+  --ct-duration-slow: 240ms;
+  --ct-ease-standard: ease;
+  --ct-ease-emphasis: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* Trust state semantics */
+  --ct-trust-healthy-bg: var(--event);
+  --ct-trust-healthy-text: var(--event-text);
+  --ct-trust-healthy-border: color-mix(in srgb, var(--event-text) 22%, white);
+
+  --ct-trust-at-risk-bg: #fff4e5;
+  --ct-trust-at-risk-text: #9a4a00;
+  --ct-trust-at-risk-border: #f2c784;
+
+  --ct-trust-drifting-bg: #eef3ff;
+  --ct-trust-drifting-text: var(--primary-strong);
+  --ct-trust-drifting-border: #bfd0ff;
+
+  --ct-trust-blocked-bg: #fff1f3;
+  --ct-trust-blocked-text: #b42318;
+  --ct-trust-blocked-border: #f3b7c0;
+
+  --ct-trust-awaiting-bg: #fff8e8;
+  --ct-trust-awaiting-text: #8a5600;
+  --ct-trust-awaiting-border: #ead08f;
+
+  --ct-trust-partial-bg: #fff7ed;
+  --ct-trust-partial-text: #9a4a00;
+  --ct-trust-partial-border: #f0c48f;
+
+  --ct-trust-control-plane-bg: #f5f7fa;
+  --ct-trust-control-plane-text: #344054;
+  --ct-trust-control-plane-border: #d0d5dd;
+
+  /* Verification semantics */
+  --ct-verify-success-bg: var(--event);
+  --ct-verify-success-text: var(--event-text);
+  --ct-verify-fail-bg: #fff1f3;
+  --ct-verify-fail-text: #b42318;
+  --ct-verify-unknown-bg: #f5f7fa;
+  --ct-verify-unknown-text: #475467;
+
+  /* Decision semantics */
+  --ct-decision-allow-bg: #e9faee;
+  --ct-decision-allow-text: #166534;
+  --ct-decision-defer-bg: #fff8e8;
+  --ct-decision-defer-text: #8a5600;
+  --ct-decision-block-bg: #fff1f3;
+  --ct-decision-block-text: #b42318;
+
+  /* Evidence callouts */
+  --ct-evidence-callout-bg: color-mix(in srgb, var(--ct-accent) 72%, white);
+  --ct-evidence-callout-text: var(--ct-accent-text);
+  --ct-evidence-callout-border: color-mix(in srgb, var(--ct-accent-text) 20%, white);
+}
