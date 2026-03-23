@@ -121,6 +121,34 @@ ClawTrace becomes the workflow reliability control plane for AI agents: before a
   - preflight settings
   - initial trust state
 
+## Design Review Addendum
+
+### Design system
+- ClawTrace now has a repo-level design source of truth in `DESIGN.md`.
+- The product inherits the AgentStudio `Atelier Operator` shell and interaction language as its base.
+- ClawTrace extends that base with workflow-reliability-specific components rather than creating a separate visual family.
+
+### Shell and hierarchy
+- The product uses a workspace shell, not a single isolated page.
+- The workspace monitors multiple discovered workflows, but only one selected workflow expands into the deep cockpit at a time.
+- The selected workflow cockpit is the visual center of gravity.
+- A collapsible right-side investigation drawer keeps the product agentic without making chat the home screen.
+
+### Onboarding and journey
+- The first-run chat is a guided systems audit, not a generic setup assistant.
+- Connection warm-up, workflow discovery, and reliability-map generation happen inside onboarding chat.
+- Daily use is calm by default and escalates only when the selected workflow needs attention.
+
+### Visual direction
+- The target aesthetic is an editorial operations room built on top of `Atelier Operator`.
+- The UI should privilege evidence, reading order, and next-action clarity over dashboard-card density.
+- Uncertainty states should be rendered as calm operational status with explicit `known`, `unknown`, and `next action` framing.
+
+### Responsive behavior
+- Mobile is triage-first.
+- Portfolio, selected workflow summary, and primary next action come first on small screens.
+- Deep run story, evidence, memo, and investigation chat become drill-down views rather than stacked desktop columns.
+
 ## ASCII Diagrams
 
 ### System architecture
