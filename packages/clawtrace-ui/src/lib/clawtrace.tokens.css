@@ -77,9 +77,9 @@
   --ct-trust-at-risk-text: #9a4a00;
   --ct-trust-at-risk-border: #f2c784;
 
-  --ct-trust-drifting-bg: #eef3ff;
-  --ct-trust-drifting-text: var(--primary-strong);
-  --ct-trust-drifting-border: #bfd0ff;
+  --ct-trust-drifting-bg: color-mix(in srgb, var(--ct-accent) 68%, white);
+  --ct-trust-drifting-text: var(--ct-accent-text);
+  --ct-trust-drifting-border: color-mix(in srgb, var(--ct-accent-text) 18%, white);
 
   --ct-trust-blocked-bg: #fff1f3;
   --ct-trust-blocked-text: #b42318;
@@ -93,17 +93,17 @@
   --ct-trust-partial-text: #9a4a00;
   --ct-trust-partial-border: #f0c48f;
 
-  --ct-trust-control-plane-bg: #f5f7fa;
-  --ct-trust-control-plane-text: #344054;
-  --ct-trust-control-plane-border: #d0d5dd;
+  --ct-trust-control-plane-bg: color-mix(in srgb, var(--ct-panel-subtle) 78%, white);
+  --ct-trust-control-plane-text: color-mix(in srgb, var(--ct-soft-text) 88%, black);
+  --ct-trust-control-plane-border: color-mix(in srgb, var(--ct-border) 82%, white);
 
   /* Verification semantics */
   --ct-verify-success-bg: var(--event);
   --ct-verify-success-text: var(--event-text);
   --ct-verify-fail-bg: #fff1f3;
   --ct-verify-fail-text: #b42318;
-  --ct-verify-unknown-bg: #f5f7fa;
-  --ct-verify-unknown-text: #475467;
+  --ct-verify-unknown-bg: color-mix(in srgb, var(--ct-panel-subtle) 78%, white);
+  --ct-verify-unknown-text: color-mix(in srgb, var(--ct-soft-text) 90%, black);
 
   /* Decision semantics */
   --ct-decision-allow-bg: #e9faee;
