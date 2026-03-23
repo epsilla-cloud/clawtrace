@@ -363,6 +363,10 @@ Avoid:
 - alarm-heavy SOC presentation for every uncertain state
 - direct desktop-to-mobile stacking as the primary responsive strategy
 
+## Implementation Companion
+- Detailed build-ready token and component guidance now lives in `docs/design-specs/CLAWTRACE_ATELIER_COMPONENT_SPEC.md`.
+- Use `DESIGN.md` for the product-level design thesis and this companion spec for implementation-level UI contracts.
+
 ## Implementation Guidance
 When ClawTrace is implemented in this repo or moved back into AgentStudio later:
 - preserve Atelier Operator shell compatibility first
