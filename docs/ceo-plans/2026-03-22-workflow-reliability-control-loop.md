@@ -230,7 +230,7 @@ partial verification -> PARTIALLY_VERIFIED + verifier breakdown
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 1 | CLEAR | 7 proposals, 6 accepted, 1 deferred |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | NOT RUN | - |
 | Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 16 issues, 0 critical gaps |
-| Design Review | `/plan-design-review` | UI/UX gaps | 0 | NOT RUN | - |
+| Design Review | `/plan-design-review` | UI/UX gaps | 1 | CLEAR | score: 5/10 -> 9/10, 10 decisions |
 
 - **UNRESOLVED:** 0
-- **VERDICT:** CEO + ENG CLEARED — ready to implement the one-workflow vertical slice. Design review is still recommended before UI implementation expands.
+- **VERDICT:** CEO + ENG + DESIGN CLEARED — ready to implement the one-workflow vertical slice.
