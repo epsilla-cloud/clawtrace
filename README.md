@@ -5,3 +5,4 @@ Product planning and strategy spec:
 - [Observability Market Research](docs/OBSERVABILITY_MARKET_RESEARCH.md)
 - [OpenClaw State Versioning Research](docs/OPENCLAW_STATE_VERSIONING_RESEARCH.md)
 - [Agent Evaluation Strategy](docs/AGENT_EVALUATION_STRATEGY.md)
+- [Workflow Reliability Wedge Design](docs/WORKFLOW_RELIABILITY_WEDGE_DESIGN.md)

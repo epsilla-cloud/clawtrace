@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClawTrace Wedge Sketch</title>
+  <style>
+    :root {
+      --bg: #f4f4f1;
+      --paper: #fbfbf8;
+      --line: #2b2b2b;
+      --soft: #b8b8b3;
+      --text: #111111;
+      --muted: #5a5a56;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: repeating-linear-gradient(
+        -8deg,
+        var(--bg),
+        var(--bg) 18px,
+        #efefe9 18px,
+        #efefe9 36px
+      );
+      color: var(--text);
+    }
+    .frame {
+      max-width: 1380px;
+      margin: 24px auto;
+      background: var(--paper);
+      border: 2px solid var(--line);
+      box-shadow: 8px 8px 0 #d2d2cc;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 20px;
+      border-bottom: 2px solid var(--line);
+    }
+    .brand { font-weight: 700; letter-spacing: 0.04em; }
+    .tag { border: 2px solid var(--line); padding: 6px 10px; font-size: 12px; }
+    .hero {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 16px;
+      padding: 18px 20px 8px;
+      border-bottom: 2px dashed var(--soft);
+    }
+    .headline {
+      border: 2px solid var(--line);
+      padding: 18px;
+      background: #fff;
+      min-height: 150px;
+    }
+    .headline h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      line-height: 1.05;
+      letter-spacing: -0.03em;
+    }
+    .headline p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .scorecard {
+      border: 2px solid var(--line);
+      padding: 14px;
+      background: #fff;
+      display: grid;
+      gap: 10px;
+    }
+    .score-row {
+      display: grid;
+      grid-template-columns: 110px 1fr 56px;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+    }
+    .bar {
+      height: 12px;
+      border: 1px solid var(--line);
+      background: linear-gradient(90deg, #232323 0 var(--w), #f2f2ef var(--w) 100%);
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 280px 1fr 360px;
+      gap: 14px;
+      padding: 18px 20px 20px;
+    }
+    .panel {
+      border: 2px solid var(--line);
+      background: #fff;
+      min-height: 460px;
+      display: flex;
+      flex-direction: column;
+    }
+    .panel h2 {
+      margin: 0;
+      padding: 12px 14px;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      border-bottom: 2px solid var(--line);
+      background: #f8f8f4;
+    }
+    .panel-body { padding: 14px; display: grid; gap: 12px; }
+    .workflow-item, .note, .callout, .mini-card {
+      border: 1.5px solid var(--line);
+      padding: 10px;
+    }
+    .workflow-item.active { background: #efefea; }
+    .pill {
+      display: inline-block;
+      border: 1.5px solid var(--line);
+      padding: 4px 6px;
+      margin-right: 6px;
+      font-size: 11px;
+    }
+    .step {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+    .dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 999px;
+      border: 2px solid var(--line);
+      margin-top: 2px;
+      background: #fff;
+    }
+    .dot.fail { background: #1b1b1b; }
+    .step strong { display: block; margin-bottom: 3px; }
+    .scribble {
+      border-top: 2px dashed var(--soft);
+      padding-top: 10px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .big-note {
+      border: 2px dashed var(--line);
+      padding: 12px;
+      background: #fcfcf8;
+      font-size: 14px;
+      line-height: 1.45;
+    }
+    @media (max-width: 980px) {
+      .hero, .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Rough grayscale sketch: intentionally low-fidelity so we discuss structure, not polish. -->
+  <div class="frame">
+    <div class="topbar">
+      <div class="brand">CLAWTRACE / WORKFLOW RELIABILITY DEBUGGER</div>
+      <div class="tag">one flaky workflow, one clear answer</div>
+    </div>
+
+    <section class="hero">
+      <div class="headline">
+        <h1>Today's SEO pipeline failed at 7:18 AM.<br>ClawTrace says the break came from the cover image step after a prompt+memory drift.</h1>
+        <p>
+          This sketch is built around the first paid wedge: not "all agent observability," but
+          "tell me why my daily workflow failed, what changed, and what to do before tomorrow."
+        </p>
+      </div>
+      <div class="scorecard">
+        <div class="score-row"><span>Utility</span><div class="bar" style="--w:42%"></div><strong>42</strong></div>
+        <div class="score-row"><span>Trajectory</span><div class="bar" style="--w:36%"></div><strong>36</strong></div>
+        <div class="score-row"><span>Efficiency</span><div class="bar" style="--w:51%"></div><strong>51</strong></div>
+        <div class="score-row"><span>Safety</span><div class="bar" style="--w:88%"></div><strong>88</strong></div>
+        <div class="score-row"><span>State Diff</span><div class="bar" style="--w:73%"></div><strong>73</strong></div>
+        <div class="big-note">
+          <strong>Suggested next action:</strong> revert image prompt to yesterday's version, then rerun only the failed step instead of the full workflow.
+        </div>
+      </div>
+    </section>
+
+    <section class="grid">
+      <div class="panel">
+        <h2>Workflow Queue</h2>
+        <div class="panel-body">
+          <div class="workflow-item active">
+            <strong>SEO Daily Publish</strong><br>
+            <span class="pill">daily</span>
+            <span class="pill">revenue-adjacent</span>
+            <span class="pill">failed today</span>
+            <div class="scribble">Owner: CEO / Goal: publish content without morning babysitting</div>
+          </div>
+          <div class="workflow-item">
+            <strong>News Pull + Synthesis</strong><br>
+            <span class="pill">healthy</span>
+            <div class="scribble">No action needed</div>
+          </div>
+          <div class="workflow-item">
+            <strong>Deploy to Vercel</strong><br>
+            <span class="pill">blocked downstream</span>
+            <div class="scribble">Waiting on image step</div>
+          </div>
+          <div class="note">
+            <strong>What changed since yesterday</strong><br>
+            - image prompt hash changed<br>
+            - memory summary updated at 6:58 AM<br>
+            - model unchanged<br>
+            - tool retry count doubled
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Run Story</h2>
+        <div class="panel-body">
+          <div class="step">
+            <div class="dot"></div>
+            <div><strong>1. Pull news</strong>Completed in 14s. No anomaly.</div>
+          </div>
+          <div class="step">
+            <div class="dot"></div>
+            <div><strong>2. Synthesize article</strong>Completed, but article tone drifted from yesterday.</div>
+          </div>
+          <div class="step">
+            <div class="dot fail"></div>
+            <div><strong>3. Generate cover image</strong>Tool called 4 times. Prompt asked for unsupported style token. Agent retried with same bad argument.</div>
+          </div>
+          <div class="step">
+            <div class="dot"></div>
+            <div><strong>4. SEO optimization skill</strong>Skipped because cover image step never resolved.</div>
+          </div>
+          <div class="step">
+            <div class="dot"></div>
+            <div><strong>5. Commit + push + deploy</strong>Blocked by failed upstream step.</div>
+          </div>
+          <div class="callout">
+            <strong>Why ClawTrace thinks this failed</strong><br>
+            The failure is not "the model is dumb." The failure is a repeated bad tool argument after a state change. The agent never changed strategy.
+          </div>
+          <div class="scribble">
+            This middle panel is the product heart: not raw logs, but a story a busy operator can understand in 20 seconds.
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>Fix + Guardrail</h2>
+        <div class="panel-body">
+          <div class="mini-card">
+            <strong>Fix now</strong><br>
+            Revert prompt `img_cover_v17` -> `img_cover_v16` and rerun step 3 only.
+          </div>
+          <div class="mini-card">
+            <strong>Save guardrail</strong><br>
+            Alert when cover image retries > 2 or when prompt hash changes before the 7 AM run.
+          </div>
+          <div class="mini-card">
+            <strong>Promote to regression</strong><br>
+            Turn this failure into a golden test so tomorrow's run cannot repeat the same argument pattern.
+          </div>
+          <div class="mini-card">
+            <strong>Ask in chat</strong><br>
+            "Show me all runs this week where a state change caused tool retries to spike."
+          </div>
+          <div class="scribble">
+            Right rail is intentionally action-heavy. The wedge is operational control, not passive analytics.
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</body>
+</html>
