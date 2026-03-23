@@ -48,8 +48,8 @@
   --ct-font-heading: var(--font-heading, 'Inter', 'SF Pro Display', 'Segoe UI', sans-serif);
   --ct-font-body: var(--font-body, 'Inter', 'SF Pro Text', 'Segoe UI', sans-serif);
   --ct-text-display: clamp(30px, 4vw, 54px);
-  --ct-text-section-title: 22px;
-  --ct-text-panel-title: 18px;
+  --ct-text-section-title: 19px;
+  --ct-text-panel-title: 17px;
   --ct-text-body: 14px;
   --ct-text-body-sm: 13px;
   --ct-text-meta: 11px;
