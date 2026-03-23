@@ -6,6 +6,7 @@ Repo: epsilla-enterprise/clawtrace
 Status: APPROVED
 Mode: Startup
 Imported from /office-hours approved draft on 2026-03-22
+Examples in this doc use anonymized placeholders such as `Acme` to keep the open-source repo free of partner PII.
 
 ## Problem Statement
 OpenClaw is being used for real company workflows, but its behavior feels like a black box in two different ways.
@@ -25,7 +26,7 @@ The internal example is a daily SEO publishing workflow that generates a cover i
   - Thread 1 surfaced runtime-debugging pain and messy workarounds: gateway logs, Claude Code / Cursor / Warp / Grok as a second debugging agent, custom scripts, backups, plugins, and proxies.
   - Thread 2 surfaced control-plane drift pain: contradictory instructions across `AGENTS.md` and `MEMORY.md`, important rules left only in chat and lost after compaction, repetitive manual routines that should have been automated, and ad hoc audits to realign the agent.
 - The second thread matters because it shows the problem is not just "why did this run fail?" It is also "why has my agent gotten weird over time?"
-- What is still missing: evidence that an external user will pay or pilot immediately. Tomorrow's conversation with Liam is important because it upgrades a plausible customer into a real one or disproves the wedge.
+- What is still missing: evidence that an external user will pay or pilot immediately. Tomorrow's design-partner conversation with Acme is important because it upgrades a plausible customer into a real one or disproves the wedge.
 
 ## Status Quo
 Today the workaround is duct tape:
@@ -47,8 +48,8 @@ Primary target user:
 - founder/operators and small technical teams running one revenue-adjacent OpenClaw workflow they still have to babysit
 
 Specific external lookalike named in the session:
-- Liam Lian, CEO of VeloDB
-- current goal: grow VeloDB revenue in the US
+- Acme CEO (anonymized design-partner placeholder)
+- current goal: grow Acme revenue in the US
 - current behavior: pushing sales toward conferences and in-person customer contact; actively moving workflow automation from n8n toward OpenClaw after seeing internal usage examples
 
 Narrowest wedge:
@@ -59,7 +60,7 @@ Narrowest wedge:
 
 Important truth:
 - the exact first paid use case is not yet validated
-- the Liam interview tomorrow should determine which workflow he would trust first, what failure hurts most, whether drift is a top pain for him, and what output would be worth paying for immediately
+- the Acme design-partner interview tomorrow should determine which workflow they would trust first, what failure hurts most, whether drift is a top pain for them, and what output would be worth paying for immediately
 
 ## Constraints
 - Pre-product: no external users yet
@@ -146,10 +147,10 @@ Wireframe note:
 - screenshot render was attempted during office-hours but blocked by a stuck browse daemon, so the visual concept is captured in HTML rather than PNG for now
 
 ## Open Questions
-- What exact workflow would Liam hand to this product first?
-- What failure pattern is painful enough for him to pay or pilot quickly?
+- What exact workflow would the Acme design partner hand to this product first?
+- What failure pattern is painful enough for the design partner to pay or pilot quickly?
 - Is the first external buyer more likely a founder/operator or a technical AI platform owner?
-- Does Liam care more about failed-run explanation or longer-term drift audit?
+- Does the Acme design partner care more about failed-run explanation or longer-term drift audit?
 - Which output matters most in v1: run story, state diff, contradiction detection, fix recommendation, or alerting?
 - How much "trainer" behavior belongs in v1 versus a later expansion?
 - What is the right pricing anchor: workflow, seat, traced run, or saved operator time?
@@ -164,7 +165,7 @@ Wireframe note:
 - Get at least one external design partner to say some version of: "If you can reliably do this for my workflow, I would pilot or pay."
 
 ## Dependencies
-- Interview Liam tomorrow and capture concrete workflow, failure, drift symptoms, and buying trigger details.
+- Interview the Acme design partner tomorrow and capture concrete workflow, failure, drift symptoms, and buying trigger details.
 - Conduct additional founder/operator interviews in the OpenClaw community.
 - Access to failed run histories and state-change context from real OpenClaw workflows.
 - Initial OpenClaw plugin instrumentation for run story and state diff.
@@ -176,7 +177,7 @@ Tomorrow, do not pitch "Datadog for AI agents."
 Pitch this instead:
 - "If your daily OpenClaw workflow fails tomorrow morning, would you pay for a tool that shows exactly what happened, what changed, whether the issue is bad runtime behavior or drift in your instructions, and what to fix before the next run?"
 
-Ask Liam six concrete questions:
+Ask the Acme design partner six concrete questions:
 1. Which workflow would you trust first?
 2. What failure hurts most today?
 3. When behavior feels off, is it usually a bad run or a slow drift in instructions and config?
@@ -189,5 +190,5 @@ The goal of the interview is not validation theater. It is to find the first pai
 ## What I noticed about how you think
 - You did not describe a vague market problem. You said, "OpenClaw runs like a blackbox," which is exactly the kind of founder-language that comes from living the pain, not inventing it.
 - You quantified the pain when pushed: "Every day this takes 30 minutes of my time." That is the first sentence in this whole session that sounded like a real business problem rather than a product idea.
-- You named a specific external lookalike: "Liam Lian, CEO of VeloDB." Most people hide behind categories. You moved to a real human.
+- You named a specific external lookalike instead of hiding behind a category. Most people stay abstract. You moved to a real human and a real operating context.
 - You brought in a second Reddit thread that did not just repeat the first one. It revealed a deeper pattern: drift and contradictory instructions may be as important as run-level failures. That is a real product instinct.
