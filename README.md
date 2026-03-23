@@ -7,3 +7,4 @@ Product planning and strategy spec:
 - [Agent Evaluation Strategy](docs/AGENT_EVALUATION_STRATEGY.md)
 - [Workflow Reliability Wedge Design](docs/WORKFLOW_RELIABILITY_WEDGE_DESIGN.md)
 - [CEO Plan: Workflow Reliability Control Loop](docs/ceo-plans/2026-03-22-workflow-reliability-control-loop.md)
+- [Eng Review: Workflow Reliability Control Loop](docs/eng-reviews/2026-03-23-workflow-reliability-control-loop.md)
