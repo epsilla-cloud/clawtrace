@@ -446,20 +446,20 @@ export function ClawTraceStandalone() {
     <div className="operator clawtrace">
       <div className={styles.shellWrap}>
         <header className={styles.header}>
-          <p className={styles.kicker}>Workflow Reliability Control Loop</p>
+          <p className={styles.kicker}>ClawTrace</p>
           <div className={styles.titleRow}>
-            <h1 className={styles.title}>ClawTrace Standalone UI (Next.js)</h1>
+            <h1 className={styles.title}>Agent Reliability Control Center</h1>
             <button className={styles.modeButton} type="button" onClick={() => setOnboarding((current) => !current)}>
-              {onboarding ? 'Exit onboarding view' : 'Show onboarding view'}
+              {onboarding ? 'Hide onboarding' : 'Show onboarding'}
             </button>
           </div>
         </header>
 
         {onboarding ? (
           <section className={styles.onboarding}>
-            <h2 className={styles.onboardingTitle}>Guided systems audit in progress</h2>
+            <h2 className={styles.onboardingTitle}>Onboarding scan in progress</h2>
             <p className={styles.onboardingText}>
-              Connected to OpenClaw harness. Building reliability map from historical runs and surfacing confirmation points.
+              Connected to OpenClaw. Importing recent runs and preparing your workflow reliability view.
             </p>
           </section>
         ) : null}
