@@ -6,39 +6,8 @@
   background: var(--ct-page-bg);
   color: var(--ct-text);
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: 1fr;
   overflow: hidden;
-}
-
-.header {
-  margin: 0;
-  padding: 16px 18px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-}
-
-.kicker {
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  font-size: var(--ct-text-micro);
-  color: var(--ct-muted);
-  font-weight: 700;
-}
-
-.titleRow {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.title {
-  margin: 0;
-  font-size: clamp(28px, 3vw, 42px);
-  line-height: 1.08;
-  letter-spacing: -0.02em;
-  font-family: var(--ct-font-heading);
 }
 
 .modeButton {
@@ -429,28 +398,6 @@
 
 .memoBody {
   margin: 6px 0 0;
-  color: var(--ct-muted);
-  font-size: var(--ct-text-body-sm);
-}
-
-.onboarding {
-  margin: 0;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-left: 0;
-  border-right: 0;
-  border-radius: 0;
-  background: #fff;
-  padding: 12px;
-}
-
-.onboardingTitle {
-  margin: 0;
-  font-size: var(--ct-text-body);
-  font-weight: 700;
-}
-
-.onboardingText {
-  margin: 5px 0 0;
   color: var(--ct-muted);
   font-size: var(--ct-text-body-sm);
 }

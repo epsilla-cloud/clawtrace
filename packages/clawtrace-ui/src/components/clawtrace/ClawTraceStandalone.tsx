@@ -389,7 +389,6 @@ const mockAuditRecords = [
 
 export function ClawTraceStandalone() {
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const [onboarding, setOnboarding] = useState(true);
   const [activeTab, setActiveTab] = useState<ClawTraceDrawerTab['id']>('investigation');
   const [filters, setFilters] = useState<ClawTraceWorkflowFilters>({ query: '', onlyAttention: false });
   const [selectedWorkflowId, setSelectedWorkflowId] = useState('seo-daily');
@@ -432,12 +431,12 @@ export function ClawTraceStandalone() {
       selectedWorkflowId,
       onSelectWorkflow: (workflowId: string) => setSelectedWorkflowId(workflowId),
       cockpit: mockCockpit,
-      isOnboarding: onboarding,
-      isWarmup: onboarding,
+      isOnboarding: false,
+      isWarmup: false,
       drawerOpen,
       onDrawerOpenChange: setDrawerOpen,
     }),
-    [drawerOpen, onboarding, selectedWorkflowId]
+    [drawerOpen, selectedWorkflowId]
   );
 
   const selectedCockpit = appModel.cockpit;
@@ -445,25 +444,6 @@ export function ClawTraceStandalone() {
   return (
     <div className="operator clawtrace">
       <div className={styles.shellWrap}>
-        <header className={styles.header}>
-          <p className={styles.kicker}>ClawTrace</p>
-          <div className={styles.titleRow}>
-            <h1 className={styles.title}>Agent Reliability Control Center</h1>
-            <button className={styles.modeButton} type="button" onClick={() => setOnboarding((current) => !current)}>
-              {onboarding ? 'Hide onboarding' : 'Show onboarding'}
-            </button>
-          </div>
-        </header>
-
-        {onboarding ? (
-          <section className={styles.onboarding}>
-            <h2 className={styles.onboardingTitle}>Onboarding scan in progress</h2>
-            <p className={styles.onboardingText}>
-              Connected to OpenClaw. Importing recent runs and preparing your workflow reliability view.
-            </p>
-          </section>
-        ) : null}
-
         <section className={styles.shell}>
           <aside className={styles.rail}>
             <div className={styles.railTop}>
