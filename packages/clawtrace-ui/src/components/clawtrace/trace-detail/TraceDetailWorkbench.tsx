@@ -103,7 +103,7 @@ const MODE_ITEMS: Array<{ id: TraceDetailViewMode; label: string; description: s
   {
     id: 'execution_path',
     label: 'Execution Path',
-    description: 'Step-by-step run path with grouped repeated calls.',
+    description: 'Step-by-step run path.',
   },
   {
     id: 'actor_map',
@@ -178,15 +178,6 @@ function formatSpanTokenCell(span: TraceDetailSpan): string {
     return '—';
   }
   return `${formatCompactTokens(span.totalTokens)} tok`;
-}
-
-function formatGroupTokenCell(spans: TraceDetailSpan[]): string {
-  const totalTokens = spans.reduce((sum, item) => sum + item.totalTokens, 0);
-  const hasAnyLlm = spans.some((item) => item.kind === 'llm_call');
-  if (!hasAnyLlm && totalTokens <= 0) {
-    return '—';
-  }
-  return `${formatCompactTokens(totalTokens)} tok`;
 }
 
 function formatPhaseTime(baseMs: number, valueMs: number): string {
@@ -1958,58 +1949,8 @@ function ExecutionPathView({
     return map;
   }, [detail.spans, executionParentBySpanId]);
 
-  const [openGroupMap, setOpenGroupMap] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    setOpenGroupMap({});
-  }, [detail.trace.trajectoryTraceId]);
-
-  function groupKey(span: TraceDetailSpan): string | null {
-    if (span.kind === 'tool_call') {
-      return `tool:${span.toolName ?? span.name}`;
-    }
-    if (span.kind === 'llm_call') {
-      return `llm:${span.model ?? 'unknown'}`;
-    }
-    return null;
-  }
-
-  function groupedChildren(children: TraceDetailSpan[]): Array<{ key: string; spans: TraceDetailSpan[] }> {
-    const groups: Array<{ key: string; spans: TraceDetailSpan[] }> = [];
-    let index = 0;
-
-    while (index < children.length) {
-      const current = children[index];
-      const currentKey = groupKey(current);
-
-      if (currentKey && index + 1 < children.length && groupKey(children[index + 1]) === currentKey) {
-        const bucket: TraceDetailSpan[] = [current];
-        let cursor = index + 1;
-        while (cursor < children.length && groupKey(children[cursor]) === currentKey) {
-          bucket.push(children[cursor]);
-          cursor += 1;
-        }
-        groups.push({
-          key: `${executionParentBySpanId.get(current.spanId) ?? current.parentSpanId ?? 'root'}-${index}-${currentKey}`,
-          spans: bucket,
-        });
-        index = cursor;
-        continue;
-      }
-
-      groups.push({
-        key: `${executionParentBySpanId.get(current.spanId) ?? current.parentSpanId ?? 'root'}-${index}-${current.spanId}`,
-        spans: [current],
-      });
-      index += 1;
-    }
-
-    return groups;
-  }
-
   function renderNode(span: TraceDetailSpan, depth: number, path: string): ReactNode {
     const children = childrenByParent.get(span.spanId) ?? [];
-    const grouped = groupedChildren(children);
 
     return (
       <Fragment key={span.spanId}>
@@ -2028,50 +1969,7 @@ function ExecutionPathView({
           <span className={styles.treeTokens}>{formatSpanTokenCell(span)}</span>
         </button>
 
-        {grouped.map((group, groupIndex) => {
-          if (group.spans.length === 1) {
-            return renderNode(group.spans[0], depth + 1, `${path}-${groupIndex}`);
-          }
-
-          const opened = openGroupMap[group.key] ?? false;
-          const first = group.spans[0];
-          const totalTokens = group.spans.reduce((sum, item) => sum + item.totalTokens, 0);
-          const totalDuration = group.spans.reduce((sum, item) => sum + item.resolvedDurationMs, 0);
-
-          return (
-            <Fragment key={group.key}>
-              <button
-                type="button"
-                className={styles.treeGroupRow}
-                style={{ paddingLeft: `${12 + (depth + 1) * 18}px` }}
-                onClick={() => {
-                  setOpenGroupMap((current) => ({
-                    ...current,
-                    [group.key]: !opened,
-                  }));
-                }}
-              >
-                <span className={styles.treeStepCell}>
-                  <span className={styles.treeGroupCaret}>{opened ? '▾' : '▸'}</span>
-                  <span className={`${styles.treeKindDot} ${styles[`kindDot${first.kind}`]}`} aria-hidden="true" />
-                  <span className={styles.treeGroupLabel}>{spanDisplayLabel(first)}</span>
-                  <span className={styles.treeGroupBadge}>×{group.spans.length}</span>
-                </span>
-                <span className={styles.treeDuration}>{formatDuration(totalDuration)}</span>
-                <span className={styles.treeTokens}>{formatGroupTokenCell(group.spans)}</span>
-              </button>
-
-              {opened ? (
-                <div
-                  className={styles.treeGroupChildren}
-                  style={{ marginLeft: `${12 + (depth + 1) * 18}px` }}
-                >
-                  {group.spans.map((groupSpan, innerIndex) => renderNode(groupSpan, depth + 1, `${path}-${groupIndex}-${innerIndex}`))}
-                </div>
-              ) : null}
-            </Fragment>
-          );
-        })}
+        {children.map((childSpan, childIndex) => renderNode(childSpan, depth + 1, `${path}-${childIndex}`))}
       </Fragment>
     );
   }
