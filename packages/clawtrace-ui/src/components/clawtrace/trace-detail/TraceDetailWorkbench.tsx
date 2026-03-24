@@ -1507,10 +1507,15 @@ function StepTimelineView({
         ? Math.max(nonSessionEndMax * 1.06, 1)
         : Math.max(fullEndMax, 1);
       const chartHeight = Math.max(360, dom.clientHeight || 0);
+      const gridTopPx = 12;
+      const gridBottomPx = 36;
+      const availableGridHeightPx = Math.max(120, chartHeight - gridTopPx - gridBottomPx);
+      const maxRowHeightPx = 48;
+      const gridHeightPx = Math.min(availableGridHeightPx, rows.length * maxRowHeightPx);
       const targetRowPitchPx = 26;
       const visibleRowsByHeight = Math.max(
         10,
-        Math.floor((chartHeight - 64) / targetRowPitchPx),
+        Math.floor(gridHeightPx / targetRowPitchPx),
       );
       const visibleRowCount = Math.max(10, Math.min(visibleRowsByHeight, rows.length, 30));
       const useVerticalZoom = rows.length > visibleRowCount;
@@ -1560,10 +1565,11 @@ function StepTimelineView({
         {
           animation: false,
           grid: {
-            top: 12,
+            top: gridTopPx,
             left: 186,
             right: useVerticalZoom ? 36 : 18,
-            bottom: 36,
+            bottom: gridBottomPx,
+            height: gridHeightPx,
             containLabel: false,
           },
           tooltip: {
