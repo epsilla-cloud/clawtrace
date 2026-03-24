@@ -164,7 +164,7 @@ export function LandingPage() {
 
       <section className={styles.improvementSection} id="improvement">
         <p className={styles.sectionKicker}>How it works</p>
-        <h2 className={styles.sectionTitle}>Three moves to improve your OpenClaw agent performance loop.</h2>
+        <h2 className={styles.sectionTitle}>Three moves to improve your OpenClaw agent.</h2>
 
         <div className={styles.improvementGrid}>
           {IMPROVEMENT_BLOCKS.map((block) => (
