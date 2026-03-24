@@ -58,6 +58,32 @@ Deferred beyond Phase 0:
 - provider-perfect billed reconciliation for every model provider
 - multi-workflow budget governance across business units
 
+## Cost Audit and Cost Control Addendum (2026-03-24, OpenClaw Operator Insights)
+
+Practical insights to lock into product scope:
+1. Many users cannot explain spend from total bill alone; they need trigger-level attribution.
+2. Cost naturally separates into:
+   - invisible overhead
+   - misdirected spend
+   - productive spend
+   - unknown (unclassified) spend
+3. The biggest pain pattern is silent background spend and context bloat.
+4. Cost control is not one feature; it is a layered loop:
+   - Layer 1: stop invisible drain
+   - Layer 2: spend smarter on real tasks
+   - Layer 3: multiply savings with caching and policy stability
+
+CEO decision:
+- ClawTrace must ship this as a guided operational loop, not as static charts.
+- The UX promise is "find where money goes, fix biggest leak first, verify savings safely."
+
+Phase 1 must include:
+1. Cost classification by workflow and trajectory.
+2. Leak ranking with evidence and confidence.
+3. Guided control actions with explicit risk notes.
+4. Guardrails (budget, rate, spike) as first-class artifacts.
+5. Verification views that prove both quality and cost impact.
+
 ## Deferred to TODOS.md
 - Progressive autonomy / approval modes for execution governance
 

@@ -259,7 +259,24 @@ stateDiagram-v2
     F11_FeedbackCapture --> F3_DailyControlRoom: normal return
 ```
 
-## 6) Phase 1 Build Sequence (Journey-First)
+## 6) Cost Audit and Cost Control Overlay (OpenClaw)
+
+Cost control is not a separate app section. It overlays the same journey and surfaces.
+
+Reference detail: [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
+
+| Cost Step | User Question | Primary Surface | Exit Condition |
+|---|---|---|---|
+| C0 Connect Cost Data | "Can ClawTrace read real usage?" | F0 onboarding chat | cost ingest healthy + precision class known |
+| C1 Baseline Audit | "Where did spend go last week?" | F1 warmup cards | workflow spend baseline + category split published |
+| C2 Leak Detection | "What is obvious waste?" | F2/F3 cockpit cards | top avoidable drains ranked with evidence |
+| C3 Root-Cause Drilldown | "Why is this workflow expensive?" | F3/F5 cockpit + investigation drawer | trajectory/step attribution with trigger evidence |
+| C4 Control Recommendation | "What should I change first?" | F5/F6 action cards | one primary cost control selected |
+| C5 Safe Apply + Verify | "Did this reduce spend safely?" | F6/F7 verification | delta in cost-per-success and trust state |
+| C6 Guardrail Automation | "How do I prevent surprise bills?" | F3/F10 chat + alerts | budget/rate/spike guardrails active |
+| C7 Weekly Loop | "Are we improving?" | F8/F11 scorecards | week-over-week efficiency trend confirmed |
+
+## 7) Phase 1 Build Sequence (Journey-First)
 
 1. F0-F2: onboarding connect + guided audit + first-value cockpit handoff.
 2. F3-F5: daily control room + incident triage drawer.
@@ -267,7 +284,12 @@ stateDiagram-v2
 4. F8-F9: regression promotion + drift/time-machine.
 5. F10-F11: conversational artifact generation + feedback loop.
 
-## 7) Product KPIs By Journey
+Cost overlay inside the same sequence:
+1. C0-C2 inside F0-F3.
+2. C3-C5 inside F3-F7.
+3. C6-C7 inside F3/F8/F10/F11.
+
+## 8) Product KPIs By Journey
 
 - Time to first value (F0 -> F2)
 - Daily triage time (F3)
@@ -275,11 +297,13 @@ stateDiagram-v2
 - Repeat-failure rate per workflow (F7/F8)
 - Cost per successful run
 - High-cost retry-loop frequency
+- Avoidable-spend ratio (`invisible_overhead + misdirected_spend` / total spend)
+- Spend explainability ratio (classified spend / total spend)
 - Verification confidence mix (`success/fail/unknown/partial`)
 - Drift-detection precision (F9)
 - User trust signal (feedback quality in F11)
 
-## 8) Out of Scope For This Journey Spec
+## 9) Out of Scope For This Journey Spec
 
 - Multi-framework onboarding beyond OpenClaw in Phase 1
 - Deep enterprise admin console design (RBAC/ABAC UX can be separate doc)

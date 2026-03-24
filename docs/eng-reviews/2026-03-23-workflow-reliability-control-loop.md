@@ -69,6 +69,46 @@ This review explicitly does not treat the broader observability suite in [CEO Pr
 3. Cost aggregation must not block control decisions; heavy rollups run asynchronously over cached projections.
 4. Cost precision class (`billed` vs `estimated`) must be explicit in all APIs and UI payloads.
 
+## Cost Audit and Cost Control Vertical Slice (Added 2026-03-24)
+
+Phase 1 engineering deliverable should include one end-to-end cost control loop, not only passive attribution.
+
+### Required detectors
+
+1. `background_overhead_detector`
+- detect spend from periodic/background checks
+- label with trigger source and confidence
+
+2. `context_bloat_detector`
+- detect oversized always-loaded context payloads
+- estimate avoidable token overhead
+
+3. `model_mismatch_detector`
+- detect low-complexity tasks routed to premium model tier
+- estimate cheaper-route alternative
+
+4. `retry_loop_detector`
+- detect repeated failing loops with rising spend
+- mark as high-risk for budget guardrails
+
+### Required control actions
+
+1. background routing policy recommendation
+2. context loading policy recommendation
+3. model routing policy recommendation
+4. budget/rate guardrail recommendation
+5. stable-context cacheability recommendation
+
+All actions remain recommendation-first with explicit operator confirmation in Phase 1.
+
+### Required verification outputs
+
+After a control action, verification must show:
+1. cost-per-success delta
+2. avoidable-spend ratio delta
+3. trust-state or quality regression signal (if any)
+4. confidence/precision class (`billed` or `estimated`)
+
 ## Proposed Implementation Shape
 
 ```text

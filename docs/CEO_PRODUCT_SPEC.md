@@ -105,6 +105,16 @@ Root-cause assistant with confidence scoring across:
 3. Improve
 Diff bad run vs good run, suggest fix, and validate via eval before release.
 
+## 4.0 OpenClaw Cost Audit and Cost Control Journey
+
+ClawTrace should productize the practical cost-management loop OpenClaw operators are currently doing manually:
+1. audit each spend event by `trigger -> tokens/cost -> utility`
+2. classify spend into `invisible_overhead`, `misdirected_spend`, `productive_spend`, `unknown`
+3. apply guided controls (background routing, context loading policy, model routing, file hygiene, guardrails, caching)
+4. verify impact through week-over-week cost-per-success and avoidable-spend reduction
+
+Reference plan: [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
+
 ## 4.1 Why Chat-First (First-Principles Analysis)
 
 Debugging agent systems is an iterative hypothesis loop:
