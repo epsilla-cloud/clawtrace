@@ -2,10 +2,12 @@
 
 import Image from 'next/image';
 import { Cormorant_Garamond } from 'next/font/google';
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import idcLogo from '../../../../idc.png';
 import nvidiaLogo from '../../../../nvidia.png';
-import overviewImage from '../../../../overview.png';
+import tracingGraphImage from '../../../../tracing_graph.png';
+import tracingPathImage from '../../../../tracing_path.png';
+import tracingTimelineImage from '../../../../tracing_timeline.png';
 import yCombinatorLogo from '../../../../ycombinator.png';
 import styles from './LandingPage.module.css';
 
@@ -38,6 +40,24 @@ const IMPROVEMENT_BLOCKS = [
   },
 ];
 
+const PREVIEW_SLIDES = [
+  {
+    key: 'tracing-path',
+    image: tracingPathImage,
+    alt: 'ClawTrace execution path tracing view',
+  },
+  {
+    key: 'tracing-graph',
+    image: tracingGraphImage,
+    alt: 'ClawTrace actor graph tracing view',
+  },
+  {
+    key: 'tracing-timeline',
+    image: tracingTimelineImage,
+    alt: 'ClawTrace step timeline tracing view',
+  },
+];
+
 const logoFont = Cormorant_Garamond({
   subsets: ['latin'],
   weight: ['600', '700'],
@@ -52,6 +72,15 @@ export function LandingPage() {
   const [email, setEmail] = useState('');
   const [state, setState] = useState<WaitlistState>('idle');
   const [message, setMessage] = useState('');
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    if (PREVIEW_SLIDES.length <= 1) return undefined;
+    const id = window.setInterval(() => {
+      setActiveSlide((current) => (current + 1) % PREVIEW_SLIDES.length);
+    }, 4200);
+    return () => window.clearInterval(id);
+  }, []);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -124,16 +153,56 @@ export function LandingPage() {
           Join Waitlist
         </a>
 
-        <div className={styles.heroFrame}>
-          <Image
-            src={overviewImage}
-            alt="ClawTrace overview dashboard"
-            width={overviewImage.width}
-            height={overviewImage.height}
-            priority
-            sizes="(max-width: 980px) 100vw, 1120px"
-            className={styles.heroImage}
-          />
+        <div className={styles.heroFrame} aria-label="Product preview carousel">
+          <div
+            className={styles.heroTrack}
+            style={{ transform: `translateX(-${activeSlide * 100}%)` }}
+          >
+            {PREVIEW_SLIDES.map((slide, index) => (
+              <div key={slide.key} className={styles.heroSlide} aria-hidden={index !== activeSlide}>
+                <Image
+                  src={slide.image}
+                  alt={slide.alt}
+                  width={slide.image.width}
+                  height={slide.image.height}
+                  priority={index === 0}
+                  sizes="(max-width: 980px) 100vw, 1120px"
+                  className={styles.heroImage}
+                />
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            className={`${styles.heroControl} ${styles.heroControlPrev}`}
+            aria-label="Previous preview"
+            onClick={() => setActiveSlide((current) => (current - 1 + PREVIEW_SLIDES.length) % PREVIEW_SLIDES.length)}
+          >
+            ‹
+          </button>
+          <button
+            type="button"
+            className={`${styles.heroControl} ${styles.heroControlNext}`}
+            aria-label="Next preview"
+            onClick={() => setActiveSlide((current) => (current + 1) % PREVIEW_SLIDES.length)}
+          >
+            ›
+          </button>
+
+          <div className={styles.heroDots} role="tablist" aria-label="Preview slides">
+            {PREVIEW_SLIDES.map((slide, index) => (
+              <button
+                key={`${slide.key}-dot`}
+                type="button"
+                role="tab"
+                aria-selected={index === activeSlide}
+                aria-label={`Show slide ${index + 1}`}
+                className={`${styles.heroDot} ${index === activeSlide ? styles.heroDotActive : ''}`}
+                onClick={() => setActiveSlide(index)}
+              />
+            ))}
+          </div>
         </div>
       </section>
 
