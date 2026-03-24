@@ -1,6 +1,5 @@
 'use client';
 
-import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 import styles from './LandingPage.module.css';
 
@@ -8,41 +7,35 @@ type WaitlistState = 'idle' | 'loading' | 'success' | 'error';
 
 const BACKERS = ['YC', 'NVIDIA Inception', 'IDC Innovation'];
 
-const VALUE_SECTIONS = [
+const IMPROVEMENT_BLOCKS = [
   {
+    step: '01',
     title: 'Better',
-    label: 'Quality',
-    bullets: [
-      'Less babysitting, fewer repeated mistakes.',
-      'More reliable output from the workflows you already run daily.',
-    ],
-    highlight: 'Find unstable steps before they repeat.',
+    lead: 'Less babysitting, fewer repeated mistakes.',
+    body: 'Trace unstable workflow behavior, surface the likely root cause, and verify that the fix actually worked.',
+    metricLabel: 'Focus',
+    metricValue: 'Reliability quality',
   },
   {
+    step: '02',
     title: 'Cheaper',
-    label: 'Cost',
-    bullets: [
-      'Know exactly why cost spiked this week.',
-      'Fix the biggest leak first instead of guessing.',
-    ],
-    highlight: 'See where spend goes by workflow and run.',
+    lead: 'Know exactly why cost spiked this week.',
+    body: 'See spend by workflow, run, and step so you can fix the biggest leak first instead of guessing.',
+    metricLabel: 'Focus',
+    metricValue: 'Cost per success',
   },
   {
+    step: '03',
     title: 'Faster',
-    label: 'Speed',
-    bullets: [
-      'Get from "something is wrong" to "here is the fix" quickly.',
-      'Spend less time debugging and more time shipping.',
-    ],
-    highlight: 'Move from incident to action in one control room.',
+    lead: 'Get from "something is wrong" to "here is the fix" quickly.',
+    body: 'Run one control loop that prioritizes the next action and cuts time lost in manual debugging.',
+    metricLabel: 'Focus',
+    metricValue: 'Incident resolution speed',
   },
 ];
 
-const HERO_SIGNALS = [
-  { label: 'Quality signal', value: 'Trace-backed root cause' },
-  { label: 'Cost signal', value: 'Leak attribution by workflow' },
-  { label: 'Speed signal', value: 'Priority-ranked next fix' },
-];
+const HERO_IMAGE_URL =
+  'https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=2200&q=80';
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -94,84 +87,94 @@ export function LandingPage() {
 
   return (
     <main className={styles.page}>
-      <div className={styles.glowA} aria-hidden="true" />
-      <div className={styles.glowB} aria-hidden="true" />
+      <header className={styles.header}>
+        <a href="#" className={styles.brand}>
+          ClawTrace
+        </a>
 
-      <header className={`${styles.header} ${styles.reveal} ${styles.delay0}`}>
-        <p className={styles.brand}>ClawTrace</p>
         <nav className={styles.nav}>
-          <Link href="/onboarding/connect" className={styles.navLink}>
-            Product Tour
-          </Link>
-          <Link href="/control-room" className={styles.navLink}>
-            Demo App
-          </Link>
+          <a href="#improvement" className={styles.navLink}>
+            Product
+          </a>
+          <a href="#improvement" className={styles.navLink}>
+            How It Works
+          </a>
+          <a href="#waitlist" className={styles.navLink}>
+            Waitlist
+          </a>
         </nav>
       </header>
 
-      <section className={`${styles.backerStrip} ${styles.reveal} ${styles.delay1}`} aria-label="Backed by">
-        <p className={styles.backerLabel}>Backed by</p>
-        <div className={styles.backerBadges}>
+      <section className={styles.hero} id="hero">
+        <div className={styles.heroBadge}>
+          <span>OpenClaw Control Layer</span>
+        </div>
+
+        <h1 className={styles.headline}>
+          Make your OpenClaw agents <span>better, cheaper, and faster.</span>
+        </h1>
+
+        <p className={styles.subhead}>See what failed, where spend leaked, and what to fix first.</p>
+
+        <a className={styles.primaryButton} href="#waitlist">
+          Join Waitlist
+        </a>
+
+        <div className={styles.heroFrame}>
+          <img src={HERO_IMAGE_URL} alt="ClawTrace workflow control room visual" className={styles.heroImage} />
+
+          <div className={styles.heroStats}>
+            <article className={styles.statCard}>
+              <p className={styles.statLabel}>Quality</p>
+              <p className={styles.statValue}>Better run outcomes</p>
+            </article>
+            <article className={styles.statCard}>
+              <p className={styles.statLabel}>Cost</p>
+              <p className={styles.statValue}>Lower spend waste</p>
+            </article>
+            <article className={styles.statCard}>
+              <p className={styles.statLabel}>Speed</p>
+              <p className={styles.statValue}>Faster incident fixes</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.backers} aria-label="Backed by">
+        <p className={styles.backersLabel}>Backed by</p>
+        <div className={styles.backersList}>
           {BACKERS.map((backer) => (
-            <span key={backer} className={styles.backerBadge}>
+            <span key={backer} className={styles.backerTag}>
               {backer}
             </span>
           ))}
         </div>
       </section>
 
-      <section className={`${styles.hero} ${styles.reveal} ${styles.delay2}`}>
-        <article className={styles.heroMain}>
-          <p className={styles.kicker}>Built for OpenClaw operators</p>
-          <h1 className={styles.headline}>
-            Make your <span className={styles.headlineAccent}>OpenClaw</span> agents better, cheaper, and faster.
-          </h1>
-          <p className={styles.subhead}>See what failed, where spend leaked, and what to fix first.</p>
-          <a href="#waitlist" className={styles.heroButton}>
-            Join Waitlist
-          </a>
-        </article>
+      <section className={styles.improvementSection} id="improvement">
+        <p className={styles.sectionKicker}>How it works</p>
+        <h2 className={styles.sectionTitle}>Three moves to improve your OpenClaw performance loop.</h2>
 
-        <aside className={styles.heroPanel}>
-          <p className={styles.panelKicker}>Live performance control loop</p>
-          <h2 className={styles.panelTitle}>One surface for quality, cost, and speed.</h2>
-          <div className={styles.signalGrid}>
-            {HERO_SIGNALS.map((signal) => (
-              <article key={signal.label} className={styles.signalCard}>
-                <p className={styles.signalLabel}>{signal.label}</p>
-                <p className={styles.signalValue}>{signal.value}</p>
-              </article>
-            ))}
-          </div>
-        </aside>
-      </section>
-
-      <section className={`${styles.valueGrid} ${styles.reveal} ${styles.delay3}`} aria-label="Core value sections">
-        {VALUE_SECTIONS.map((section, index) => (
-          <article
-            key={section.title}
-            className={`${styles.valueCard} ${styles.revealCard}`}
-            style={{ animationDelay: `${220 + index * 90}ms` }}
-          >
-            <p className={styles.valueLabel}>{section.label}</p>
-            <h2 className={styles.cardTitle}>{section.title}</h2>
-            <p className={styles.valueHighlight}>{section.highlight}</p>
-            <ul className={styles.cardList}>
-              {section.bullets.map((bullet) => (
-                <li key={bullet} className={styles.cardListItem}>
-                  {bullet}
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
-      </section>
-
-      <section className={`${styles.cta} ${styles.reveal} ${styles.delay4}`} id="waitlist">
-        <div>
-          <h2 className={styles.ctaTitle}>Join Waitlist</h2>
-          <p className={styles.ctaSub}>Get early access updates and launch details.</p>
+        <div className={styles.improvementGrid}>
+          {IMPROVEMENT_BLOCKS.map((block) => (
+            <article key={block.title} className={styles.improvementCard}>
+              <p className={styles.step}>{block.step}</p>
+              <h3 className={styles.cardTitle}>{block.title}</h3>
+              <p className={styles.cardLead}>{block.lead}</p>
+              <p className={styles.cardBody}>{block.body}</p>
+              <div className={styles.cardMetric}>
+                <span className={styles.cardMetricLabel}>{block.metricLabel}</span>
+                <span className={styles.cardMetricValue}>{block.metricValue}</span>
+              </div>
+            </article>
+          ))}
         </div>
+      </section>
+
+      <section className={styles.cta} id="waitlist">
+        <h2 className={styles.ctaTitle}>Join Waitlist</h2>
+        <p className={styles.ctaSub}>Get early access updates and launch details.</p>
+
         <form className={styles.form} onSubmit={onSubmit}>
           <label htmlFor="waitlist-email" className={styles.srOnly}>
             Email address
@@ -197,6 +200,7 @@ export function LandingPage() {
             {state === 'loading' ? 'Joining...' : 'Join Waitlist'}
           </button>
         </form>
+
         {message ? <p className={`${styles.feedback} ${state === 'success' ? styles.success : styles.error}`}>{message}</p> : null}
       </section>
     </main>
