@@ -398,6 +398,262 @@ type TraceRow = {
   estimatedCostUsd: number;
 };
 
+type TracyMessageRole = 'assistant' | 'user' | 'system';
+
+type TracyMessage = {
+  id: string;
+  role: TracyMessageRole;
+  text: string;
+};
+
+type TracyPrompt = {
+  id: 'failures' | 'cost' | 'next-step';
+  label: string;
+};
+
+type TracyPanelProps = {
+  flow: ClawTraceFlowDefinition;
+  traceRows: TraceRow[];
+  rangeLabel: string;
+  rangeSubtitle: string;
+  loading: boolean;
+};
+
+function tracyRoleClass(role: TracyMessageRole): string {
+  if (role === 'assistant') return styles.tracyAssistant;
+  if (role === 'user') return styles.tracyUser;
+  return styles.tracySystem;
+}
+
+function summarizeFailures(traceRows: TraceRow[]): string {
+  const failures = traceRows.filter((row) => row.status === 'failure');
+  if (!failures.length) {
+    const unknownCount = traceRows.filter((row) => row.status === 'unknown').length;
+    if (unknownCount > 0) {
+      return `Good news: no hard failures in this range. I do see ${unknownCount} unknown run${unknownCount > 1 ? 's' : ''}, so verification depth is still worth tightening.`;
+    }
+    return 'No hard failures in this range. Reliability is steady right now.';
+  }
+
+  const failuresByWorkflow = new Map<string, { count: number; costUsd: number }>();
+  for (const row of failures) {
+    const current = failuresByWorkflow.get(row.workflowName) ?? { count: 0, costUsd: 0 };
+    current.count += 1;
+    current.costUsd += row.estimatedCostUsd;
+    failuresByWorkflow.set(row.workflowName, current);
+  }
+
+  const [topWorkflow, topStats] =
+    [...failuresByWorkflow.entries()].sort((a, b) => b[1].count - a[1].count || b[1].costUsd - a[1].costUsd)[0] ?? [];
+  const failureRate = traceRows.length ? Math.round((failures.length / traceRows.length) * 100) : 0;
+
+  if (!topWorkflow || !topStats) {
+    return `I found ${failures.length} failed run${failures.length > 1 ? 's' : ''} in ${traceRows.length} traces (${failureRate}%).`;
+  }
+
+  return [
+    `I found ${failures.length} failed run${failures.length > 1 ? 's' : ''} in ${traceRows.length} traces (${failureRate}%).`,
+    `Largest concentration is ${topWorkflow} with ${topStats.count} failure${topStats.count > 1 ? 's' : ''} and ${formatCurrency(topStats.costUsd)} burned during failed attempts.`,
+    'If we stabilize that path first, you should feel reliability improve quickly.',
+  ].join('\n');
+}
+
+function summarizeCostLeaks(traceRows: TraceRow[]): string {
+  if (!traceRows.length) {
+    return 'No trace data yet, so I cannot rank spend leaks yet.';
+  }
+
+  const costByWorkflow = new Map<string, number>();
+  for (const row of traceRows) {
+    costByWorkflow.set(row.workflowName, (costByWorkflow.get(row.workflowName) ?? 0) + row.estimatedCostUsd);
+  }
+  const [topWorkflowName, topWorkflowCost] = [...costByWorkflow.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
+  const topRun = [...traceRows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
+  const totalCost = traceRows.reduce((sum, row) => sum + row.estimatedCostUsd, 0);
+
+  if (!topWorkflowName || !topRun) {
+    return `Estimated spend for this range is ${formatCurrency(totalCost)}.`;
+  }
+
+  const workflowShare = totalCost > 0 ? Math.round((topWorkflowCost / totalCost) * 100) : 0;
+
+  return [
+    `Top spend leak is ${topWorkflowName}: ${formatCurrency(topWorkflowCost)} (${workflowShare}% of total).`,
+    `Most expensive single run: ${topRun.traceName} at ${formatCurrency(topRun.estimatedCostUsd)} with ${formatNumber(topRun.inputTokens + topRun.outputTokens)} total tokens.`,
+    'If we cut prompt bloat or retries there, cost should drop first and fastest.',
+  ].join('\n');
+}
+
+function summarizeNextStep(traceRows: TraceRow[]): string {
+  if (!traceRows.length) {
+    return 'First move: let one complete day of traces land, then I can prioritize the sharpest intervention.';
+  }
+
+  const latestFailure = [...traceRows]
+    .filter((row) => row.status === 'failure')
+    .sort((a, b) => b.startedAtMs - a.startedAtMs)[0];
+  if (latestFailure) {
+    return [
+      `I would start with ${latestFailure.workflowName}.`,
+      `Latest failed run: ${latestFailure.traceName} at ${formatDate(latestFailure.startedAtMs)}.`,
+      'Action: open that run detail, inspect the first failed step, and add a deterministic guardrail before rerun.',
+    ].join('\n');
+  }
+
+  const hottestUnknown = [...traceRows]
+    .filter((row) => row.status === 'unknown')
+    .sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
+  if (hottestUnknown) {
+    return [
+      `No explicit failures right now, so next best move is verification hardening on ${hottestUnknown.workflowName}.`,
+      `Highest-cost unknown run: ${hottestUnknown.traceName} at ${formatCurrency(hottestUnknown.estimatedCostUsd)}.`,
+      'Action: add a verifier so unknown outcomes resolve into clear success/failure.',
+    ].join('\n');
+  }
+
+  const highestCost = [...traceRows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
+  return [
+    'System health looks stable. Next move is cost tuning.',
+    `Start with ${highestCost.workflowName} and its highest-cost run (${formatCurrency(highestCost.estimatedCostUsd)}).`,
+    'Action: trim context and cap retries for this path.',
+  ].join('\n');
+}
+
+function getTracyPrompts(flowId: ClawTraceFlowDefinition['id']): TracyPrompt[] {
+  if (flowId === 'f3-control-room') {
+    return [
+      { id: 'failures', label: 'What failed most recently?' },
+      { id: 'cost', label: 'Where is spend leaking?' },
+      { id: 'next-step', label: 'What should we fix first?' },
+    ];
+  }
+
+  return [
+    { id: 'next-step', label: 'What is the next best action?' },
+    { id: 'failures', label: 'Any reliability hotspots?' },
+    { id: 'cost', label: 'Any cost hotspots?' },
+  ];
+}
+
+function seedTracyMessages(flow: ClawTraceFlowDefinition, traceRows: TraceRow[], rangeLabel: string, rangeSubtitle: string, loading: boolean): TracyMessage[] {
+  if (loading) {
+    return [
+      {
+        id: 'tracy-loading-1',
+        role: 'assistant',
+        text: `Hey, I’m Tracy. I’m syncing telemetry for ${flow.title} now and will surface quick insights in a moment.`,
+      },
+    ];
+  }
+
+  const failures = traceRows.filter((row) => row.status === 'failure').length;
+  const success = traceRows.filter((row) => row.status === 'success').length;
+  const totalCost = traceRows.reduce((sum, row) => sum + row.estimatedCostUsd, 0);
+
+  return [
+    {
+      id: 'tracy-seed-1',
+      role: 'assistant',
+      text: `Hey, I’m Tracy. I’m watching ${flow.title} for you in ${rangeLabel} mode (${rangeSubtitle.toLowerCase()}).`,
+    },
+    {
+      id: 'tracy-seed-2',
+      role: 'system',
+      text: `${formatNumber(traceRows.length)} runs loaded · ${success} success · ${failures} failure · ${formatCurrency(totalCost)} estimated spend.`,
+    },
+    {
+      id: 'tracy-seed-3',
+      role: 'assistant',
+      text: 'Ask one of the prompts below and I will break it down like a teammate, not a log parser.',
+    },
+  ];
+}
+
+function answerTracyPrompt(promptId: TracyPrompt['id'], traceRows: TraceRow[]): string {
+  if (promptId === 'failures') return summarizeFailures(traceRows);
+  if (promptId === 'cost') return summarizeCostLeaks(traceRows);
+  return summarizeNextStep(traceRows);
+}
+
+function TracyPanel({ flow, traceRows, rangeLabel, rangeSubtitle, loading }: TracyPanelProps) {
+  const [expanded, setExpanded] = useState(true);
+  const prompts = useMemo(() => getTracyPrompts(flow.id), [flow.id]);
+  const seededMessages = useMemo(
+    () => seedTracyMessages(flow, traceRows, rangeLabel, rangeSubtitle, loading),
+    [flow, loading, rangeLabel, rangeSubtitle, traceRows],
+  );
+  const [messages, setMessages] = useState<TracyMessage[]>(seededMessages);
+
+  useEffect(() => {
+    setMessages(seededMessages);
+  }, [seededMessages]);
+
+  const onPrompt = (prompt: TracyPrompt) => {
+    const response = answerTracyPrompt(prompt.id, traceRows);
+    setMessages((current) => [
+      ...current,
+      {
+        id: `tracy-user-${current.length + 1}`,
+        role: 'user',
+        text: prompt.label,
+      },
+      {
+        id: `tracy-assistant-${current.length + 1}`,
+        role: 'assistant',
+        text: response,
+      },
+    ]);
+  };
+
+  return (
+    <aside className={`${styles.tracyPanel} ${expanded ? styles.tracyExpanded : styles.tracyCollapsed}`} aria-label="Tracy side chat">
+      <header className={styles.tracyHeader}>
+        <div>
+          <p className={styles.tracyName}>Tracy</p>
+          <p className={styles.tracySubtitle}>Human-like copilot for this page</p>
+        </div>
+        <button
+          type="button"
+          className={styles.tracyToggle}
+          onClick={() => setExpanded((current) => !current)}
+          aria-label={expanded ? 'Collapse Tracy panel' : 'Expand Tracy panel'}
+          aria-expanded={expanded}
+        >
+          {expanded ? 'Hide' : 'Show'}
+        </button>
+      </header>
+
+      {expanded ? (
+        <>
+          <div className={styles.tracyTranscript}>
+            {messages.map((message) => (
+              <article key={message.id} className={`${styles.tracyMessage} ${tracyRoleClass(message.role)}`}>
+                <p className={styles.tracyMessageRole}>{message.role}</p>
+                <p className={styles.tracyMessageText}>{message.text}</p>
+              </article>
+            ))}
+          </div>
+
+          <footer className={styles.tracyComposer}>
+            <p className={styles.tracyPromptLabel}>Sample questions</p>
+            <div className={styles.tracyPromptList}>
+              {prompts.map((prompt) => (
+                <button key={prompt.id} type="button" className={styles.tracyPromptButton} onClick={() => onPrompt(prompt)}>
+                  {prompt.label}
+                </button>
+              ))}
+            </div>
+          </footer>
+        </>
+      ) : (
+        <div className={styles.tracyCollapsedBody}>
+          <p className={styles.tracyCollapsedText}>Tracy is standing by with run insights.</p>
+        </div>
+      )}
+    </aside>
+  );
+}
+
 function getAgentLabelFromSessionKey(sessionKey: string): string {
   const normalized = sessionKey.toLowerCase();
   if (normalized.includes(':telegram:')) return 'Telegram Agent';
@@ -658,56 +914,66 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             <FlowLeftNav flow={flow} allFlows={allFlows} />
           </div>
 
-        <section className={styles.dashboard}>
-          <header className={styles.pageTopRow}>
-            <h1 className={styles.pageTitle}>Control Room</h1>
-            <div className={styles.rangeControls}>
-              <label className={styles.rangeLabel} htmlFor="control-room-range-select">
-                Time range
-              </label>
-              <select
-                id="control-room-range-select"
-                className={styles.rangeSelect}
-                value={timeRange}
-                onChange={(event) => setTimeRange(event.currentTarget.value as TimeRangeKey)}
-                aria-label="Select time range"
-              >
-                <option value="1d">1 day</option>
-                <option value="7d">7 days</option>
-                <option value="30d">30 days</option>
-                <option value="custom">Custom</option>
-              </select>
-              {timeRange === 'custom' ? (
-                <div className={styles.customRangeRow}>
-                  <input
-                    className={styles.dateInput}
-                    type="date"
-                    value={customStartDate}
-                    max={customEndDate}
-                    onChange={(event) => setCustomStartDate(event.currentTarget.value)}
-                    aria-label="Custom start date"
-                  />
-                  <span className={styles.dateSeparator}>to</span>
-                  <input
-                    className={styles.dateInput}
-                    type="date"
-                    value={customEndDate}
-                    min={customStartDate}
-                    max={todayIso}
-                    onChange={(event) => setCustomEndDate(event.currentTarget.value)}
-                    aria-label="Custom end date"
-                  />
-                </div>
-              ) : null}
-            </div>
-          </header>
-          <header className={styles.summaryBar}>
-            <div className={`${styles.summaryMetric} ${styles.metricToneNeutral}`}>
-              <span className={styles.summaryLabel}>Discovery</span>
-              <span className={styles.summaryValue}>{loadingSnapshot ? 'Loading' : 'Unavailable'}</span>
-            </div>
-          </header>
-        </section>
+          <section className={styles.dashboard}>
+            <header className={styles.pageTopRow}>
+              <h1 className={styles.pageTitle}>Control Room</h1>
+              <div className={styles.rangeControls}>
+                <label className={styles.rangeLabel} htmlFor="control-room-range-select">
+                  Time range
+                </label>
+                <select
+                  id="control-room-range-select"
+                  className={styles.rangeSelect}
+                  value={timeRange}
+                  onChange={(event) => setTimeRange(event.currentTarget.value as TimeRangeKey)}
+                  aria-label="Select time range"
+                >
+                  <option value="1d">1 day</option>
+                  <option value="7d">7 days</option>
+                  <option value="30d">30 days</option>
+                  <option value="custom">Custom</option>
+                </select>
+                {timeRange === 'custom' ? (
+                  <div className={styles.customRangeRow}>
+                    <input
+                      className={styles.dateInput}
+                      type="date"
+                      value={customStartDate}
+                      max={customEndDate}
+                      onChange={(event) => setCustomStartDate(event.currentTarget.value)}
+                      aria-label="Custom start date"
+                    />
+                    <span className={styles.dateSeparator}>to</span>
+                    <input
+                      className={styles.dateInput}
+                      type="date"
+                      value={customEndDate}
+                      min={customStartDate}
+                      max={todayIso}
+                      onChange={(event) => setCustomEndDate(event.currentTarget.value)}
+                      aria-label="Custom end date"
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </header>
+            <header className={styles.summaryBar}>
+              <div className={`${styles.summaryMetric} ${styles.metricToneNeutral}`}>
+                <span className={styles.summaryLabel}>Discovery</span>
+                <span className={styles.summaryValue}>{loadingSnapshot ? 'Loading' : 'Unavailable'}</span>
+              </div>
+            </header>
+          </section>
+
+          <aside className={styles.tracyRail}>
+            <TracyPanel
+              flow={flow}
+              traceRows={[]}
+              rangeLabel={resolvedRange.label}
+              rangeSubtitle={resolvedRange.subtitle}
+              loading={loadingSnapshot}
+            />
+          </aside>
         </section>
       </main>
     );
@@ -931,6 +1197,16 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             )}
           </section>
         </section>
+
+        <aside className={styles.tracyRail}>
+          <TracyPanel
+            flow={flow}
+            traceRows={traceRows}
+            rangeLabel={resolvedRange.label}
+            rangeSubtitle={resolvedRange.subtitle}
+            loading={false}
+          />
+        </aside>
       </section>
     </main>
   );

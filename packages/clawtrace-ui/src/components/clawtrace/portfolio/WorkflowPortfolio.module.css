@@ -16,7 +16,7 @@
 .shell {
   min-height: 100dvh;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr) minmax(320px, 380px);
   align-items: stretch;
 }
 
@@ -105,6 +105,169 @@
   padding: 18px 20px;
   display: grid;
   gap: 10px;
+}
+
+.tracyRail {
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  min-height: 100vh;
+  border-left: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: color-mix(in srgb, var(--ct-panel-bg) 86%, white);
+}
+
+.tracyPanel {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+}
+
+.tracyExpanded {
+  grid-template-rows: auto 1fr auto;
+}
+
+.tracyCollapsed {
+  grid-template-rows: auto 1fr;
+}
+
+.tracyHeader {
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fff;
+}
+
+.tracyName {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  font-weight: 620;
+  color: var(--ct-text);
+}
+
+.tracySubtitle {
+  margin: 4px 0 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-muted);
+}
+
+.tracyToggle {
+  height: 30px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 72%, white);
+  color: var(--ct-soft-text);
+  padding: 0 10px;
+  font-size: var(--ct-text-body-sm);
+  font-weight: 560;
+  cursor: pointer;
+}
+
+.tracyTranscript {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 42%, white);
+}
+
+.tracyMessage {
+  max-width: 92%;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  padding: 10px;
+  display: grid;
+  gap: 4px;
+}
+
+.tracyAssistant {
+  justify-self: start;
+  background: #fff;
+  border-color: color-mix(in srgb, var(--ct-border) 74%, white);
+}
+
+.tracyUser {
+  justify-self: end;
+  background: color-mix(in srgb, var(--ct-accent) 72%, white);
+  border-color: color-mix(in srgb, var(--ct-accent-text) 20%, white);
+}
+
+.tracySystem {
+  justify-self: center;
+  width: 100%;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 76%, white);
+  border-color: color-mix(in srgb, var(--ct-border) 74%, white);
+}
+
+.tracyMessageRole {
+  margin: 0;
+  font-size: var(--ct-text-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ct-muted);
+}
+
+.tracyMessageText {
+  margin: 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
+  line-height: 1.42;
+  white-space: pre-wrap;
+}
+
+.tracyComposer {
+  padding: 10px 12px 12px;
+  border-top: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: #fff;
+  display: grid;
+  gap: 8px;
+}
+
+.tracyPromptLabel {
+  margin: 0;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tracyPromptList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tracyPromptButton {
+  min-height: 30px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
+  color: var(--ct-soft-text);
+  font-size: var(--ct-text-body-sm);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+.tracyPromptButton:hover {
+  border-color: color-mix(in srgb, var(--ct-accent) 42%, white);
+  color: var(--ct-text);
+}
+
+.tracyCollapsedBody {
+  padding: 12px;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 42%, white);
+}
+
+.tracyCollapsedText {
+  margin: 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
 }
 
 .pageTopRow {
@@ -435,6 +598,14 @@
 }
 
 @media (max-width: 1280px) {
+  .shell {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .tracyRail {
+    display: none;
+  }
+
   .summaryBar {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
