@@ -2,12 +2,17 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import * as echarts from 'echarts';
+import * as echarts from 'echarts/core';
+import { LineChart } from 'echarts/charts';
+import { GridComponent, TooltipComponent } from 'echarts/components';
+import { CanvasRenderer } from 'echarts/renderers';
 import type { EChartsOption } from 'echarts';
 import { FlowLeftNav } from '../flow/FlowLeftNav';
 import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
 import type { OpenClawDiscoverySnapshot, WorkflowDiscovery } from '../../../lib/openclaw-discovery';
 import styles from './WorkflowPortfolio.module.css';
+
+echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
 type WorkflowPortfolioProps = {
   initialSnapshot?: OpenClawDiscoverySnapshot | null;
@@ -128,10 +133,28 @@ type TrendChartProps = {
   formatValue: (value: number) => string;
 };
 
+function getNiceYAxisMax(value: number): number {
+  if (value <= 0) {
+    return 1;
+  }
+
+  const power = 10 ** Math.floor(Math.log10(value));
+  const normalized = value / power;
+
+  if (normalized <= 1) return 1 * power;
+  if (normalized <= 2) return 2 * power;
+  if (normalized <= 5) return 5 * power;
+  return 10 * power;
+}
+
 function TrendChart({ title, subtitle, categories, values, valueMode, formatValue }: TrendChartProps) {
   const chartRef = useRef<HTMLDivElement | null>(null);
   const maxValue = Math.max(...values, 0);
   const latest = values.length ? values[values.length - 1] : 0;
+  const yAxisMax = getNiceYAxisMax(maxValue);
+  const isCost = valueMode === 'currency';
+  const lineColor = isCost ? '#9b4d45' : '#875333';
+  const areaColor = isCost ? 'rgba(155, 77, 69, 0.14)' : 'rgba(135, 83, 51, 0.16)';
 
   useEffect(() => {
     const node = chartRef.current;
@@ -143,13 +166,19 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
     const option: EChartsOption = {
       animation: false,
       grid: {
-        left: 34,
-        right: 16,
-        top: 12,
-        bottom: 26,
+        left: 44,
+        right: 20,
+        top: 16,
+        bottom: 34,
       },
       tooltip: {
         trigger: 'axis',
+        backgroundColor: '#2b2522',
+        borderWidth: 0,
+        textStyle: {
+          color: '#f7efe9',
+          fontSize: 12,
+        },
         formatter: (params: unknown) => {
           const data = Array.isArray(params) && params.length ? params[0] : null;
           if (!data || typeof data !== 'object') {
@@ -165,18 +194,26 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
         type: 'category',
         data: categories,
         boundaryGap: false,
+        axisTick: {
+          show: false,
+        },
         axisLine: {
           lineStyle: {
-            color: '#d7cbc0',
+            color: '#d6c7bc',
+            width: 1.2,
           },
         },
         axisLabel: {
-          color: '#7b6d62',
-          fontSize: 11,
+          color: '#78695f',
+          fontSize: 12,
+          margin: 14,
         },
       },
       yAxis: {
         type: 'value',
+        min: 0,
+        max: yAxisMax,
+        splitNumber: 3,
         axisLine: {
           show: false,
         },
@@ -185,31 +222,41 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
         },
         splitLine: {
           lineStyle: {
-            color: '#ede6df',
+            color: '#ece2db',
+            type: 'dashed',
           },
         },
         axisLabel: {
-          color: '#7b6d62',
+          color: '#7a6a5e',
           fontSize: 11,
-          formatter: (value: number) => (valueMode === 'currency' ? `$${value.toFixed(2)}` : `${value}`),
+          margin: 10,
+          formatter: (value: number) => {
+            if (valueMode === 'currency') {
+              if (value >= 1000) return `$${(value / 1000).toFixed(1)}k`;
+              return `$${Math.round(value)}`;
+            }
+            return `${Math.round(value)}`;
+          },
         },
       },
       series: [
         {
           type: 'line',
           data: values,
-          smooth: 0.22,
+          smooth: 0.32,
           symbol: 'circle',
-          symbolSize: 6,
+          symbolSize: 7,
           lineStyle: {
-            color: '#99613a',
-            width: 2,
+            color: lineColor,
+            width: 3,
           },
           itemStyle: {
-            color: '#99613a',
+            color: '#fff',
+            borderColor: lineColor,
+            borderWidth: 2,
           },
           areaStyle: {
-            color: 'rgba(153, 97, 58, 0.12)',
+            color: areaColor,
           },
         },
       ],
@@ -229,23 +276,18 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
   return (
     <article className={styles.trendCard}>
       <header>
-        <h2 className={styles.trendTitle}>{title}</h2>
-        <p className={styles.trendSubtitle}>{subtitle}</p>
+        <div>
+          <h2 className={styles.trendTitle}>{title}</h2>
+          <p className={styles.trendSubtitle}>{subtitle}</p>
+        </div>
+        <div className={styles.trendMeta}>
+          <span className={styles.trendMetaBadge}>Peak {formatValue(maxValue)}</span>
+          <span className={styles.trendMetaBadge}>Latest {formatValue(latest)}</span>
+        </div>
       </header>
 
       <div className={styles.trendPlot}>
         <div className={styles.trendCanvas} ref={chartRef} aria-label={title} />
-      </div>
-
-      <div className={styles.trendMeta}>
-        <span>Peak {formatValue(maxValue)}</span>
-        <span>Latest {formatValue(latest)}</span>
-      </div>
-
-      <div className={styles.trendLabels}>
-        {categories.map((category) => (
-          <span key={`${title}-${category}`}>{category}</span>
-        ))}
       </div>
     </article>
   );
