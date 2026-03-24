@@ -1126,10 +1126,18 @@ function StepTimelineView({
       );
       const visibleRowCount = Math.max(10, Math.min(visibleRowsByHeight, rows.length, 30));
       const useVerticalZoom = rows.length > visibleRowCount;
+      const gridLeftPx = 186;
+      const gridRightPx = useVerticalZoom ? 36 : 18;
+      const plotWidthPx = Math.max(1, (dom.clientWidth || 960) - gridLeftPx - gridRightPx);
+      const minVisibleBarPx = 1.25;
+      const minVisibleDurationMs = (maxValue / plotWidthPx) * minVisibleBarPx;
 
       const durationSeries = rows.map((row) => {
         const remaining = Math.max(1, maxValue - row.startOffsetMs);
         const clipped = row.durationMs > remaining;
+        const rawDuration = clipped ? remaining : row.durationMs;
+        const minVisibleDuration = Math.min(remaining, Math.max(rawDuration, minVisibleDurationMs));
+        const durationWasExpanded = minVisibleDuration > rawDuration + 0.0001;
         const kindColor =
           row.kind === 'llm_call'
             ? '#b26a45'
@@ -1139,12 +1147,13 @@ function StepTimelineView({
                 ? '#7663ad'
                 : '#667085';
         return {
-          value: clipped ? remaining : row.durationMs,
+          value: minVisibleDuration,
           spanId: row.spanId,
           label: row.label,
           kind: row.kind,
           tokens: row.totalTokens,
           clipped,
+          durationWasExpanded,
           actualDurationMs: row.durationMs,
           itemStyle: {
             color: kindColor,
@@ -1170,7 +1179,7 @@ function StepTimelineView({
           },
           tooltip: {
             trigger: 'item',
-            formatter: (params: { data?: { label?: string; kind?: string; value?: number; tokens?: number; clipped?: boolean; actualDurationMs?: number } }) => {
+            formatter: (params: { data?: { label?: string; kind?: string; value?: number; tokens?: number; clipped?: boolean; durationWasExpanded?: boolean; actualDurationMs?: number } }) => {
               const item = params.data;
               if (!item) return '';
               const kindText =
@@ -1183,7 +1192,7 @@ function StepTimelineView({
                       : 'Session';
               return [
                 `<strong>${item.label ?? 'step'}</strong>`,
-                `${kindText} · ${formatDuration(item.actualDurationMs ?? item.value ?? 0)}${item.clipped ? ' (clipped for readability)' : ''}`,
+                `${kindText} · ${formatDuration(item.actualDurationMs ?? item.value ?? 0)}${item.clipped ? ' (clipped for readability)' : item.durationWasExpanded ? ' (rendered with minimum visible width)' : ''}`,
                 `${formatNumber(item.tokens ?? 0)} tokens`,
               ].join('<br/>');
             },
