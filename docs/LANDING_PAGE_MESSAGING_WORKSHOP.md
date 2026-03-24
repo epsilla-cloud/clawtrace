@@ -1,7 +1,13 @@
 # ClawTrace Landing Page Messaging Workshop
 
 Last updated: 2026-03-24  
-Status: In review (awaiting narrative selection)
+Status: Selected (ready for implementation)
+
+## 0) Final Selection
+
+Selected launch headline:
+
+**Make your OpenClaw agents better, cheaper, and faster.**
 
 ## 1) Goal
 
