@@ -3,8 +3,6 @@
   min-height: 100dvh;
   background: var(--ct-page-bg);
   color: var(--ct-text);
-  display: grid;
-  grid-template-rows: auto 1fr;
 }
 
 .topBar {
@@ -45,45 +43,17 @@
 }
 
 .shell {
-  min-height: 0;
+  min-height: calc(100dvh - 53px);
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px;
-  align-items: start;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
 }
 
 .leftRail {
   position: sticky;
-  top: 18px;
-  align-self: start;
-}
-
-.flowTabs {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.flowTab {
-  height: 30px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  background: #fff;
-  color: var(--ct-soft-text);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--ct-text-body-sm);
-  padding: 0 10px;
-}
-
-.flowTabActive {
-  background: color-mix(in srgb, var(--ct-accent) 66%, white);
-  border-color: color-mix(in srgb, var(--ct-primary) 24%, var(--ct-border));
-  color: var(--ct-text);
+  top: 0;
+  align-self: stretch;
+  z-index: 10;
 }
 
 .layout {
@@ -91,7 +61,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 372px;
   gap: 12px;
-  padding: 12px;
+  padding: 14px 14px 20px;
 }
 
 .chatPanel {
@@ -346,14 +316,6 @@
 }
 
 @media (max-width: 1140px) {
-  .shell {
-    grid-template-columns: 1fr;
-  }
-
-  .leftRail {
-    position: static;
-  }
-
   .layout {
     grid-template-columns: 1fr;
   }
@@ -365,8 +327,7 @@
 
 @media (max-width: 760px) {
   .topBar {
-    align-items: flex-start;
-    flex-direction: column;
+    padding: 8px 10px;
   }
 
   .topBarHint {
@@ -377,8 +338,8 @@
     max-width: 92vw;
   }
 
-  .shell {
-    padding: 10px;
+  .layout {
+    padding: 10px 10px 14px;
   }
 
   .message {

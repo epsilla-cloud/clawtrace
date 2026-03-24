@@ -1,105 +1,151 @@
 .nav {
-  display: grid;
-  gap: 10px;
-  align-content: start;
-}
-
-.block {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 12px;
+  width: 68px;
+  height: 100dvh;
   background: #fff;
-  padding: 10px;
-  display: grid;
-  gap: 8px;
-}
-
-.blockLabel {
-  margin: 0;
-  font-size: var(--ct-text-meta);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ct-muted);
-  font-weight: 620;
-}
-
-.phaseGroupList {
-  display: grid;
+  border-right: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  padding: 10px 8px 12px;
+  overflow: hidden;
+  transition: width 180ms ease;
 }
 
-.phaseGroup {
-  display: grid;
-  gap: 5px;
+.expanded {
+  width: 232px;
 }
 
-.phaseLabel {
-  margin: 0;
-  font-size: var(--ct-text-meta);
+.collapsed {
+  width: 68px;
+}
+
+.toggleButton {
+  height: 34px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
   color: var(--ct-soft-text);
-  font-weight: 600;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 10px;
+  cursor: pointer;
 }
 
-.flowList {
+.toggleGlyph {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.toggleText {
+  font-size: var(--ct-text-meta);
+  white-space: nowrap;
+}
+
+.itemList {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   display: grid;
+  align-content: start;
   gap: 6px;
 }
 
-.flowItem {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--ct-panel-subtle) 68%, white);
-  padding: 7px 8px;
+.item {
+  height: 42px;
+  border-radius: 11px;
   text-decoration: none;
-  display: grid;
-  gap: 2px;
+  color: var(--ct-soft-text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  border: 1px solid transparent;
 }
 
-.flowItemActive {
+.item:hover {
+  background: color-mix(in srgb, var(--ct-panel-subtle) 80%, white);
+  border-color: color-mix(in srgb, var(--ct-border) 74%, white);
+}
+
+.itemActive {
   background: color-mix(in srgb, var(--ct-accent) 68%, white);
-  border-color: color-mix(in srgb, var(--ct-primary) 24%, var(--ct-border));
-}
-
-.flowIndex {
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
-}
-
-.flowName {
-  font-size: var(--ct-text-body-sm);
+  border-color: color-mix(in srgb, var(--ct-primary) 22%, var(--ct-border));
   color: var(--ct-text);
-  line-height: 1.3;
 }
 
-.subflowList {
-  display: grid;
-  gap: 8px;
+.itemIcon {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-.subflowItem {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--ct-panel-subtle) 68%, white);
-  padding: 8px;
+.itemIcon svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.itemText {
+  font-size: var(--ct-text-body-sm);
+  font-weight: 520;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.currentMeta {
+  border-top: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  padding-top: 8px;
   display: grid;
   gap: 3px;
 }
 
-.subflowIndex {
+.currentFlowTag {
   font-size: var(--ct-text-meta);
   color: var(--ct-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.subflowTitle {
-  margin: 0;
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-text);
-  font-weight: 560;
-}
-
-.subflowBody {
-  margin: 0;
+.currentFlowText {
   font-size: var(--ct-text-meta);
   color: var(--ct-soft-text);
   line-height: 1.35;
 }
 
+.collapsed .toggleButton {
+  padding: 0;
+}
+
+.collapsed .toggleText,
+.collapsed .itemText,
+.collapsed .currentMeta {
+  display: none;
+}
+
+.collapsed .item {
+  justify-content: center;
+  padding: 0;
+}
+
+@media (max-width: 980px) {
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    height: 100dvh;
+  }
+
+  .expanded {
+    width: 198px;
+  }
+}

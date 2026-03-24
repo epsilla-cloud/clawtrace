@@ -36,27 +36,27 @@ Primary objective: move users from "agent feels like a black box" to "I can diag
 | F10 Conversational Automation | User asks in chat | Investigation drawer chat | "Create dashboard/alert/report from this" | Saved dashboard/alert/runbook artifact created | F3 |
 | F11 Feedback Capture | User review or override | Inline feedback controls | "Was this useful/correct?" | Feedback persisted and linked to run/action | F8/F3 |
 
-## 3.1) Navigation Information Architecture (Left Rail)
+## 3.1) Navigation Information Architecture (Expandable Left Rail)
 
-Left navigation is the persistent journey frame across onboarding and operations pages.
+Left navigation is a persistent app rail across onboarding and operations pages. It is function-first, not flow-ID-first.
 
 ### Left rail structure
-1. Journey groups by phase:
-Onboarding: F0, F1, F2  
-Operate: F3, F4, F5, F6, F7  
-Improve: F8, F9, F10, F11
-2. Active flow highlight:
-Current flow is visually pinned so users can recover orientation after deep investigation.
-3. Sub-flow breakdown:
-Each page shows its own modules as `Fx-1`, `Fx-2`, `Fx-3` to make first-time navigation explicit.
+1. Functional steps with icon + label:
+Setup & Baseline, Daily Operations, Diagnose Issues, Resolve & Verify, Prevention & Eval, Automation, Feedback Loop.
+2. Each step maps to one or more internal flows:
+For example Diagnose Issues maps to incident triage and drift/time-machine views.
+3. Active step highlight:
+Current page context highlights one functional step so users keep orientation.
 
-### Navigation behavior
-1. Global jump:
-Users can click any flow in the left rail to jump directly to that surface.
-2. Local progress:
-Each page also exposes transition outcomes ("if this condition, go here") to avoid dead ends.
-3. Onboarding continuity:
-F0/F1/F2 use the same left rail as post-onboarding pages so mental model does not reset at handoff.
+### Left rail behavior
+1. Default collapsed:
+Narrow, full-height vertical bar on the left with icons only.
+2. Click to expand:
+Sidebar widens and shows step labels to the right of each icon.
+3. Icon anchoring:
+Icons stay left-aligned in both states; expanded mode only reveals text.
+4. Journey continuity:
+Same rail is used in onboarding and post-onboarding so the mental model does not reset.
 
 ## 4) Detailed Flow Specs
 

@@ -122,19 +122,19 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
   if (!snapshot || !metrics) {
     return (
       <main className={styles.page}>
-        <header className={styles.summaryBar}>
-          <div className={styles.summaryMetric}>
-            <span className={styles.summaryLabel}>Discovery</span>
-            <span className={styles.summaryValue}>{loadingSnapshot ? 'Loading' : 'Unavailable'}</span>
-          </div>
-        </header>
-
         <section className={styles.shell}>
           <div className={styles.leftRail}>
             <FlowLeftNav flow={flow} allFlows={allFlows} />
           </div>
 
           <section className={styles.dashboard}>
+            <header className={styles.summaryBar}>
+              <div className={styles.summaryMetric}>
+                <span className={styles.summaryLabel}>Discovery</span>
+                <span className={styles.summaryValue}>{loadingSnapshot ? 'Loading' : 'Unavailable'}</span>
+              </div>
+            </header>
+
             <header className={styles.sectionHeader}>
               <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
               <p className={styles.sectionSubtitle}>
@@ -151,35 +151,35 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
 
   return (
     <main className={styles.page}>
-      <header className={styles.summaryBar}>
-        <div className={styles.summaryMetric}>
-          <span className={styles.summaryLabel}>Agents</span>
-          <span className={styles.summaryValue}>{formatNumber(metrics.workflowCount)}</span>
-        </div>
-        <div className={styles.summaryMetric}>
-          <span className={styles.summaryLabel}>Runs (7d)</span>
-          <span className={styles.summaryValue}>{formatNumber(metrics.runsLast7d)}</span>
-        </div>
-        <div className={styles.summaryMetric}>
-          <span className={styles.summaryLabel}>Tokens (7d)</span>
-          <span className={styles.summaryValue}>{formatNumber(metrics.tokensLast7d)}</span>
-        </div>
-        <div className={styles.summaryMetric}>
-          <span className={styles.summaryLabel}>Est. Cost (7d)</span>
-          <span className={styles.summaryValue}>{formatCurrency(metrics.estimatedCostUsdLast7d)}</span>
-        </div>
-        <div className={styles.summaryMetric}>
-          <span className={styles.summaryLabel}>Active Runs</span>
-          <span className={styles.summaryValue}>{formatNumber(metrics.activeTrajectories)}</span>
-        </div>
-      </header>
-
       <section className={styles.shell}>
         <div className={styles.leftRail}>
           <FlowLeftNav flow={flow} allFlows={allFlows} />
         </div>
 
         <section className={styles.dashboard}>
+          <header className={styles.summaryBar}>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryLabel}>Agents</span>
+              <span className={styles.summaryValue}>{formatNumber(metrics.workflowCount)}</span>
+            </div>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryLabel}>Runs (7d)</span>
+              <span className={styles.summaryValue}>{formatNumber(metrics.runsLast7d)}</span>
+            </div>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryLabel}>Tokens (7d)</span>
+              <span className={styles.summaryValue}>{formatNumber(metrics.tokensLast7d)}</span>
+            </div>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryLabel}>Est. Cost (7d)</span>
+              <span className={styles.summaryValue}>{formatCurrency(metrics.estimatedCostUsdLast7d)}</span>
+            </div>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryLabel}>Active Runs</span>
+              <span className={styles.summaryValue}>{formatNumber(metrics.activeTrajectories)}</span>
+            </div>
+          </header>
+
           <header className={styles.sectionHeader}>
             <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
             <p className={styles.sectionSubtitle}>All agents in one list. Open a card to inspect details on the next page.</p>

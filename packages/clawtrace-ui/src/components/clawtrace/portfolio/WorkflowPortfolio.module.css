@@ -3,32 +3,30 @@
   min-height: 100dvh;
   background: var(--ct-page-bg);
   color: var(--ct-text);
-  display: grid;
-  grid-template-rows: auto 1fr;
 }
 
 .summaryBar {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
-  background: color-mix(in srgb, var(--ct-panel-bg) 90%, white);
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  border-radius: 12px;
+  background: #fff;
 }
 
 .shell {
-  min-height: 0;
+  min-height: 100dvh;
   display: grid;
-  grid-template-columns: 290px minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px;
-  align-items: start;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
 }
 
 .leftRail {
   position: sticky;
-  top: 18px;
-  align-self: start;
+  top: 0;
+  align-self: stretch;
+  z-index: 10;
 }
 
 .summaryMetric {
@@ -53,7 +51,7 @@
 
 .dashboard {
   min-height: 0;
-  padding: 14px;
+  padding: 18px 20px;
   display: grid;
   gap: 12px;
 }
@@ -282,14 +280,6 @@
 @media (max-width: 980px) {
   .summaryBar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .shell {
-    grid-template-columns: 1fr;
-  }
-
-  .leftRail {
-    position: static;
   }
 
   .cardGrid {
