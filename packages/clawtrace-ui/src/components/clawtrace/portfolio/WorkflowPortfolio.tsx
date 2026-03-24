@@ -406,6 +406,7 @@ type TracyInlineChartSpec = {
   categories: string[];
   values: number[];
   mode: 'number' | 'currency';
+  visual: 'line' | 'bar' | 'pie';
 };
 
 type TracyMessage = {
@@ -418,7 +419,7 @@ type TracyMessage = {
 };
 
 type TracyPrompt = {
-  id: 'overview' | 'cost' | 'incident' | 'contract' | 'alert';
+  id: 'cost' | 'frequency' | 'overview' | 'incident' | 'contract';
   label: string;
 };
 
@@ -469,17 +470,17 @@ function tracyRoleClass(role: TracyMessageRole): string {
 function getTracyPrompts(flowId: ClawTraceFlowDefinition['id']): TracyPrompt[] {
   if (flowId === 'f3-control-room') {
     return [
-      { id: 'overview', label: 'Give me the executive summary' },
-      { id: 'cost', label: 'Where should we cut cost first?' },
+      { id: 'cost', label: 'Why are my costs so high in the last seven days?' },
+      { id: 'frequency', label: 'Which flow is running too frequently?' },
+      { id: 'overview', label: 'Give me a high-level control room summary' },
       { id: 'incident', label: 'Write an incident brief for the latest risk' },
       { id: 'contract', label: 'How should we tighten the agent contract?' },
-      { id: 'alert', label: 'Create an alert for sudden spend spikes' },
     ];
   }
 
   return [
+    { id: 'cost', label: 'Why are my costs so high in the last seven days?' },
     { id: 'overview', label: 'Give me a quick health summary' },
-    { id: 'cost', label: 'Where is cost concentrated?' },
     { id: 'contract', label: 'What should we improve next?' },
   ];
 }
@@ -492,6 +493,7 @@ function createTracyCharts(context: TracyContext): TracyInlineChartSpec[] {
       categories: context.trendLabels,
       values: context.trendRuns,
       mode: 'number',
+      visual: 'line',
     },
     {
       id: 'cost-trend',
@@ -499,8 +501,66 @@ function createTracyCharts(context: TracyContext): TracyInlineChartSpec[] {
       categories: context.trendLabels,
       values: context.trendCost,
       mode: 'currency',
+      visual: 'line',
     },
   ];
+}
+
+function getWorkflowCostBreakdown(context: TracyContext): Array<{ name: string; costUsd: number; runs: number }> {
+  const byWorkflow = new Map<string, { costUsd: number; runs: number }>();
+  for (const row of context.traceRows) {
+    const current = byWorkflow.get(row.workflowName) ?? { costUsd: 0, runs: 0 };
+    current.costUsd += row.estimatedCostUsd;
+    current.runs += 1;
+    byWorkflow.set(row.workflowName, current);
+  }
+  return [...byWorkflow.entries()]
+    .map(([name, value]) => ({ name, costUsd: value.costUsd, runs: value.runs }))
+    .sort((a, b) => b.costUsd - a.costUsd);
+}
+
+function buildWorkflowFrequencySeries(context: TracyContext, workflowName: string): number[] {
+  const indexByLabel = new Map(context.trendLabels.map((label, index) => [label, index]));
+  const values = context.trendLabels.map(() => 0);
+  for (const row of context.traceRows) {
+    if (row.workflowName !== workflowName) continue;
+    const label = formatShortDay(row.startedAtMs);
+    const index = indexByLabel.get(label);
+    if (index === undefined) continue;
+    values[index] += 1;
+  }
+  return values;
+}
+
+function buildCostSharePieChart(context: TracyContext): TracyInlineChartSpec {
+  const breakdown = getWorkflowCostBreakdown(context);
+  const topItems = breakdown.slice(0, 4);
+  const restCost = breakdown.slice(4).reduce((sum, item) => sum + item.costUsd, 0);
+  const categories = [...topItems.map((item) => item.name)];
+  const values = [...topItems.map((item) => item.costUsd)];
+  if (restCost > 0) {
+    categories.push('Others');
+    values.push(restCost);
+  }
+  return {
+    id: 'cost-share-pie',
+    title: 'Cost share by flow (7d)',
+    categories,
+    values,
+    mode: 'currency',
+    visual: 'pie',
+  };
+}
+
+function buildFrequencyBarChart(context: TracyContext, workflowName: string): TracyInlineChartSpec {
+  return {
+    id: 'flow-frequency-bar',
+    title: `${workflowName} run frequency (7d)`,
+    categories: context.trendLabels,
+    values: buildWorkflowFrequencySeries(context, workflowName),
+    mode: 'number',
+    visual: 'bar',
+  };
 }
 
 function summarizePortfolioOverview(context: TracyContext): string {
@@ -544,26 +604,22 @@ function summarizeCostPriority(context: TracyContext): string {
     return 'No run data yet, so I cannot rank cost actions.';
   }
 
-  const byWorkflow = new Map<string, { cost: number; runs: number }>();
-  for (const row of rows) {
-    const current = byWorkflow.get(row.workflowName) ?? { cost: 0, runs: 0 };
-    current.cost += row.estimatedCostUsd;
-    current.runs += 1;
-    byWorkflow.set(row.workflowName, current);
-  }
-
-  const ranked = [...byWorkflow.entries()].sort((a, b) => b[1].cost - a[1].cost);
-  const [firstName, firstStats] = ranked[0] ?? ['n/a', { cost: 0, runs: 0 }];
-  const [secondName, secondStats] = ranked[1] ?? ['n/a', { cost: 0, runs: 0 }];
+  const ranked = getWorkflowCostBreakdown(context);
+  const first = ranked[0] ?? { name: 'n/a', costUsd: 0, runs: 0 };
+  const second = ranked[1] ?? { name: 'n/a', costUsd: 0, runs: 0 };
   const total = rows.reduce((sum, row) => sum + row.estimatedCostUsd, 0);
-  const firstShare = total > 0 ? Math.round((firstStats.cost / total) * 100) : 0;
+  const firstShare = total > 0 ? Math.round((first.costUsd / total) * 100) : 0;
   const highestRun = [...rows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
+  const frequencySeries = buildWorkflowFrequencySeries(context, first.name);
+  const peakFrequency = Math.max(...frequencySeries, 0);
+  const peakFrequencyDays = context.trendLabels.filter((_, index) => frequencySeries[index] === peakFrequency && peakFrequency > 0);
 
   return [
-    `Highest leverage cut is ${firstName}: ${formatCurrency(firstStats.cost)} across ${firstStats.runs} runs (${firstShare}% share).`,
-    `${secondName !== 'n/a' ? `Second is ${secondName} at ${formatCurrency(secondStats.cost)}.` : 'No second major cost cluster yet.'}`,
+    `Most of the spend is coming from ${first.name} at ${formatCurrency(first.costUsd)} (${firstShare}% of total 7-day cost).`,
+    `${second.name !== 'n/a' ? `Second is ${second.name} at ${formatCurrency(second.costUsd)}.` : 'No second major cost cluster yet.'}`,
+    `${first.name} ran ${first.runs} times in the past 7 days, with a daily peak of ${peakFrequency} run${peakFrequency === 1 ? '' : 's'}${peakFrequencyDays.length ? ` on ${peakFrequencyDays.join(', ')}` : ''}.`,
     `Single hottest run is ${highestRun.traceName} at ${formatCurrency(highestRun.estimatedCostUsd)} (${formatNumber(highestRun.inputTokens + highestRun.outputTokens)} tokens).`,
-    'Recommendation: start with prompt/context reduction and retry caps on that first workflow before broader tuning.',
+    'Top actions: switch to a smaller model for this flow and reduce the run frequency where it does not impact business goals.',
   ].join('\n');
 }
 
@@ -602,26 +658,25 @@ function summarizeContractAssist(context: TracyContext): string {
   ].join('\n');
 }
 
-function summarizeAlertPlan(context: TracyContext): string {
-  const peak = Math.max(...context.trendCost, 0);
-  const avg = context.trendCost.length ? context.trendCost.reduce((sum, value) => sum + value, 0) / context.trendCost.length : 0;
-  const suggestedThreshold = Math.max(peak * 0.7, avg * 1.8);
-  return [
-    `I can draft a spend spike alert with threshold around ${formatCurrency(suggestedThreshold)} per day.`,
-    'Alert logic: trigger when daily cost exceeds threshold or when cost/run jumps >40% day-over-day.',
-    'Delivery: post to control room + notify channel with top contributing workflow and last 3 expensive runs.',
-  ].join('\n');
-}
-
 function buildTracyResponse(query: string, context: TracyContext): Omit<TracyMessage, 'id' | 'role'> {
   const normalized = query.toLowerCase();
   const baseCharts = createTracyCharts(context);
+  const breakdown = getWorkflowCostBreakdown(context);
+  const topWorkflow = breakdown[0]?.name ?? 'Top workflow';
 
   if (normalized.includes('cost') || normalized.includes('spend') || normalized.includes('budget')) {
     return {
-      text: `I pulled a cost-focused cut of your traces.\n${summarizeCostPriority(context)}`,
-      charts: [baseCharts[1]],
-      actions: ['Create spend spike alert', 'Save cost dashboard'],
+      text: summarizeCostPriority(context),
+      charts: [buildCostSharePieChart(context), buildFrequencyBarChart(context, topWorkflow)],
+      actions: ['Switch to a smaller model', 'Reduce the frequency'],
+    };
+  }
+
+  if (normalized.includes('frequen') || normalized.includes('often') || normalized.includes('too many')) {
+    return {
+      text: summarizeCostPriority(context),
+      charts: [buildFrequencyBarChart(context, topWorkflow)],
+      actions: ['Reduce the frequency', 'Set a max daily run cap'],
     };
   }
 
@@ -640,16 +695,8 @@ function buildTracyResponse(query: string, context: TracyContext): Omit<TracyMes
     };
   }
 
-  if (normalized.includes('alert') || normalized.includes('notify')) {
-    return {
-      text: `I analyzed your trend volatility and drafted alert logic.\n${summarizeAlertPlan(context)}`,
-      charts: [baseCharts[1]],
-      actions: ['Create alert', 'Preview alert test'],
-    };
-  }
-
   return {
-    text: `I ran a full control-room overview using current telemetry.\n${summarizePortfolioOverview(context)}`,
+    text: summarizePortfolioOverview(context),
     charts: baseCharts,
     actions: ['Save as briefing note', 'Create dashboard from this'],
   };
@@ -666,16 +713,17 @@ function seedTracyMessages(flow: ClawTraceFlowDefinition, context: TracyContext,
     ];
   }
 
-  const firstResponse = buildTracyResponse('overview', context);
+  const firstQuestion = 'Why are my costs so high in the last seven days?';
+  const firstResponse = buildTracyResponse(firstQuestion, context);
 
   return [
     {
-      id: 'tracy-seed-1',
-      role: 'assistant',
-      text: `I’m Tracy. I act as your investigation companion in this drawer: evidence Q&A, incident artifacts, contract assist, and fast navigation to the right run.`,
+      id: 'tracy-seed-user-1',
+      role: 'user',
+      text: firstQuestion,
     },
     {
-      id: 'tracy-seed-2',
+      id: 'tracy-seed-assistant-1',
       role: 'assistant',
       text: firstResponse.text,
       charts: firstResponse.charts,
@@ -703,34 +751,98 @@ function TracyInlineChart({ chart }: { chart: TracyInlineChartSpec }) {
     const isCost = chart.mode === 'currency';
     const lineColor = isCost ? '#9d4f46' : '#835130';
 
-    const option = {
-      animation: false,
-      grid: { left: 8, right: 8, top: 8, bottom: 8 },
-      xAxis: { type: 'category', data: chart.categories, show: false, boundaryGap: false },
-      yAxis: { type: 'value', show: false, min: 0, max: yAxisMax },
-      series: [
-        {
-          type: 'line',
-          data: chart.values,
-          smooth: 0.35,
-          symbol: 'none',
-          lineStyle: { color: lineColor, width: 2.2 },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: isCost ? 'rgba(157,79,70,0.22)' : 'rgba(131,81,48,0.20)' },
-                { offset: 1, color: isCost ? 'rgba(157,79,70,0.03)' : 'rgba(131,81,48,0.03)' },
-              ],
+    const option =
+      chart.visual === 'pie'
+        ? {
+            animation: false,
+            tooltip: {
+              trigger: 'item',
+              formatter: (params: { name: string; value: number; percent: number }) =>
+                `${params.name}<br/>${formatCurrency(params.value)} (${params.percent}%)`,
             },
-          },
-        },
-      ],
-    };
+            series: [
+              {
+                type: 'pie',
+                radius: ['42%', '72%'],
+                center: ['50%', '52%'],
+                avoidLabelOverlap: true,
+                itemStyle: {
+                  borderColor: '#fff',
+                  borderWidth: 2,
+                },
+                label: {
+                  show: true,
+                  formatter: '{b}\n{d}%',
+                  fontSize: 10,
+                  color: '#6f6257',
+                },
+                data: chart.categories.map((name, index) => ({ name, value: chart.values[index] ?? 0 })),
+              },
+            ],
+          }
+        : {
+            animation: false,
+            grid: { left: 8, right: 8, top: 8, bottom: chart.visual === 'bar' ? 20 : 8 },
+            xAxis: {
+              type: 'category',
+              data: chart.categories,
+              show: chart.visual === 'bar',
+              boundaryGap: chart.visual === 'bar',
+              axisLabel:
+                chart.visual === 'bar'
+                  ? {
+                      color: '#7a6a5e',
+                      fontSize: 10,
+                    }
+                  : undefined,
+              axisLine:
+                chart.visual === 'bar'
+                  ? {
+                      lineStyle: {
+                        color: '#d8cdc5',
+                      },
+                    }
+                  : undefined,
+            },
+            yAxis: {
+              type: 'value',
+              show: false,
+              min: 0,
+              max: yAxisMax,
+            },
+            series: [
+              chart.visual === 'bar'
+                ? {
+                    type: 'bar',
+                    data: chart.values,
+                    barWidth: '54%',
+                    itemStyle: {
+                      color: 'rgba(131,81,48,0.65)',
+                      borderRadius: [4, 4, 0, 0],
+                    },
+                  }
+                : {
+                    type: 'line',
+                    data: chart.values,
+                    smooth: 0.35,
+                    symbol: 'none',
+                    lineStyle: { color: lineColor, width: 2.2 },
+                    areaStyle: {
+                      color: {
+                        type: 'linear',
+                        x: 0,
+                        y: 0,
+                        x2: 0,
+                        y2: 1,
+                        colorStops: [
+                          { offset: 0, color: isCost ? 'rgba(157,79,70,0.22)' : 'rgba(131,81,48,0.20)' },
+                          { offset: 1, color: isCost ? 'rgba(157,79,70,0.03)' : 'rgba(131,81,48,0.03)' },
+                        ],
+                      },
+                    },
+                  },
+            ],
+          };
 
     void (async () => {
       const echarts = await import('echarts');
@@ -749,16 +861,24 @@ function TracyInlineChart({ chart }: { chart: TracyInlineChartSpec }) {
 
   const lastValue = chart.values.length ? chart.values[chart.values.length - 1] : 0;
   const maxValue = chart.values.length ? Math.max(...chart.values) : 0;
+  const metaText =
+    chart.visual === 'pie'
+      ? 'Share by workflow'
+      : `Peak ${chart.mode === 'currency' ? formatCurrency(maxValue) : formatNumber(maxValue)} · Latest ${
+          chart.mode === 'currency' ? formatCurrency(lastValue) : formatNumber(lastValue)
+        }`;
   return (
     <figure className={styles.tracyInlineChart}>
       <figcaption className={styles.tracyInlineTitle}>
         <span>{chart.title}</span>
-        <span className={styles.tracyInlineMeta}>
-          Peak {chart.mode === 'currency' ? formatCurrency(maxValue) : formatNumber(maxValue)} · Latest{' '}
-          {chart.mode === 'currency' ? formatCurrency(lastValue) : formatNumber(lastValue)}
-        </span>
+        <span className={styles.tracyInlineMeta}>{metaText}</span>
       </figcaption>
-      <div className={styles.tracyInlineCanvas} ref={chartRef} aria-label={chart.title} />
+      <div
+        className={styles.tracyInlineCanvas}
+        style={{ height: chart.visual === 'pie' ? 152 : chart.visual === 'bar' ? 96 : 74 }}
+        ref={chartRef}
+        aria-label={chart.title}
+      />
     </figure>
   );
 }
@@ -925,9 +1045,11 @@ function TracyPanel({
   return (
     <aside className={`${styles.tracyPanel} ${expanded ? styles.tracyExpanded : styles.tracyCollapsed}`} aria-label="Tracy side chat">
       <header className={styles.tracyHeader}>
-        <div>
+        <div className={styles.tracyHeaderIdentity}>
+          <span className={styles.tracyAvatarHeader} aria-hidden="true">
+            T
+          </span>
           <p className={styles.tracyName}>Tracy</p>
-          <p className={styles.tracySubtitle}>Investigation companion for this control room</p>
         </div>
         <button
           type="button"
@@ -944,38 +1066,50 @@ function TracyPanel({
         <>
           <div className={styles.tracyTranscript}>
             {messages.map((message) => (
-              <article key={message.id} className={`${styles.tracyMessage} ${tracyRoleClass(message.role)}`}>
-                <p className={styles.tracySender}>{message.role === 'assistant' ? 'Tracy' : 'You'}</p>
-                <p className={styles.tracyMessageText}>{message.text}</p>
-
-                {message.attachments?.length ? (
-                  <div className={styles.tracyAttachmentRow}>
-                    {message.attachments.map((name) => (
-                      <span key={name} className={styles.tracyAttachmentChip}>
-                        {name}
-                      </span>
-                    ))}
-                  </div>
+              <div
+                key={message.id}
+                className={`${styles.tracyMessageRow} ${
+                  message.role === 'assistant' ? styles.tracyMessageRowAssistant : styles.tracyMessageRowUser
+                }`}
+              >
+                {message.role === 'assistant' ? (
+                  <span className={styles.tracyAvatarBubble} aria-hidden="true">
+                    T
+                  </span>
                 ) : null}
+                <article className={`${styles.tracyMessage} ${tracyRoleClass(message.role)}`}>
+                  <p className={styles.tracySender}>{message.role === 'assistant' ? 'Tracy' : 'You'}</p>
+                  <p className={styles.tracyMessageText}>{message.text}</p>
 
-                {message.charts?.length ? (
-                  <div className={styles.tracyChartRow}>
-                    {message.charts.map((chart) => (
-                      <TracyInlineChart key={`${message.id}-${chart.id}`} chart={chart} />
-                    ))}
-                  </div>
-                ) : null}
+                  {message.attachments?.length ? (
+                    <div className={styles.tracyAttachmentRow}>
+                      {message.attachments.map((name) => (
+                        <span key={name} className={styles.tracyAttachmentChip}>
+                          {name}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
 
-                {message.actions?.length ? (
-                  <div className={styles.tracyActionRow}>
-                    {message.actions.map((action) => (
-                      <span key={`${message.id}-${action}`} className={styles.tracyActionChip}>
-                        {action}
-                      </span>
-                    ))}
-                  </div>
-                ) : null}
-              </article>
+                  {message.charts?.length ? (
+                    <div className={styles.tracyChartRow}>
+                      {message.charts.map((chart) => (
+                        <TracyInlineChart key={`${message.id}-${chart.id}`} chart={chart} />
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {message.actions?.length ? (
+                    <div className={styles.tracyActionRow}>
+                      {message.actions.map((action) => (
+                        <span key={`${message.id}-${action}`} className={styles.tracyActionChip}>
+                          {action}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+                </article>
+              </div>
             ))}
           </div>
 
@@ -1034,10 +1168,6 @@ function TracyPanel({
             </div>
 
             <input ref={fileInputRef} type="file" multiple onChange={onFilesSelected} className={styles.tracyHiddenInput} />
-
-            <p className={styles.tracyComposerHint}>
-              Tracy follows the design brief: evidence Q&A, incident artifacts, contract assist, and navigation to the right run.
-            </p>
           </footer>
         </>
       ) : (

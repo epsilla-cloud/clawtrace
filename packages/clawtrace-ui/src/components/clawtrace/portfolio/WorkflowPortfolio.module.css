@@ -134,25 +134,39 @@
   padding: 14px 14px 12px;
   border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
   background: #fff;
 }
 
+.tracyHeaderIdentity {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tracyAvatarHeader {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #9d4f46 0%, #835130 100%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 .tracyName {
   margin: 0;
-  font-size: 20px;
+  font-size: 24px;
   line-height: 1.1;
   letter-spacing: -0.01em;
   font-weight: 620;
   color: var(--ct-text);
-}
-
-.tracySubtitle {
-  margin: 4px 0 0;
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-muted);
 }
 
 .tracyToggle {
@@ -177,8 +191,37 @@
   background: color-mix(in srgb, var(--ct-panel-subtle) 42%, white);
 }
 
+.tracyMessageRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.tracyMessageRowAssistant {
+  justify-content: flex-start;
+}
+
+.tracyMessageRowUser {
+  justify-content: flex-end;
+}
+
+.tracyAvatarBubble {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #9d4f46 0%, #835130 100%);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
 .tracyMessage {
-  max-width: 94%;
+  width: min(94%, 100%);
   border: 1px solid transparent;
   border-radius: 12px;
   padding: 10px;
@@ -187,13 +230,12 @@
 }
 
 .tracyAssistant {
-  justify-self: start;
   background: #fff;
   border-color: color-mix(in srgb, var(--ct-border) 74%, white);
 }
 
 .tracyUser {
-  justify-self: end;
+  max-width: 88%;
   background: color-mix(in srgb, var(--ct-accent) 74%, white);
   border-color: color-mix(in srgb, var(--ct-accent-text) 20%, white);
 }
@@ -378,13 +420,6 @@
 
 .tracyHiddenInput {
   display: none;
-}
-
-.tracyComposerHint {
-  margin: 0;
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
-  line-height: 1.35;
 }
 
 .tracyCollapsedBody {
