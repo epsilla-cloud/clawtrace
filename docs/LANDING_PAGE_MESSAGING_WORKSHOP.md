@@ -1,13 +1,38 @@
 # ClawTrace Landing Page Messaging Workshop
 
 Last updated: 2026-03-24  
-Status: Selected (ready for implementation)
+Status: Locked for implementation
 
 ## 0) Final Selection
 
 Selected launch headline:
 
 **Make your OpenClaw agents better, cheaper, and faster.**
+
+Selected landing-page structure:
+
+**Sketch 3: Founder-Friendly**
+
+Hero:
+- **Make your OpenClaw agents better, cheaper, and faster.**
+
+Subhead:
+- **See what failed, where spend leaked, and what to fix first.**
+
+Section: Better
+- Less babysitting, fewer repeated mistakes.
+- More reliable output from the workflows you already run daily.
+
+Section: Cheaper
+- Know exactly why cost spiked this week.
+- Fix the biggest leak first instead of guessing.
+
+Section: Faster
+- Get from “something is wrong” to “here’s the fix” quickly.
+- Spend less time debugging and more time shipping.
+
+CTA:
+- **Join Waitlist** (email capture)
 
 ## 1) Goal
 
@@ -87,9 +112,6 @@ Short framing:
 5. "Protect quality while cutting cost" section (verification + trust state)
 6. CTA: install or join early access
 
-## 6) Decision Needed
+## 6) Decision
 
-Select primary narrative for first build:
-- A: Cost Control Without Losing Quality (recommended)
-- B: Reliability Control Room
-- C: Founder Time Back
+Landing-page message is approved and ready to build using Sketch 3.
