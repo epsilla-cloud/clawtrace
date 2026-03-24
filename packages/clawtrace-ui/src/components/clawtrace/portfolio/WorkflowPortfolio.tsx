@@ -1792,7 +1792,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
                         <td>{formatNumber(row.outputTokens)}</td>
                         <td>{formatCurrency(row.estimatedCostUsd)}</td>
                         <td>
-                          <Link href={`/control-room/${encodeURIComponent(row.workflowId)}`} className={styles.detailsLink}>
+                          <Link href={buildTraceDetailHref(row)} className={styles.detailsLink}>
                             View
                           </Link>
                         </td>
