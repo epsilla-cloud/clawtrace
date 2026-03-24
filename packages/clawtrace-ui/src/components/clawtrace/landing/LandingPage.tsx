@@ -141,15 +141,14 @@ export function LandingPage() {
         <p className={styles.backersLabel}>Backed by</p>
         <div className={styles.backersList}>
           {BACKERS.map((backer) => (
-            <div key={backer.name} className={styles.backerTag}>
-              <img
-                src={backer.logo.src}
-                alt={backer.name}
-                width={backer.logo.width}
-                height={backer.logo.height}
-                className={styles.backerLogo}
-              />
-            </div>
+            <img
+              key={backer.name}
+              src={backer.logo.src}
+              alt={backer.name}
+              width={backer.logo.width}
+              height={backer.logo.height}
+              className={styles.backerLogo}
+            />
           ))}
         </div>
       </section>
