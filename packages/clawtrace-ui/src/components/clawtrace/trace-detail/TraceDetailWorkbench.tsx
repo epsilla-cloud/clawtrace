@@ -1548,13 +1548,71 @@ function ExecutionPathView({
   onSelectSpan: (spanId: string) => void;
 }) {
   const spanById = useMemo(() => new Map(detail.spans.map((span) => [span.spanId, span])), [detail.spans]);
+  const executionParentBySpanId = useMemo(() => {
+    const parentBySpan = new Map<string, string | null>();
+    const llmBySession = new Map<string, TraceDetailSpan[]>();
+
+    for (const span of detail.spans) {
+      if (span.kind !== 'llm_call') {
+        continue;
+      }
+      const sessionKey = span.sessionKey ?? '__unknown_session__';
+      const bucket = llmBySession.get(sessionKey) ?? [];
+      bucket.push(span);
+      llmBySession.set(sessionKey, bucket);
+    }
+
+    for (const bucket of llmBySession.values()) {
+      bucket.sort((a, b) => a.startMs - b.startMs);
+    }
+
+    for (const span of detail.spans) {
+      let parentSpanId = span.parentSpanId ?? null;
+      const rawParent = parentSpanId ? spanById.get(parentSpanId) ?? null : null;
+
+      if (span.kind === 'tool_call' && (!rawParent || rawParent.kind === 'session')) {
+        const sessionKey = span.sessionKey ?? rawParent?.sessionKey ?? '__unknown_session__';
+        const llmCandidates = llmBySession.get(sessionKey) ?? [];
+
+        let chosenParent = llmCandidates
+          .filter((candidate) => candidate.startMs <= span.startMs && candidate.resolvedEndMs >= span.startMs)
+          .sort((a, b) => b.startMs - a.startMs)[0];
+
+        if (!chosenParent) {
+          chosenParent = llmCandidates
+            .filter((candidate) => candidate.startMs <= span.startMs)
+            .sort((a, b) => b.startMs - a.startMs)[0];
+        }
+
+        if (chosenParent) {
+          parentSpanId = chosenParent.spanId;
+        }
+      }
+
+      parentBySpan.set(span.spanId, parentSpanId);
+    }
+
+    return parentBySpan;
+  }, [detail.spans, spanById]);
+
+  const rootSpanIds = useMemo(() => {
+    return detail.spans
+      .filter((span) => {
+        const parentSpanId = executionParentBySpanId.get(span.spanId) ?? null;
+        return !parentSpanId || !spanById.has(parentSpanId);
+      })
+      .sort((a, b) => a.startMs - b.startMs)
+      .map((span) => span.spanId);
+  }, [detail.spans, executionParentBySpanId, spanById]);
+
   const childrenByParent = useMemo(() => {
     const map = new Map<string, TraceDetailSpan[]>();
     for (const span of detail.spans) {
-      if (!span.parentSpanId) continue;
-      const bucket = map.get(span.parentSpanId) ?? [];
+      const executionParentSpanId = executionParentBySpanId.get(span.spanId) ?? null;
+      if (!executionParentSpanId) continue;
+      const bucket = map.get(executionParentSpanId) ?? [];
       bucket.push(span);
-      map.set(span.parentSpanId, bucket);
+      map.set(executionParentSpanId, bucket);
     }
 
     for (const bucket of map.values()) {
@@ -1562,7 +1620,7 @@ function ExecutionPathView({
     }
 
     return map;
-  }, [detail.spans]);
+  }, [detail.spans, executionParentBySpanId]);
 
   const [openGroupMap, setOpenGroupMap] = useState<Record<string, boolean>>({});
 
@@ -1595,12 +1653,18 @@ function ExecutionPathView({
           bucket.push(children[cursor]);
           cursor += 1;
         }
-        groups.push({ key: `${current.parentSpanId ?? 'root'}-${index}-${currentKey}`, spans: bucket });
+        groups.push({
+          key: `${executionParentBySpanId.get(current.spanId) ?? current.parentSpanId ?? 'root'}-${index}-${currentKey}`,
+          spans: bucket,
+        });
         index = cursor;
         continue;
       }
 
-      groups.push({ key: `${current.parentSpanId ?? 'root'}-${index}-${current.spanId}`, spans: [current] });
+      groups.push({
+        key: `${executionParentBySpanId.get(current.spanId) ?? current.parentSpanId ?? 'root'}-${index}-${current.spanId}`,
+        spans: [current],
+      });
       index += 1;
     }
 
@@ -1676,7 +1740,7 @@ function ExecutionPathView({
     );
   }
 
-  if (!detail.spans.length || !detail.callTree.roots.length) {
+  if (!detail.spans.length || !rootSpanIds.length) {
     return <div className={styles.viewEmpty}>No call tree data available for this run.</div>;
   }
 
@@ -1688,7 +1752,7 @@ function ExecutionPathView({
         <span className={styles.treeHeaderMetric}>Tokens (LLM)</span>
       </header>
       <div className={styles.treeRows}>
-        {detail.callTree.roots
+        {rootSpanIds
           .map((rootId) => spanById.get(rootId))
           .filter((span): span is TraceDetailSpan => Boolean(span))
           .map((span, index) => renderNode(span, 0, `root-${index}`))}
