@@ -36,6 +36,28 @@ Primary objective: move users from "agent feels like a black box" to "I can diag
 | F10 Conversational Automation | User asks in chat | Investigation drawer chat | "Create dashboard/alert/report from this" | Saved dashboard/alert/runbook artifact created | F3 |
 | F11 Feedback Capture | User review or override | Inline feedback controls | "Was this useful/correct?" | Feedback persisted and linked to run/action | F8/F3 |
 
+## 3.1) Navigation Information Architecture (Left Rail)
+
+Left navigation is the persistent journey frame across onboarding and operations pages.
+
+### Left rail structure
+1. Journey groups by phase:
+Onboarding: F0, F1, F2  
+Operate: F3, F4, F5, F6, F7  
+Improve: F8, F9, F10, F11
+2. Active flow highlight:
+Current flow is visually pinned so users can recover orientation after deep investigation.
+3. Sub-flow breakdown:
+Each page shows its own modules as `Fx-1`, `Fx-2`, `Fx-3` to make first-time navigation explicit.
+
+### Navigation behavior
+1. Global jump:
+Users can click any flow in the left rail to jump directly to that surface.
+2. Local progress:
+Each page also exposes transition outcomes ("if this condition, go here") to avoid dead ends.
+3. Onboarding continuity:
+F0/F1/F2 use the same left rail as post-onboarding pages so mental model does not reset at handoff.
+
 ## 4) Detailed Flow Specs
 
 ## F0 Entry + Connect
@@ -258,6 +280,21 @@ stateDiagram-v2
     F11_FeedbackCapture --> F8_RegressionEval: high-value learning
     F11_FeedbackCapture --> F3_DailyControlRoom: normal return
 ```
+
+## 5.1) Page-to-Page Contract
+
+Each page in Phase 1 must satisfy this interaction contract:
+
+1. Frame:
+Left rail with journey + sub-flow modules.
+2. Purpose:
+One page-level question ("What is happening?", "Why failed?", "Did fix work?").
+3. Decision:
+One primary action and explicit transition outcomes.
+4. Evidence:
+Known/unknown clarity plus trace/cost evidence links where relevant.
+
+This contract prevents "everything in one screen" drift and keeps each page legible for first-time users.
 
 ## 6) Cost Audit and Cost Control Overlay (OpenClaw)
 

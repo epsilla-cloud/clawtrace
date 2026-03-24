@@ -21,6 +21,12 @@
   min-width: 0;
 }
 
+.topBarHint {
+  margin: 0;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+}
+
 .connectionLine {
   margin: 0;
   font-size: var(--ct-text-body-sm);
@@ -36,6 +42,21 @@
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 52vw;
+}
+
+.shell {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  align-items: start;
+}
+
+.leftRail {
+  position: sticky;
+  top: 18px;
+  align-self: start;
 }
 
 .flowTabs {
@@ -325,6 +346,14 @@
 }
 
 @media (max-width: 1140px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .leftRail {
+    position: static;
+  }
+
   .layout {
     grid-template-columns: 1fr;
   }
@@ -340,11 +369,15 @@
     flex-direction: column;
   }
 
+  .topBarHint {
+    font-size: var(--ct-text-meta);
+  }
+
   .pathLine {
     max-width: 92vw;
   }
 
-  .layout {
+  .shell {
     padding: 10px;
   }
 

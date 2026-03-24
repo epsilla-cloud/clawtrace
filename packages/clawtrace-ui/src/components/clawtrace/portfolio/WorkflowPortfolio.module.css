@@ -16,6 +16,21 @@
   background: color-mix(in srgb, var(--ct-panel-bg) 90%, white);
 }
 
+.shell {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 290px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  align-items: start;
+}
+
+.leftRail {
+  position: sticky;
+  top: 18px;
+  align-self: start;
+}
+
 .summaryMetric {
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   border-radius: 10px;
@@ -63,6 +78,27 @@
   margin: 5px 0 0;
   font-size: var(--ct-text-body-sm);
   color: var(--ct-muted);
+}
+
+.transitionActions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transitionLink {
+  height: 32px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
+  color: var(--ct-soft-text);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+  font-size: var(--ct-text-body-sm);
 }
 
 .filterRow {
@@ -248,8 +284,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .shell {
+    grid-template-columns: 1fr;
+  }
+
+  .leftRail {
+    position: static;
+  }
+
   .cardGrid {
     grid-template-columns: 1fr;
   }
 }
-

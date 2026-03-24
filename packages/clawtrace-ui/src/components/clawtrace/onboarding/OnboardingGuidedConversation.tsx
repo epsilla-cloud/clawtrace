@@ -8,6 +8,7 @@ import type {
   WorkflowDiscovery,
   WorkflowRecommendation,
 } from '../../../lib/openclaw-discovery';
+import { FlowLeftNav } from '../flow/FlowLeftNav';
 import styles from './OnboardingGuidedConversation.module.css';
 
 type OnboardingMessageRole = 'assistant' | 'system' | 'user';
@@ -20,6 +21,7 @@ type OnboardingMessage = {
 
 type OnboardingGuidedConversationProps = {
   flow: ClawTraceFlowDefinition;
+  allFlows: ClawTraceFlowDefinition[];
   initialSnapshot?: OpenClawDiscoverySnapshot | null;
   previousFlow: ClawTraceFlowDefinition | null;
   nextFlow: ClawTraceFlowDefinition | null;
@@ -212,6 +214,7 @@ function workflowSummary(workflow: WorkflowDiscovery): string {
 
 export function OnboardingGuidedConversation({
   flow,
+  allFlows,
   initialSnapshot,
   previousFlow,
   nextFlow,
@@ -315,21 +318,28 @@ export function OnboardingGuidedConversation({
             <p className={styles.connectionLine}>OpenClaw import: {loadingSnapshot ? 'Loading' : 'Unavailable'}</p>
             <p className={styles.pathLine}>~/.openclaw</p>
           </div>
+          <p className={styles.topBarHint}>Onboarding guided chat</p>
         </header>
-        <section className={styles.layout}>
-          <section className={styles.chatPanel}>
-            <header className={styles.chatHeader}>
-              <h1 className={styles.chatTitle}>{flow.title}</h1>
-              <p className={styles.chatSubtitle}>Preparing onboarding context from local telemetry.</p>
-            </header>
-            <div className={styles.transcript}>
-              {transcript.map((message) => (
-                <article key={message.id} className={`${styles.message} ${roleClass(message.role)}`}>
-                  <p className={styles.messageRole}>{message.role}</p>
-                  <p className={styles.messageText}>{message.text}</p>
-                </article>
-              ))}
-            </div>
+        <section className={styles.shell}>
+          <div className={styles.leftRail}>
+            <FlowLeftNav flow={flow} allFlows={allFlows} />
+          </div>
+
+          <section className={styles.layout}>
+            <section className={styles.chatPanel}>
+              <header className={styles.chatHeader}>
+                <h1 className={styles.chatTitle}>{flow.title}</h1>
+                <p className={styles.chatSubtitle}>Preparing onboarding context from local telemetry.</p>
+              </header>
+              <div className={styles.transcript}>
+                {transcript.map((message) => (
+                  <article key={message.id} className={`${styles.message} ${roleClass(message.role)}`}>
+                    <p className={styles.messageRole}>{message.role}</p>
+                    <p className={styles.messageText}>{message.text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
           </section>
         </section>
       </main>
@@ -343,137 +353,132 @@ export function OnboardingGuidedConversation({
           <p className={styles.connectionLine}>OpenClaw import: {toStatusLabel(snapshot.importHealth)}</p>
           <p className={styles.pathLine}>{snapshot.openclawPath}</p>
         </div>
-
-        <nav className={styles.flowTabs} aria-label="Onboarding flow">
-          <Link href="/onboarding/connect" className={`${styles.flowTab} ${flow.id === 'f0-connect' ? styles.flowTabActive : ''}`}>
-            Connect
-          </Link>
-          <Link href="/onboarding/audit" className={`${styles.flowTab} ${flow.id === 'f1-audit' ? styles.flowTabActive : ''}`}>
-            Audit
-          </Link>
-          <Link href="/onboarding/handoff" className={`${styles.flowTab} ${flow.id === 'f2-handoff' ? styles.flowTabActive : ''}`}>
-            Handoff
-          </Link>
-        </nav>
+        <p className={styles.topBarHint}>Onboarding: guided conversation + evidence import</p>
       </header>
 
-      <section className={styles.layout}>
-        <section className={styles.chatPanel}>
-          <header className={styles.chatHeader}>
-            <h1 className={styles.chatTitle}>{flow.title}</h1>
-            <p className={styles.chatSubtitle}>Grounded in live workspace telemetry, traces, and workflow state.</p>
-          </header>
+      <section className={styles.shell}>
+        <div className={styles.leftRail}>
+          <FlowLeftNav flow={flow} allFlows={allFlows} />
+        </div>
 
-          <div className={styles.transcript}>
-            {transcript.map((message) => (
-              <article key={message.id} className={`${styles.message} ${roleClass(message.role)}`}>
-                <p className={styles.messageRole}>{message.role}</p>
-                <p className={styles.messageText}>{message.text}</p>
-              </article>
-            ))}
-          </div>
+        <section className={styles.layout}>
+          <section className={styles.chatPanel}>
+            <header className={styles.chatHeader}>
+              <h1 className={styles.chatTitle}>{flow.title}</h1>
+              <p className={styles.chatSubtitle}>Grounded in live workspace telemetry, traces, and workflow state.</p>
+            </header>
 
-          <footer className={styles.composer}>
-            <div className={styles.quickReplies}>
-              {replies.map((reply) => (
-                <button key={reply} type="button" className={styles.quickReply} onClick={() => onQuickReply(reply)}>
-                  {reply}
+            <div className={styles.transcript}>
+              {transcript.map((message) => (
+                <article key={message.id} className={`${styles.message} ${roleClass(message.role)}`}>
+                  <p className={styles.messageRole}>{message.role}</p>
+                  <p className={styles.messageText}>{message.text}</p>
+                </article>
+              ))}
+            </div>
+
+            <footer className={styles.composer}>
+              <div className={styles.quickReplies}>
+                {replies.map((reply) => (
+                  <button key={reply} type="button" className={styles.quickReply} onClick={() => onQuickReply(reply)}>
+                    {reply}
+                  </button>
+                ))}
+              </div>
+
+              <div className={styles.composerRow}>
+                <input
+                  className={styles.input}
+                  value={draft}
+                  onChange={(event) => setDraft(event.currentTarget.value)}
+                  placeholder="Confirm or edit your high-level goal"
+                  aria-label="Onboarding goal response"
+                />
+                <button className={styles.sendButton} type="button" onClick={onSend}>
+                  Save
                 </button>
-              ))}
-            </div>
-
-            <div className={styles.composerRow}>
-              <input
-                className={styles.input}
-                value={draft}
-                onChange={(event) => setDraft(event.currentTarget.value)}
-                placeholder="Confirm or edit your high-level goal"
-                aria-label="Onboarding goal response"
-              />
-              <button className={styles.sendButton} type="button" onClick={onSend}>
-                Save
-              </button>
-            </div>
-          </footer>
-        </section>
-
-        <aside className={styles.sidePanel}>
-          <article className={styles.card}>
-            <h2 className={styles.cardTitle}>Imported Metrics</h2>
-            <div className={styles.metricGrid}>
-              <div className={styles.metricCell}>
-                <span className={styles.metricLabel}>Workflows</span>
-                <span className={styles.metricValue}>{formatNumber(snapshot.metrics.workflowCount)}</span>
               </div>
-              <div className={styles.metricCell}>
-                <span className={styles.metricLabel}>Runs (7d)</span>
-                <span className={styles.metricValue}>{formatNumber(snapshot.metrics.runsLast7d)}</span>
-              </div>
-              <div className={styles.metricCell}>
-                <span className={styles.metricLabel}>Tokens (7d)</span>
-                <span className={styles.metricValue}>{formatNumber(snapshot.metrics.tokensLast7d)}</span>
-              </div>
-              <div className={styles.metricCell}>
-                <span className={styles.metricLabel}>Est. Cost (7d)</span>
-                <span className={styles.metricValue}>{formatCurrency(snapshot.metrics.estimatedCostUsdLast7d)}</span>
-              </div>
-              <div className={styles.metricCell}>
-                <span className={styles.metricLabel}>Models</span>
-                <span className={styles.metricValue}>{snapshot.metrics.modelsUsed.length}</span>
-              </div>
-            </div>
-          </article>
+            </footer>
+          </section>
 
-          <article className={styles.card}>
-            <h2 className={styles.cardTitle}>Workflow Discovery</h2>
-            <ul className={styles.list}>
-              {snapshot.workflows.map((workflow) => (
-                <li key={workflow.id} className={styles.listItem}>
-                  <p className={styles.listTitle}>{workflow.name}</p>
-                  <p className={styles.listBody}>{workflowSummary(workflow)}</p>
-                  <p className={styles.listMeta}>Last run: {workflow.latestRun ? formatDate(workflow.latestRun.atMs) : 'n/a'}</p>
-                </li>
-              ))}
-            </ul>
-          </article>
-
-          <article className={styles.card}>
-            <h2 className={styles.cardTitle}>Inferred Goals</h2>
-            <ul className={styles.checkList}>
-              {snapshot.inferredPortfolioGoals.map((goal) => (
-                <li key={goal} className={styles.checkItem}>
-                  {goal}
-                </li>
-              ))}
-            </ul>
-          </article>
-
-          {flow.id === 'f2-handoff' ? (
+          <aside className={styles.sidePanel}>
             <article className={styles.card}>
-              <h2 className={styles.cardTitle}>Recommended Control Posture</h2>
+              <h2 className={styles.cardTitle}>Imported Metrics</h2>
+              <div className={styles.metricGrid}>
+                <div className={styles.metricCell}>
+                  <span className={styles.metricLabel}>Workflows</span>
+                  <span className={styles.metricValue}>{formatNumber(snapshot.metrics.workflowCount)}</span>
+                </div>
+                <div className={styles.metricCell}>
+                  <span className={styles.metricLabel}>Runs (7d)</span>
+                  <span className={styles.metricValue}>{formatNumber(snapshot.metrics.runsLast7d)}</span>
+                </div>
+                <div className={styles.metricCell}>
+                  <span className={styles.metricLabel}>Tokens (7d)</span>
+                  <span className={styles.metricValue}>{formatNumber(snapshot.metrics.tokensLast7d)}</span>
+                </div>
+                <div className={styles.metricCell}>
+                  <span className={styles.metricLabel}>Est. Cost (7d)</span>
+                  <span className={styles.metricValue}>{formatCurrency(snapshot.metrics.estimatedCostUsdLast7d)}</span>
+                </div>
+                <div className={styles.metricCell}>
+                  <span className={styles.metricLabel}>Models</span>
+                  <span className={styles.metricValue}>{snapshot.metrics.modelsUsed.length}</span>
+                </div>
+              </div>
+            </article>
+
+            <article className={styles.card}>
+              <h2 className={styles.cardTitle}>Workflow Discovery</h2>
               <ul className={styles.list}>
-                {(snapshot.workflows[0]?.recommendations ?? []).map((recommendation) => (
-                  <li key={recommendation.id} className={styles.listItem}>
-                    <p className={styles.listTitle}>{recommendation.label}</p>
-                    <p className={styles.listBody}>{recommendation.detail}</p>
-                    <p className={styles.listMeta}>{recommendation.suggestedSetting}</p>
+                {snapshot.workflows.map((workflow) => (
+                  <li key={workflow.id} className={styles.listItem}>
+                    <p className={styles.listTitle}>{workflow.name}</p>
+                    <p className={styles.listBody}>{workflowSummary(workflow)}</p>
+                    <p className={styles.listMeta}>Last run: {workflow.latestRun ? formatDate(workflow.latestRun.atMs) : 'n/a'}</p>
                   </li>
                 ))}
               </ul>
             </article>
-          ) : null}
 
-          <div className={styles.actions}>
-            {previousFlow ? (
-              <Link className={styles.secondaryButton} href={previousFlow.route}>
-                Back
-              </Link>
+            <article className={styles.card}>
+              <h2 className={styles.cardTitle}>Inferred Goals</h2>
+              <ul className={styles.checkList}>
+                {snapshot.inferredPortfolioGoals.map((goal) => (
+                  <li key={goal} className={styles.checkItem}>
+                    {goal}
+                  </li>
+                ))}
+              </ul>
+            </article>
+
+            {flow.id === 'f2-handoff' ? (
+              <article className={styles.card}>
+                <h2 className={styles.cardTitle}>Recommended Control Posture</h2>
+                <ul className={styles.list}>
+                  {(snapshot.workflows[0]?.recommendations ?? []).map((recommendation) => (
+                    <li key={recommendation.id} className={styles.listItem}>
+                      <p className={styles.listTitle}>{recommendation.label}</p>
+                      <p className={styles.listBody}>{recommendation.detail}</p>
+                      <p className={styles.listMeta}>{recommendation.suggestedSetting}</p>
+                    </li>
+                  ))}
+                </ul>
+              </article>
             ) : null}
-            <Link className={styles.primaryButton} href={continueHref}>
-              {flow.id === 'f2-handoff' ? 'Open Workflow Portfolio' : flow.primaryActionLabel}
-            </Link>
-          </div>
-        </aside>
+
+            <div className={styles.actions}>
+              {previousFlow ? (
+                <Link className={styles.secondaryButton} href={previousFlow.route}>
+                  Back
+                </Link>
+              ) : null}
+              <Link className={styles.primaryButton} href={continueHref}>
+                {flow.id === 'f2-handoff' ? 'Open Agent Dashboard' : flow.primaryActionLabel}
+              </Link>
+            </div>
+          </aside>
+        </section>
       </section>
     </main>
   );

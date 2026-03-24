@@ -55,6 +55,7 @@ export default async function FlowRoutePage({ params }: FlowRoutePageProps) {
       <div className="operator clawtrace">
         <OnboardingGuidedConversation
           flow={flow as ClawTraceFlowDefinition}
+          allFlows={CLAWTRACE_FLOW_PAGES}
           previousFlow={previousFlow}
           nextFlow={nextFlow}
         />
@@ -65,7 +66,7 @@ export default async function FlowRoutePage({ params }: FlowRoutePageProps) {
   if (flow.id === 'f3-control-room') {
     return (
       <div className="operator clawtrace">
-        <WorkflowPortfolio />
+        <WorkflowPortfolio flow={flow} allFlows={CLAWTRACE_FLOW_PAGES} />
       </div>
     );
   }

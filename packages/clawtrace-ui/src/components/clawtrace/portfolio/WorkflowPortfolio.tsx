@@ -2,11 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
+import { FlowLeftNav } from '../flow/FlowLeftNav';
+import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
 import type { OpenClawDiscoverySnapshot, WorkflowDiscovery } from '../../../lib/openclaw-discovery';
 import styles from './WorkflowPortfolio.module.css';
 
 type WorkflowPortfolioProps = {
   initialSnapshot?: OpenClawDiscoverySnapshot | null;
+  flow: ClawTraceFlowDefinition;
+  allFlows: ClawTraceFlowDefinition[];
 };
 
 const TRUST_LABEL: Record<WorkflowDiscovery['trustState'], string> = {
@@ -56,7 +60,7 @@ function cardSubtitle(agent: WorkflowDiscovery): string {
   return `${agent.runStats7d.success}/${agent.runStats7d.total} success in 7d`;
 }
 
-export function WorkflowPortfolio({ initialSnapshot }: WorkflowPortfolioProps) {
+export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowPortfolioProps) {
   const [snapshot, setSnapshot] = useState<OpenClawDiscoverySnapshot | null>(initialSnapshot ?? null);
   const [loadingSnapshot, setLoadingSnapshot] = useState<boolean>(!initialSnapshot);
   const [query, setQuery] = useState('');
@@ -125,15 +129,21 @@ export function WorkflowPortfolio({ initialSnapshot }: WorkflowPortfolioProps) {
           </div>
         </header>
 
-        <section className={styles.dashboard}>
-          <header className={styles.sectionHeader}>
-            <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
-            <p className={styles.sectionSubtitle}>
-              {loadingSnapshot
-                ? 'Importing your OpenClaw agents and runs...'
-                : 'Unable to load discovery snapshot. Verify local paths and refresh.'}
-            </p>
-          </header>
+        <section className={styles.shell}>
+          <div className={styles.leftRail}>
+            <FlowLeftNav flow={flow} allFlows={allFlows} />
+          </div>
+
+          <section className={styles.dashboard}>
+            <header className={styles.sectionHeader}>
+              <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
+              <p className={styles.sectionSubtitle}>
+                {loadingSnapshot
+                  ? 'Importing your OpenClaw agents and runs...'
+                  : 'Unable to load discovery snapshot. Verify local paths and refresh.'}
+              </p>
+            </header>
+          </section>
         </section>
       </main>
     );
@@ -164,60 +174,82 @@ export function WorkflowPortfolio({ initialSnapshot }: WorkflowPortfolioProps) {
         </div>
       </header>
 
-      <section className={styles.dashboard}>
-        <header className={styles.sectionHeader}>
-          <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
-          <p className={styles.sectionSubtitle}>All agents in one list. Open a card to inspect details on the next page.</p>
-        </header>
-
-        <div className={styles.filterRow}>
-          <input
-            className={styles.filterInput}
-            value={query}
-            onChange={(event) => setQuery(event.currentTarget.value)}
-            placeholder="Filter agents"
-            aria-label="Filter agents"
-          />
+      <section className={styles.shell}>
+        <div className={styles.leftRail}>
+          <FlowLeftNav flow={flow} allFlows={allFlows} />
         </div>
 
-        {visibleAgents.length ? (
-          <div className={styles.cardGrid}>
-            {visibleAgents.map((agent) => (
-              <article key={agent.id} className={styles.agentCard}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.agentName}>{agent.name}</h2>
-                  <span className={`${styles.statusPill} ${TRUST_CLASS[agent.trustState]}`}>{TRUST_LABEL[agent.trustState]}</span>
-                </div>
+        <section className={styles.dashboard}>
+          <header className={styles.sectionHeader}>
+            <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
+            <p className={styles.sectionSubtitle}>All agents in one list. Open a card to inspect details on the next page.</p>
 
-                <p className={styles.cardSubtitle}>{cardSubtitle(agent)}</p>
+            {flow.transitions?.length ? (
+              <div className={styles.transitionActions}>
+                {flow.transitions.map((transition) => {
+                  const target = allFlows.find((item) => item.id === transition.target);
+                  if (!target) {
+                    return null;
+                  }
 
-                <div className={styles.cardStats}>
-                  <div className={styles.cardStat}>
-                    <span className={styles.cardStatLabel}>Est. Cost (7d)</span>
-                    <span className={styles.cardStatValue}>{formatCurrency(agent.costStats7d.totalUsd)}</span>
-                  </div>
-                  <div className={styles.cardStat}>
-                    <span className={styles.cardStatLabel}>Last Run</span>
-                    <span className={styles.cardStatValue}>{agent.latestRun ? formatDate(agent.latestRun.atMs) : 'n/a'}</span>
-                  </div>
-                </div>
+                  return (
+                    <Link key={`${transition.target}-${transition.label}`} href={target.route} className={styles.transitionLink}>
+                      {transition.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            ) : null}
+          </header>
 
-                <div className={styles.cardFooter}>
-                  <Link href={`/control-room/${encodeURIComponent(agent.id)}`} className={styles.detailsLink}>
-                    Open details
-                  </Link>
-                </div>
-              </article>
-            ))}
+          <div className={styles.filterRow}>
+            <input
+              className={styles.filterInput}
+              value={query}
+              onChange={(event) => setQuery(event.currentTarget.value)}
+              placeholder="Filter agents"
+              aria-label="Filter agents"
+            />
           </div>
-        ) : (
-          <article className={styles.emptyCard}>
-            <p className={styles.emptyTitle}>No agents match this filter.</p>
-            <p className={styles.emptyBody}>Try a different search term or clear the filter.</p>
-          </article>
-        )}
+
+          {visibleAgents.length ? (
+            <div className={styles.cardGrid}>
+              {visibleAgents.map((agent) => (
+                <article key={agent.id} className={styles.agentCard}>
+                  <div className={styles.cardHeader}>
+                    <h2 className={styles.agentName}>{agent.name}</h2>
+                    <span className={`${styles.statusPill} ${TRUST_CLASS[agent.trustState]}`}>{TRUST_LABEL[agent.trustState]}</span>
+                  </div>
+
+                  <p className={styles.cardSubtitle}>{cardSubtitle(agent)}</p>
+
+                  <div className={styles.cardStats}>
+                    <div className={styles.cardStat}>
+                      <span className={styles.cardStatLabel}>Est. Cost (7d)</span>
+                      <span className={styles.cardStatValue}>{formatCurrency(agent.costStats7d.totalUsd)}</span>
+                    </div>
+                    <div className={styles.cardStat}>
+                      <span className={styles.cardStatLabel}>Last Run</span>
+                      <span className={styles.cardStatValue}>{agent.latestRun ? formatDate(agent.latestRun.atMs) : 'n/a'}</span>
+                    </div>
+                  </div>
+
+                  <div className={styles.cardFooter}>
+                    <Link href={`/control-room/${encodeURIComponent(agent.id)}`} className={styles.detailsLink}>
+                      Open details
+                    </Link>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <article className={styles.emptyCard}>
+              <p className={styles.emptyTitle}>No agents match this filter.</p>
+              <p className={styles.emptyBody}>Try a different search term or clear the filter.</p>
+            </article>
+          )}
+        </section>
       </section>
     </main>
   );
 }
-

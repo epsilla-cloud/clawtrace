@@ -17,6 +17,11 @@ export type ClawTraceFlowModule = {
   description: string;
 };
 
+export type ClawTraceFlowTransition = {
+  label: string;
+  target: ClawTraceFlowId;
+};
+
 export type ClawTraceFlowDefinition = {
   id: ClawTraceFlowId;
   order: number;
@@ -27,6 +32,7 @@ export type ClawTraceFlowDefinition = {
   firstTimeHint: string;
   userQuestion: string;
   modules: ClawTraceFlowModule[];
+  transitions?: ClawTraceFlowTransition[];
   primaryActionLabel: string;
   successChecks: string[];
 };
@@ -53,6 +59,12 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
       {
         title: 'Ingestion Health Check',
         description: 'Validate event ingest path and report any missing permissions or blind spots.',
+      },
+    ],
+    transitions: [
+      {
+        label: 'Connection ready',
+        target: 'f1-audit',
       },
     ],
     primaryActionLabel: 'Continue to Guided Audit',
@@ -85,6 +97,12 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         description: 'Assign initial trust-state to each workflow before daily monitoring begins.',
       },
     ],
+    transitions: [
+      {
+        label: 'Baseline confirmed',
+        target: 'f2-handoff',
+      },
+    ],
     primaryActionLabel: 'Confirm Baseline and Handoff',
     successChecks: [
       'Initial contract version created',
@@ -113,6 +131,12 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
       {
         title: 'Verification Baseline',
         description: 'Show how success/failure/unknown will be measured from now on.',
+      },
+    ],
+    transitions: [
+      {
+        label: 'Onboarding complete',
+        target: 'f3-control-room',
       },
     ],
     primaryActionLabel: 'Open Daily Control Room',
@@ -145,6 +169,28 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         description: 'Open investigation drawer only when risk or uncertainty requires it.',
       },
     ],
+    transitions: [
+      {
+        label: 'Scheduled or manual run starts',
+        target: 'f4-live-run',
+      },
+      {
+        label: 'Trust degrades or alert fires',
+        target: 'f5-triage',
+      },
+      {
+        label: 'Behavior drift detected',
+        target: 'f9-time-machine',
+      },
+      {
+        label: 'User asks in chat',
+        target: 'f10-automation',
+      },
+      {
+        label: 'User feedback event',
+        target: 'f11-feedback',
+      },
+    ],
     primaryActionLabel: 'Start Live Run Monitoring',
     successChecks: [
       'User can identify top-risk workflow fast',
@@ -173,6 +219,20 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
       {
         title: 'Control Decisions',
         description: 'Label allow/deny/defer/warn decisions with evidence and timestamp.',
+      },
+    ],
+    transitions: [
+      {
+        label: 'Verified success',
+        target: 'f3-control-room',
+      },
+      {
+        label: 'Partial or unknown outcome',
+        target: 'f7-verification',
+      },
+      {
+        label: 'Fail, defer, or block',
+        target: 'f5-triage',
       },
     ],
     primaryActionLabel: 'Open Incident Triage if Needed',
@@ -205,6 +265,12 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         description: 'Generate ranked hypotheses and a single recommended intervention.',
       },
     ],
+    transitions: [
+      {
+        label: 'Action selected',
+        target: 'f6-intervention',
+      },
+    ],
     primaryActionLabel: 'Execute Recommended Intervention',
     successChecks: [
       'Primary root-cause hypothesis is explicit',
@@ -233,6 +299,12 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
       {
         title: 'Execution Journal',
         description: 'Record action outcome and idempotency key for replay safety.',
+      },
+    ],
+    transitions: [
+      {
+        label: 'Action executed',
+        target: 'f7-verification',
       },
     ],
     primaryActionLabel: 'Move to Verification',
@@ -265,6 +337,20 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         description: 'Route to normal operations or escalation based on verification evidence.',
       },
     ],
+    transitions: [
+      {
+        label: 'Stable success',
+        target: 'f3-control-room',
+      },
+      {
+        label: 'Repeated or severe failure',
+        target: 'f8-regression',
+      },
+      {
+        label: 'Unresolved failure',
+        target: 'f5-triage',
+      },
+    ],
     primaryActionLabel: 'Promote to Regression if Repeated',
     successChecks: [
       'Verification status is unambiguous',
@@ -293,6 +379,12 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
       {
         title: 'Release Gate Link',
         description: 'Attach scorecard checks to release or deployment gates.',
+      },
+    ],
+    transitions: [
+      {
+        label: 'Guardrail attached',
+        target: 'f3-control-room',
       },
     ],
     primaryActionLabel: 'Open Time Machine for Drift',
@@ -325,6 +417,16 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         description: 'Offer controlled rollback or targeted corrective update paths.',
       },
     ],
+    transitions: [
+      {
+        label: 'Drift controlled',
+        target: 'f3-control-room',
+      },
+      {
+        label: 'Drift unresolved',
+        target: 'f5-triage',
+      },
+    ],
     primaryActionLabel: 'Return to Control Room',
     successChecks: [
       'Drift source is identified',
@@ -355,6 +457,12 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         description: 'Save evidence-backed summaries for team handoff and review.',
       },
     ],
+    transitions: [
+      {
+        label: 'Artifact saved',
+        target: 'f3-control-room',
+      },
+    ],
     primaryActionLabel: 'Capture User Feedback',
     successChecks: [
       'Artifact created from conversation',
@@ -383,6 +491,16 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
       {
         title: 'Learning Linkage',
         description: 'Attach feedback to incidents, actions, and eval backlog priorities.',
+      },
+    ],
+    transitions: [
+      {
+        label: 'High-value learning',
+        target: 'f8-regression',
+      },
+      {
+        label: 'Normal return',
+        target: 'f3-control-room',
       },
     ],
     primaryActionLabel: 'Restart Journey at Control Room',
