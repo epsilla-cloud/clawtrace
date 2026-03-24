@@ -56,8 +56,127 @@ function formatDate(valueMs: number): string {
   });
 }
 
-function cardSubtitle(agent: WorkflowDiscovery): string {
-  return `${agent.runStats7d.success}/${agent.runStats7d.total} success in 7d`;
+function formatShortDay(valueMs: number): string {
+  return new Date(valueMs).toLocaleDateString([], {
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+type TrendPoint = {
+  dayStartMs: number;
+  label: string;
+  runs: number;
+  costUsd: number;
+};
+
+function buildSevenDayTrend(snapshot: OpenClawDiscoverySnapshot): TrendPoint[] {
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
+  const todayStartMs = today.getTime();
+
+  const points: TrendPoint[] = [];
+  for (let offset = 6; offset >= 0; offset -= 1) {
+    const dayStartMs = todayStartMs - offset * dayMs;
+    points.push({
+      dayStartMs,
+      label: formatShortDay(dayStartMs),
+      runs: 0,
+      costUsd: 0,
+    });
+  }
+
+  const startBoundary = todayStartMs - 6 * dayMs;
+  const endBoundary = todayStartMs + dayMs;
+  const indexByDay = new Map(points.map((point, index) => [point.dayStartMs, index]));
+
+  for (const workflow of snapshot.workflows) {
+    for (const trajectory of workflow.trajectories) {
+      const startedAt = trajectory.startedAtMs;
+      if (startedAt < startBoundary || startedAt >= endBoundary) {
+        continue;
+      }
+
+      const bucketDate = new Date(startedAt);
+      bucketDate.setHours(0, 0, 0, 0);
+      const bucket = indexByDay.get(bucketDate.getTime());
+      if (bucket === undefined) {
+        continue;
+      }
+
+      points[bucket].runs += 1;
+      points[bucket].costUsd += trajectory.estimatedCostUsd;
+    }
+  }
+
+  return points.map((point) => ({
+    ...point,
+    costUsd: Number(point.costUsd.toFixed(4)),
+  }));
+}
+
+function getLinePoints(values: number[], width = 100, height = 32): string {
+  if (!values.length) {
+    return '';
+  }
+
+  const maxValue = Math.max(...values, 1);
+  const step = values.length === 1 ? 0 : width / (values.length - 1);
+
+  return values
+    .map((value, index) => {
+      const x = index * step;
+      const y = height - (value / maxValue) * height;
+      return `${x},${y}`;
+    })
+    .join(' ');
+}
+
+type TrendChartProps = {
+  title: string;
+  subtitle: string;
+  points: TrendPoint[];
+  valueKey: 'runs' | 'costUsd';
+  formatValue: (value: number) => string;
+};
+
+function TrendChart({ title, subtitle, points, valueKey, formatValue }: TrendChartProps) {
+  const values = points.map((point) => point[valueKey]);
+  const line = getLinePoints(values);
+  const maxValue = Math.max(...values, 0);
+  const latest = values.length ? values[values.length - 1] : 0;
+
+  return (
+    <article className={styles.trendCard}>
+      <header>
+        <h2 className={styles.trendTitle}>{title}</h2>
+        <p className={styles.trendSubtitle}>{subtitle}</p>
+      </header>
+
+      <div className={styles.trendPlot}>
+        <svg viewBox="0 0 100 32" preserveAspectRatio="none" role="img" aria-label={title}>
+          <polyline className={styles.trendLine} points={line} />
+        </svg>
+      </div>
+
+      <div className={styles.trendMeta}>
+        <span>Peak {formatValue(maxValue)}</span>
+        <span>Latest {formatValue(latest)}</span>
+      </div>
+
+      <div className={styles.trendLabels}>
+        {points.map((point) => (
+          <span key={`${title}-${point.dayStartMs}`}>{point.label}</span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function formatAgentMetrics(agent: WorkflowDiscovery): string {
+  return `${agent.runStats7d.success}/${agent.runStats7d.total} success · ${formatNumber(agent.tokenStats7d.total)} tokens · ${formatCurrency(agent.costStats7d.totalUsd)}`;
 }
 
 export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowPortfolioProps) {
@@ -103,6 +222,10 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
 
   const agents = snapshot?.workflows ?? [];
   const metrics = snapshot?.metrics;
+  const trend = snapshot ? buildSevenDayTrend(snapshot) : [];
+  const totalSuccessfulRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.success, 0);
+  const totalRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.total, 0);
+  const portfolioSuccessRate = totalRuns > 0 ? Math.round((totalSuccessfulRuns / totalRuns) * 100) : 0;
 
   const visibleAgents = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -133,15 +256,6 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
                 <span className={styles.summaryLabel}>Discovery</span>
                 <span className={styles.summaryValue}>{loadingSnapshot ? 'Loading' : 'Unavailable'}</span>
               </div>
-            </header>
-
-            <header className={styles.sectionHeader}>
-              <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
-              <p className={styles.sectionSubtitle}>
-                {loadingSnapshot
-                  ? 'Importing your OpenClaw agents and runs...'
-                  : 'Unable to load discovery snapshot. Verify local paths and refresh.'}
-              </p>
             </header>
           </section>
         </section>
@@ -178,76 +292,90 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
               <span className={styles.summaryLabel}>Active Runs</span>
               <span className={styles.summaryValue}>{formatNumber(metrics.activeTrajectories)}</span>
             </div>
+            <div className={styles.summaryMetric}>
+              <span className={styles.summaryLabel}>Success Rate (7d)</span>
+              <span className={styles.summaryValue}>{portfolioSuccessRate}%</span>
+            </div>
           </header>
 
           <header className={styles.sectionHeader}>
             <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
-            <p className={styles.sectionSubtitle}>All agents in one list. Open a card to inspect details on the next page.</p>
-
-            {flow.transitions?.length ? (
-              <div className={styles.transitionActions}>
-                {flow.transitions.map((transition) => {
-                  const target = allFlows.find((item) => item.id === transition.target);
-                  if (!target) {
-                    return null;
-                  }
-
-                  return (
-                    <Link key={`${transition.target}-${transition.label}`} href={target.route} className={styles.transitionLink}>
-                      {transition.label}
-                    </Link>
-                  );
-                })}
-              </div>
-            ) : null}
+            <p className={styles.sectionSubtitle}>High-level trends first, then a clean table to jump into agent details.</p>
           </header>
 
-          <div className={styles.filterRow}>
-            <input
-              className={styles.filterInput}
-              value={query}
-              onChange={(event) => setQuery(event.currentTarget.value)}
-              placeholder="Filter agents"
-              aria-label="Filter agents"
+          <section className={styles.trendsGrid}>
+            <TrendChart
+              title="Agent runs over time"
+              subtitle="Last 7 days"
+              points={trend}
+              valueKey="runs"
+              formatValue={(value) => formatNumber(value)}
             />
-          </div>
+            <TrendChart
+              title="Token cost over time"
+              subtitle="Estimated USD, last 7 days"
+              points={trend}
+              valueKey="costUsd"
+              formatValue={(value) => formatCurrency(value)}
+            />
+          </section>
 
-          {visibleAgents.length ? (
-            <div className={styles.cardGrid}>
-              {visibleAgents.map((agent) => (
-                <article key={agent.id} className={styles.agentCard}>
-                  <div className={styles.cardHeader}>
-                    <h2 className={styles.agentName}>{agent.name}</h2>
-                    <span className={`${styles.statusPill} ${TRUST_CLASS[agent.trustState]}`}>{TRUST_LABEL[agent.trustState]}</span>
-                  </div>
-
-                  <p className={styles.cardSubtitle}>{cardSubtitle(agent)}</p>
-
-                  <div className={styles.cardStats}>
-                    <div className={styles.cardStat}>
-                      <span className={styles.cardStatLabel}>Est. Cost (7d)</span>
-                      <span className={styles.cardStatValue}>{formatCurrency(agent.costStats7d.totalUsd)}</span>
-                    </div>
-                    <div className={styles.cardStat}>
-                      <span className={styles.cardStatLabel}>Last Run</span>
-                      <span className={styles.cardStatValue}>{agent.latestRun ? formatDate(agent.latestRun.atMs) : 'n/a'}</span>
-                    </div>
-                  </div>
-
-                  <div className={styles.cardFooter}>
-                    <Link href={`/control-room/${encodeURIComponent(agent.id)}`} className={styles.detailsLink}>
-                      Open details
-                    </Link>
-                  </div>
-                </article>
-              ))}
+          <section className={styles.tableSection}>
+            <div className={styles.tableToolbar}>
+              <input
+                className={styles.filterInput}
+                value={query}
+                onChange={(event) => setQuery(event.currentTarget.value)}
+                placeholder="Filter agents"
+                aria-label="Filter agents"
+              />
             </div>
-          ) : (
-            <article className={styles.emptyCard}>
-              <p className={styles.emptyTitle}>No agents match this filter.</p>
-              <p className={styles.emptyBody}>Try a different search term or clear the filter.</p>
-            </article>
-          )}
+
+            {visibleAgents.length ? (
+              <div className={styles.tableWrap}>
+                <table className={styles.agentTable}>
+                  <thead>
+                    <tr>
+                      <th>Agent name</th>
+                      <th>Last run</th>
+                      <th>High-level metrics</th>
+                      <th>Tags</th>
+                      <th>Details</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleAgents.map((agent) => (
+                      <tr key={agent.id}>
+                        <td className={styles.agentNameCell}>{agent.name}</td>
+                        <td>{agent.latestRun ? formatDate(agent.latestRun.atMs) : 'n/a'}</td>
+                        <td>{formatAgentMetrics(agent)}</td>
+                        <td>
+                          <div className={styles.tagRow}>
+                            <span className={`${styles.statusPill} ${TRUST_CLASS[agent.trustState]}`}>{TRUST_LABEL[agent.trustState]}</span>
+                            {agent.failureThemes.slice(0, 2).map((theme) => (
+                              <span key={`${agent.id}-${theme}`} className={styles.tag}>
+                                {theme.replace(/_/g, ' ')}
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td>
+                          <Link href={`/control-room/${encodeURIComponent(agent.id)}`} className={styles.detailsLink}>
+                            View
+                          </Link>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <article className={styles.emptyCard}>
+                <p className={styles.emptyTitle}>No agents match this filter.</p>
+                <p className={styles.emptyBody}>Try a different search term or clear the filter.</p>
+              </article>
+            )}
+          </section>
         </section>
       </section>
     </main>

@@ -7,7 +7,7 @@
 
 .summaryBar {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   padding: 10px;
   border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
@@ -78,52 +78,13 @@
   color: var(--ct-muted);
 }
 
-.transitionActions {
-  margin-top: 10px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.transitionLink {
-  height: 32px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
-  color: var(--ct-soft-text);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0 10px;
-  font-size: var(--ct-text-body-sm);
-}
-
-.filterRow {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 12px;
-  background: #fff;
-  padding: 10px 12px;
-}
-
-.filterInput {
-  width: 100%;
-  height: 38px;
-  border-radius: var(--ct-control-radius);
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  background: #fff;
-  padding: 0 10px;
-  font-size: var(--ct-text-body-sm);
-}
-
-.cardGrid {
+.trendsGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  align-content: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
-.agentCard {
+.trendCard {
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   border-radius: 12px;
   background: #fff;
@@ -132,21 +93,120 @@
   gap: 10px;
 }
 
-.cardHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.agentName {
+.trendTitle {
   margin: 0;
   font-size: var(--ct-text-body);
   font-weight: 560;
-  color: var(--ct-text);
 }
 
-.statusPill {
+.trendSubtitle {
+  margin: 3px 0 0;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+}
+
+.trendPlot {
+  width: 100%;
+  height: 84px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
+  padding: 8px;
+}
+
+.trendPlot svg {
+  width: 100%;
+  height: 100%;
+}
+
+.trendLine {
+  fill: none;
+  stroke: var(--ct-primary);
+  stroke-width: 1.6;
+}
+
+.trendMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-soft-text);
+}
+
+.trendLabels {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+}
+
+.tableSection {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 12px;
+  background: #fff;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.tableToolbar {
+  display: grid;
+}
+
+.filterInput {
+  width: min(360px, 100%);
+  height: 38px;
+  border-radius: var(--ct-control-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: #fff;
+  padding: 0 10px;
+  font-size: var(--ct-text-body-sm);
+}
+
+.tableWrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.agentTable {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 860px;
+}
+
+.agentTable th,
+.agentTable td {
+  text-align: left;
+  padding: 11px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  vertical-align: top;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
+}
+
+.agentTable th {
+  font-size: var(--ct-text-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ct-muted);
+  font-weight: 620;
+}
+
+.agentNameCell {
+  color: var(--ct-text);
+  font-weight: 560;
+}
+
+.tagRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.statusPill,
+.tag {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -157,62 +217,25 @@
   white-space: nowrap;
 }
 
-.cardSubtitle {
-  margin: 0;
-  font-size: var(--ct-text-meta);
+.tag {
+  border-color: color-mix(in srgb, var(--ct-border) 74%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
   color: var(--ct-soft-text);
-}
-
-.cardStats {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.cardStat {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 9px;
-  background: color-mix(in srgb, var(--ct-panel-subtle) 62%, white);
-  padding: 8px;
-  display: grid;
-  gap: 3px;
-}
-
-.cardStatLabel {
-  margin: 0;
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
-}
-
-.cardStatValue {
-  margin: 0;
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-text);
-  font-weight: 600;
-}
-
-.cardFooter {
-  display: flex;
-  justify-content: flex-end;
 }
 
 .detailsLink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 34px;
+  height: 30px;
   border-radius: 9px;
-  border: 1px solid color-mix(in srgb, var(--ct-primary-strong) 68%, white);
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--ct-primary) 92%, white) 0%,
-    color-mix(in srgb, var(--ct-primary-strong) 90%, white) 100%
-  );
-  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
+  color: var(--ct-text);
   text-decoration: none;
   font-size: var(--ct-text-body-sm);
-  font-weight: 620;
-  padding: 0 12px;
+  font-weight: 600;
+  padding: 0 10px;
 }
 
 .emptyCard {
@@ -272,17 +295,17 @@
 }
 
 @media (max-width: 1280px) {
-  .cardGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .summaryBar {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .trendsGrid {
+    grid-template-columns: 1fr;
   }
 }
 
 @media (max-width: 980px) {
   .summaryBar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .cardGrid {
-    grid-template-columns: 1fr;
   }
 }
