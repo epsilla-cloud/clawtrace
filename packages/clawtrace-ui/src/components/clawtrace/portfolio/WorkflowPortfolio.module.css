@@ -104,7 +104,7 @@
   min-height: 0;
   padding: 18px 20px;
   display: grid;
-  gap: 4px;
+  gap: 10px;
 }
 
 .pageTopRow {
@@ -112,6 +112,10 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
+}
+
+.pageTopRow + .summaryBar {
+  margin-top: -6px;
 }
 
 .pageTitle {
