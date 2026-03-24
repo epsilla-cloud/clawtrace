@@ -138,6 +138,20 @@ Suggested v1 surface:
 - guardrail or alert creation from the incident
 - promotion of repeated failures into regression tests
 
+Cost scope (must be first-class in the same flow):
+- show token and estimated cost at four levels: portfolio, workflow, trajectory, and step class
+- answer "where did cost go?" using explicit breakdowns:
+  - by workflow
+  - by model
+  - by repeated retry loops
+  - by high-risk mutating steps
+- include cost-per-success as a core KPI next to success rate and MTTR
+- generate next-best-actions that reduce cost without silently reducing reliability
+  - cap repeated retries
+  - add budget guardrails per step/workflow
+  - recommend script promotion for deterministic high-cost steps
+- keep this integrated into onboarding and control-room views, not as a separate "finance" page
+
 Why this is better than a normal observability launch:
 - it solves the founder's daily workflow pain immediately
 - it absorbs the strongest lesson from the second thread: many users do not just need more traces, they need help untangling their own contradictory agent state

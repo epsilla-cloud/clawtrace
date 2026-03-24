@@ -35,6 +35,15 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: value < 1 ? 3 : 2,
+    maximumFractionDigits: value < 1 ? 3 : 2,
+  }).format(value);
+}
+
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
@@ -80,7 +89,7 @@ function buildTranscript(flowId: string, snapshot: OpenClawDiscoverySnapshot): O
       {
         id: 'f0-s1',
         role: 'system',
-        text: `Import complete: ${snapshot.metrics.workflowCount} workflows discovered, ${formatNumber(snapshot.metrics.runsLast7d)} runs in last 7 days, ${formatNumber(snapshot.metrics.tokensLast7d)} tokens consumed, ${snapshot.metrics.modelsUsed.length} models used.`,
+        text: `Import complete: ${snapshot.metrics.workflowCount} workflows discovered, ${formatNumber(snapshot.metrics.runsLast7d)} runs in last 7 days, ${formatNumber(snapshot.metrics.tokensLast7d)} tokens consumed, estimated ${formatCurrency(snapshot.metrics.estimatedCostUsdLast7d)} spend, ${snapshot.metrics.modelsUsed.length} models used.`,
       },
       {
         id: 'f0-a2',
@@ -102,6 +111,7 @@ function buildTranscript(flowId: string, snapshot: OpenClawDiscoverySnapshot): O
   if (flowId === 'f1-audit') {
     const portfolioGoals = snapshot.inferredPortfolioGoals.join(' | ');
     const riskWorkflow = snapshot.workflows.find((item) => item.trustState === 'blocked' || item.trustState === 'at_risk') ?? primaryWorkflow;
+    const highestCostWorkflow = [...snapshot.workflows].sort((a, b) => b.costStats7d.totalUsd - a.costStats7d.totalUsd)[0];
 
     return [
       {
@@ -124,9 +134,16 @@ function buildTranscript(flowId: string, snapshot: OpenClawDiscoverySnapshot): O
           : 'No workflow risk themes detected yet.',
       },
       {
+        id: 'f1-s3',
+        role: 'system',
+        text: highestCostWorkflow
+          ? `Highest estimated spend: ${highestCostWorkflow.name} at ${formatCurrency(highestCostWorkflow.costStats7d.totalUsd)} in 7d.`
+          : 'No cost data available yet.',
+      },
+      {
         id: 'f1-a2',
         role: 'assistant',
-        text: 'I labeled known vs unknown evidence and prepared a first contract posture. Confirm the goal and I will tune strictness for mutating boundaries.',
+        text: 'I labeled known vs unknown evidence and prepared a first contract posture. Confirm the goal and I will tune strictness for mutating boundaries and cost guardrails.',
       },
     ];
   }
@@ -143,7 +160,7 @@ function buildTranscript(flowId: string, snapshot: OpenClawDiscoverySnapshot): O
       id: 'f2-s1',
       role: 'system',
       text: workflowForHandoff
-        ? `${workflowForHandoff.name}: success rate ${formatPercent(workflowForHandoff.runStats7d.successRate)} in last 7 days, ${workflowForHandoff.trajectories.length} recent trajectories imported.`
+        ? `${workflowForHandoff.name}: success rate ${formatPercent(workflowForHandoff.runStats7d.successRate)} in last 7 days, ${workflowForHandoff.trajectories.length} recent trajectories imported, estimated spend ${formatCurrency(workflowForHandoff.costStats7d.totalUsd)}.`
         : 'No workflow selected yet.',
     },
     {
@@ -168,7 +185,7 @@ function quickReplies(flowId: string, snapshot: OpenClawDiscoverySnapshot): stri
     return [
       snapshot.inferredPortfolioGoals[0] ?? 'Reduce daily manual intervention to under 5 minutes.',
       snapshot.inferredPortfolioGoals[1] ?? 'Improve reliability of daily publishing workflow.',
-      'Show imported workflows and trajectories',
+      'Show imported workflows, trajectories, and cost breakdown',
     ];
   }
 
@@ -190,7 +207,7 @@ function quickReplies(flowId: string, snapshot: OpenClawDiscoverySnapshot): stri
 }
 
 function workflowSummary(workflow: WorkflowDiscovery): string {
-  return `${workflow.runStats7d.success}/${workflow.runStats7d.total} success in 7d · ${workflow.trajectories.length} trajectories`;
+  return `${workflow.runStats7d.success}/${workflow.runStats7d.total} success in 7d · ${workflow.trajectories.length} trajectories · ${formatCurrency(workflow.costStats7d.totalUsd)} est`;
 }
 
 export function OnboardingGuidedConversation({
@@ -395,6 +412,10 @@ export function OnboardingGuidedConversation({
               <div className={styles.metricCell}>
                 <span className={styles.metricLabel}>Tokens (7d)</span>
                 <span className={styles.metricValue}>{formatNumber(snapshot.metrics.tokensLast7d)}</span>
+              </div>
+              <div className={styles.metricCell}>
+                <span className={styles.metricLabel}>Est. Cost (7d)</span>
+                <span className={styles.metricValue}>{formatCurrency(snapshot.metrics.estimatedCostUsdLast7d)}</span>
               </div>
               <div className={styles.metricCell}>
                 <span className={styles.metricLabel}>Models</span>

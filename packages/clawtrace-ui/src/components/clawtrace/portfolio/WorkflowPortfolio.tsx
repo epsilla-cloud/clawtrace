@@ -30,6 +30,15 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat('en-US').format(value);
 }
 
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: value < 1 ? 3 : 2,
+    maximumFractionDigits: value < 1 ? 3 : 2,
+  }).format(value);
+}
+
 function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`;
 }
@@ -60,11 +69,11 @@ function formatDuration(durationMs: number): string {
 }
 
 function workflowSubtitle(workflow: WorkflowDiscovery): string {
-  return `${workflow.runStats7d.success}/${workflow.runStats7d.total} success in 7d`;
+  return `${workflow.runStats7d.success}/${workflow.runStats7d.total} success in 7d · ${formatCurrency(workflow.costStats7d.totalUsd)} est`;
 }
 
 function trajectoryRow(trajectory: WorkflowTrajectory) {
-  return `${trajectory.llmCalls} LLM · ${trajectory.toolCalls} tools · ${formatNumber(trajectory.totalTokens)} tokens`;
+  return `${trajectory.llmCalls} LLM · ${trajectory.toolCalls} tools · ${formatNumber(trajectory.totalTokens)} tokens · ${formatCurrency(trajectory.estimatedCostUsd)} est`;
 }
 
 export function WorkflowPortfolio({ initialSnapshot }: WorkflowPortfolioProps) {
@@ -179,6 +188,10 @@ export function WorkflowPortfolio({ initialSnapshot }: WorkflowPortfolioProps) {
           <span className={styles.summaryValue}>{formatNumber(metrics.tokensLast7d)}</span>
         </div>
         <div className={styles.summaryMetric}>
+          <span className={styles.summaryLabel}>Est. Cost (7d)</span>
+          <span className={styles.summaryValue}>{formatCurrency(metrics.estimatedCostUsdLast7d)}</span>
+        </div>
+        <div className={styles.summaryMetric}>
           <span className={styles.summaryLabel}>Active Trajectories</span>
           <span className={styles.summaryValue}>{formatNumber(metrics.activeTrajectories)}</span>
         </div>
@@ -269,6 +282,32 @@ export function WorkflowPortfolio({ initialSnapshot }: WorkflowPortfolioProps) {
                 </article>
 
                 <article className={styles.panel}>
+                  <h3 className={styles.panelTitle}>Cost Analysis (7d)</h3>
+                  <div className={styles.metricGrid}>
+                    <div className={styles.metricCell}>
+                      <span className={styles.metricLabel}>Est. Total</span>
+                      <span className={styles.metricValue}>{formatCurrency(selectedWorkflow.costStats7d.totalUsd)}</span>
+                    </div>
+                    <div className={styles.metricCell}>
+                      <span className={styles.metricLabel}>Avg / Run</span>
+                      <span className={styles.metricValue}>{formatCurrency(selectedWorkflow.costStats7d.avgPerRunUsd)}</span>
+                    </div>
+                    <div className={styles.metricCell}>
+                      <span className={styles.metricLabel}>Cost / Success</span>
+                      <span className={styles.metricValue}>
+                        {selectedWorkflow.costStats7d.avgPerSuccessUsd === null
+                          ? 'n/a'
+                          : formatCurrency(selectedWorkflow.costStats7d.avgPerSuccessUsd)}
+                      </span>
+                    </div>
+                    <div className={styles.metricCell}>
+                      <span className={styles.metricLabel}>Tokens</span>
+                      <span className={styles.metricValue}>{formatNumber(selectedWorkflow.tokenStats7d.total)}</span>
+                    </div>
+                  </div>
+                </article>
+
+                <article className={styles.panel}>
                   <h3 className={styles.panelTitle}>Model Usage</h3>
                   <ul className={styles.modelList}>
                     {selectedWorkflow.modelUsage.map((item) => (
@@ -293,6 +332,7 @@ export function WorkflowPortfolio({ initialSnapshot }: WorkflowPortfolioProps) {
                           <div className={styles.trajectoryStats}>
                             <span>{trajectory.status}</span>
                             <span>{formatDuration(trajectory.durationMs)}</span>
+                            <span>{trajectory.costModel ?? 'model: unknown'}</span>
                             <span>{formatDate(trajectory.startedAtMs)}</span>
                           </div>
                         </div>
@@ -347,7 +387,7 @@ export function WorkflowPortfolio({ initialSnapshot }: WorkflowPortfolioProps) {
               <article className={styles.panel}>
                 <h3 className={styles.panelTitle}>Immediate Focus</h3>
                 <p className={styles.recommendationBody}>
-                  Prioritize deterministic checks at mutating boundaries before publish/deploy. Then promote repeated failures into regression evals.
+                  Prioritize high-cost failure loops first: cut repeated retries, cap token spikes per step, and add deterministic checks before mutating boundaries.
                 </p>
               </article>
             </>

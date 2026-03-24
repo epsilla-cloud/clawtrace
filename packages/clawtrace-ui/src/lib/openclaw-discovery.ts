@@ -32,6 +32,8 @@ export type WorkflowTrajectory = {
   models: string[];
   signals: string[];
   mutatingBoundaries: string[];
+  costModel: string | null;
+  estimatedCostUsd: number;
   status: 'running' | 'completed';
 };
 
@@ -57,6 +59,11 @@ export type WorkflowDiscovery = {
     total: number;
     input: number;
     output: number;
+  };
+  costStats7d: {
+    totalUsd: number;
+    avgPerRunUsd: number;
+    avgPerSuccessUsd: number | null;
   };
   modelUsage: Array<{
     model: string;
@@ -102,6 +109,7 @@ export type OpenClawDiscoverySnapshot = {
     trajectoriesLast7d: number;
     activeTrajectories: number;
     tokensLast7d: number;
+    estimatedCostUsdLast7d: number;
     modelsUsed: string[];
   };
   inferredPortfolioGoals: string[];
@@ -146,6 +154,9 @@ type CronRun = {
   provider?: string;
   sessionId?: string;
   sessionKey?: string;
+  costUsd?: number;
+  cost_usd?: number;
+  cost?: number | { usd?: number; total?: number };
   usage?: {
     input_tokens?: number;
     output_tokens?: number;
@@ -191,6 +202,13 @@ type TraceAccumulator = {
 const HOME_DIR = process.env.HOME ?? '/Users/songrenchu';
 const DEFAULT_OPENCLAW_PATH = path.join(HOME_DIR, '.openclaw');
 const DEFAULT_WORKSPACE_PATH = path.join(HOME_DIR, 'ClawWork');
+const DEFAULT_COST_PER_1K_TOKENS_USD = 0.004;
+const MODEL_COST_PER_1K_TOKENS_USD: Record<string, number> = {
+  'gemini-3.1-pro-preview': 0.008,
+  'gpt-5.4': 0.015,
+  'gpt-5.2': 0.012,
+  'claude-opus-4': 0.02,
+};
 
 function compactText(value: string | null | undefined, max = 220): string {
   if (!value) {
@@ -206,6 +224,43 @@ function compactText(value: string | null | undefined, max = 220): string {
 function toNumber(value: unknown): number {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value;
+  }
+  return 0;
+}
+
+function roundUsd(value: number): number {
+  return Math.round(value * 10000) / 10000;
+}
+
+function normalizeModel(model: string | null | undefined): string | null {
+  if (!model) {
+    return null;
+  }
+  const normalized = model.trim().toLowerCase();
+  return normalized.length ? normalized : null;
+}
+
+function estimateCostUsdFromTokens(tokens: number, model: string | null | undefined): number {
+  const normalizedModel = normalizeModel(model);
+  const per1kRate = normalizedModel
+    ? (MODEL_COST_PER_1K_TOKENS_USD[normalizedModel] ?? DEFAULT_COST_PER_1K_TOKENS_USD)
+    : DEFAULT_COST_PER_1K_TOKENS_USD;
+  return roundUsd((Math.max(tokens, 0) / 1000) * per1kRate);
+}
+
+function extractRunCostUsd(run: CronRun): number {
+  const direct = toNumber(run.costUsd) || toNumber(run.cost_usd);
+  if (direct > 0) {
+    return roundUsd(direct);
+  }
+  if (typeof run.cost === 'number') {
+    return roundUsd(toNumber(run.cost));
+  }
+  if (typeof run.cost === 'object' && run.cost !== null) {
+    const nested = toNumber((run.cost as { usd?: number; total?: number }).usd) || toNumber((run.cost as { usd?: number; total?: number }).total);
+    if (nested > 0) {
+      return roundUsd(nested);
+    }
   }
   return 0;
 }
@@ -509,6 +564,8 @@ function buildRecommendations(input: {
   runs7d: CronRun[];
   failureThemes: string[];
   mutatingBoundaries: string[];
+  estimatedCostUsd7d?: number;
+  successRuns7d?: number;
 }): WorkflowRecommendation[] {
   const recommendations: WorkflowRecommendation[] = [];
 
@@ -586,6 +643,20 @@ function buildRecommendations(input: {
     });
   }
 
+  const estimatedCostUsd7d = toNumber(input.estimatedCostUsd7d);
+  const successRuns7d = toNumber(input.successRuns7d);
+  if (estimatedCostUsd7d > 0 && (successRuns7d === 0 || estimatedCostUsd7d / Math.max(successRuns7d, 1) > 0.15)) {
+    recommendations.push({
+      id: 'cost-budget-guard',
+      label: 'Cost Guardrail and Budget Alerts',
+      detail:
+        'Cost per successful run is elevated. Add step-level token budget alerts and block retries that repeat the same high-cost behavior.',
+      suggestedSetting: 'budget.when(cost_per_success_usd > target OR token_spike > p95*1.5)',
+      severity: 'medium',
+      status: 'recommended',
+    });
+  }
+
   return recommendations.slice(0, 6);
 }
 
@@ -639,9 +710,12 @@ function formatSchedule(job: CronJob): string {
   return schedule.kind ?? 'Scheduled';
 }
 
-function toTrajectory(acc: TraceAccumulator, nowMs: number): WorkflowTrajectory {
+function toTrajectory(acc: TraceAccumulator, nowMs: number, fallbackModel: string | null): WorkflowTrajectory {
   const durationMs = Math.max(0, (acc.endedAtMs || acc.lastObservedMs) - acc.startedAtMs);
   const running = acc.hasAnySpanWithoutEnd && nowMs - acc.lastObservedMs < 30 * 60 * 1000;
+  const models = Array.from(acc.models).sort();
+  const costModel = models[0] ?? fallbackModel ?? null;
+  const estimatedCostUsd = estimateCostUsdFromTokens(acc.totalTokens, costModel);
 
   return {
     traceId: acc.traceId,
@@ -652,9 +726,11 @@ function toTrajectory(acc: TraceAccumulator, nowMs: number): WorkflowTrajectory 
     llmCalls: acc.llmCalls,
     toolCalls: acc.toolCalls,
     totalTokens: acc.totalTokens,
-    models: Array.from(acc.models).sort(),
+    models,
     signals: Array.from(acc.signals).sort(),
     mutatingBoundaries: Array.from(acc.mutatingBoundaries).sort(),
+    costModel,
+    estimatedCostUsd,
     status: running ? 'running' : 'completed',
   };
 }
@@ -702,6 +778,33 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
   const workspacePath = configuredWorkspacePath && configuredWorkspacePath.length > 0
     ? configuredWorkspacePath
     : DEFAULT_WORKSPACE_PATH;
+
+  const tracingEnabled = Array.isArray((openclawConfig?.plugins as { allow?: string[] } | undefined)?.allow)
+    ? ((openclawConfig?.plugins as { allow?: string[] }).allow ?? []).includes('openclaw-tracing')
+    : false;
+
+  const gatewayMode =
+    typeof openclawConfig?.gateway === 'object' && openclawConfig.gateway !== null
+      ? ((openclawConfig.gateway as { mode?: string }).mode ?? null)
+      : null;
+
+  const primaryModel =
+    typeof openclawConfig?.agents === 'object' && openclawConfig.agents !== null
+      ? (
+          (openclawConfig.agents as { defaults?: { model?: { primary?: string } } }).defaults?.model?.primary ?? null
+        )
+      : null;
+
+  const heartbeatEvery =
+    typeof openclawConfig?.agents === 'object' && openclawConfig.agents !== null
+      ? (
+          (openclawConfig.agents as { defaults?: { heartbeat?: { every?: string } } }).defaults?.heartbeat?.every ?? null
+        )
+      : null;
+
+  const enabledPlugins = Array.isArray((openclawConfig?.plugins as { allow?: string[] } | undefined)?.allow)
+    ? ((openclawConfig?.plugins as { allow?: string[] }).allow ?? [])
+    : [];
 
   const jobsFilePath = path.join(openclawPath, 'cron', 'jobs.json');
   const jobsFile = await readJsonFile<CronJobsFile>(jobsFilePath);
@@ -784,7 +887,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
     }
   }
 
-  const trajectories = Array.from(traceAccumulators.values()).map((acc) => toTrajectory(acc, nowMs));
+  const trajectories = Array.from(traceAccumulators.values()).map((acc) => toTrajectory(acc, nowMs, primaryModel));
 
   const configAuditPath = path.join(openclawPath, 'logs', 'config-audit.jsonl');
   const configAuditRows = await readJsonLines<{ ts?: string }>(configAuditPath);
@@ -822,33 +925,6 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
       });
     }
   }
-
-  const tracingEnabled = Array.isArray((openclawConfig?.plugins as { allow?: string[] } | undefined)?.allow)
-    ? ((openclawConfig?.plugins as { allow?: string[] }).allow ?? []).includes('openclaw-tracing')
-    : false;
-
-  const gatewayMode =
-    typeof openclawConfig?.gateway === 'object' && openclawConfig.gateway !== null
-      ? ((openclawConfig.gateway as { mode?: string }).mode ?? null)
-      : null;
-
-  const primaryModel =
-    typeof openclawConfig?.agents === 'object' && openclawConfig.agents !== null
-      ? (
-          (openclawConfig.agents as { defaults?: { model?: { primary?: string } } }).defaults?.model?.primary ?? null
-        )
-      : null;
-
-  const heartbeatEvery =
-    typeof openclawConfig?.agents === 'object' && openclawConfig.agents !== null
-      ? (
-          (openclawConfig.agents as { defaults?: { heartbeat?: { every?: string } } }).defaults?.heartbeat?.every ?? null
-        )
-      : null;
-
-  const enabledPlugins = Array.isArray((openclawConfig?.plugins as { allow?: string[] } | undefined)?.allow)
-    ? ((openclawConfig?.plugins as { allow?: string[] }).allow ?? [])
-    : [];
 
   if (!jobs.length) {
     warnings.push('No cron workflows discovered in ~/.openclaw/cron/jobs.json.');
@@ -889,15 +965,6 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
       assignedTrajectoryKeys.add(`${trajectory.sessionKey}::${trajectory.traceId}`);
     }
 
-    const recommendations = buildRecommendations({
-      tracingEnabled,
-      configAuditEnabled: configAuditRows.length > 0,
-      configChanges7d,
-      runs7d,
-      failureThemes,
-      mutatingBoundaries,
-    });
-
     const tokenStats7d = runs7d.reduce(
       (acc, run) => {
         const input = toNumber(run.usage?.input_tokens);
@@ -917,6 +984,33 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
         .filter((trajectory) => trajectory.startedAtMs >= windowStartMs)
         .reduce((sum, trajectory) => sum + trajectory.totalTokens, 0);
     }
+
+    const costTotalFromRuns = runs7d.reduce((sum, run) => {
+      const explicitCost = extractRunCostUsd(run);
+      if (explicitCost > 0) {
+        return sum + explicitCost;
+      }
+      const usageTokens = toNumber(run.usage?.total_tokens) || toNumber(run.usage?.input_tokens) + toNumber(run.usage?.output_tokens);
+      return sum + estimateCostUsdFromTokens(usageTokens, run.model ?? primaryModel);
+    }, 0);
+
+    const costTotalFromTrajectories = trajectoriesForWorkflow
+      .filter((trajectory) => trajectory.startedAtMs >= windowStartMs)
+      .reduce((sum, trajectory) => sum + trajectory.estimatedCostUsd, 0);
+
+    const totalCostUsd7d = roundUsd(costTotalFromRuns > 0 ? costTotalFromRuns : costTotalFromTrajectories);
+    const avgPerRunUsd = runs7d.length > 0 ? roundUsd(totalCostUsd7d / runs7d.length) : 0;
+    const avgPerSuccessUsd = success > 0 ? roundUsd(totalCostUsd7d / success) : null;
+    const recommendations = buildRecommendations({
+      tracingEnabled,
+      configAuditEnabled: configAuditRows.length > 0,
+      configChanges7d,
+      runs7d,
+      failureThemes,
+      mutatingBoundaries,
+      estimatedCostUsd7d: totalCostUsd7d,
+      successRuns7d: success,
+    });
 
     const name = job.name && job.name.trim().length ? job.name : `workflow-${job.id.slice(0, 8)}`;
 
@@ -939,6 +1033,11 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
         successRate: runs7d.length ? success / runs7d.length : 0,
       },
       tokenStats7d,
+      costStats7d: {
+        totalUsd: totalCostUsd7d,
+        avgPerRunUsd,
+        avgPerSuccessUsd,
+      },
       modelUsage: aggregateModelUsage(runs7d, trajectoriesForWorkflow),
       latestRun: latestRun
         ? {
@@ -997,6 +1096,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
     }
 
     const tokenTotal = recentTrajectories.reduce((sum, trajectory) => sum + trajectory.totalTokens, 0);
+    const totalCostUsd = roundUsd(recentTrajectories.reduce((sum, trajectory) => sum + trajectory.estimatedCostUsd, 0));
     const mutatingBoundaries = unique(recentTrajectories.flatMap((trajectory) => trajectory.mutatingBoundaries));
     const latestTrajectory = recentTrajectories[0];
 
@@ -1007,6 +1107,8 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
       runs7d: [],
       failureThemes: bucket.failureThemes,
       mutatingBoundaries,
+      estimatedCostUsd7d: totalCostUsd,
+      successRuns7d: 0,
     });
 
     workflows.push({
@@ -1032,6 +1134,11 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
         total: tokenTotal,
         input: 0,
         output: 0,
+      },
+      costStats7d: {
+        totalUsd: totalCostUsd,
+        avgPerRunUsd: roundUsd(totalCostUsd / recentTrajectories.length),
+        avgPerSuccessUsd: null,
       },
       modelUsage: aggregateModelUsage([], recentTrajectories),
       latestRun: {
@@ -1065,6 +1172,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
   const activeTrajectories = trajectories.filter((trajectory) => trajectory.status === 'running').length;
 
   const tokensLast7d = workflows.reduce((sum, workflow) => sum + workflow.tokenStats7d.total, 0);
+  const estimatedCostUsdLast7d = roundUsd(workflows.reduce((sum, workflow) => sum + workflow.costStats7d.totalUsd, 0));
 
   const modelsUsed = unique(
     workflows
@@ -1108,6 +1216,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
       trajectoriesLast7d,
       activeTrajectories,
       tokensLast7d,
+      estimatedCostUsdLast7d,
       modelsUsed,
     },
     inferredPortfolioGoals,
