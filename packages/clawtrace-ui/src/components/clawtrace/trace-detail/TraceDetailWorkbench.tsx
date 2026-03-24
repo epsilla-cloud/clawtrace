@@ -1057,7 +1057,7 @@ function StepTimelineView({
 
       chartInstance = echarts.init(dom);
 
-      const rows = detail.waterfall.rows.slice(0, 120);
+      const rows = detail.waterfall.rows.slice(0, 140);
       const categories = rows.map((row, index) => {
         const prefix = row.kind === 'llm_call'
           ? 'M'
@@ -1066,7 +1066,7 @@ function StepTimelineView({
             : row.kind === 'subagent'
               ? 'S'
               : 'C';
-        return `${prefix}${index + 1}`;
+        return `${prefix}${index + 1} · ${row.label}`;
       });
 
       const offsetSeries = rows.map((row) => ({
@@ -1074,12 +1074,26 @@ function StepTimelineView({
         spanId: row.spanId,
       }));
 
-      const durationSeries = rows.map((row) => ({
-        value: row.durationMs,
+      const nonSessionEndMax = Math.max(
+        ...rows
+          .filter((row) => row.kind !== 'session')
+          .map((row) => row.startOffsetMs + row.durationMs),
+        0,
+      );
+      const fullEndMax = Math.max(...rows.map((row) => row.startOffsetMs + row.durationMs), 1);
+      const maxValue = nonSessionEndMax > 0 ? Math.max(nonSessionEndMax * 1.06, 1) : fullEndMax;
+
+      const durationSeries = rows.map((row) => {
+        const remaining = Math.max(1, maxValue - row.startOffsetMs);
+        const clipped = row.durationMs > remaining;
+        return {
+          value: clipped ? remaining : row.durationMs,
         spanId: row.spanId,
         label: row.label,
         kind: row.kind,
         tokens: row.totalTokens,
+        clipped,
+        actualDurationMs: row.durationMs,
         itemStyle: {
           color:
             row.kind === 'llm_call'
@@ -1093,9 +1107,8 @@ function StepTimelineView({
           borderWidth: selectedSpanId === row.spanId ? 2 : 1,
           opacity: selectedSpanId && selectedSpanId !== row.spanId ? 0.66 : 0.95,
         },
-      }));
-
-      const maxValue = Math.max(...rows.map((row) => row.startOffsetMs + row.durationMs), 1);
+        };
+      });
 
       chartInstance.setOption(
         {
@@ -1109,12 +1122,12 @@ function StepTimelineView({
           },
           tooltip: {
             trigger: 'item',
-            formatter: (params: { data?: { label?: string; kind?: string; value?: number; tokens?: number } }) => {
+            formatter: (params: { data?: { label?: string; kind?: string; value?: number; tokens?: number; clipped?: boolean; actualDurationMs?: number } }) => {
               const item = params.data;
               if (!item) return '';
               return [
                 `${item.label ?? 'step'}`,
-                `${item.kind ?? 'step'} · ${formatDuration(item.value ?? 0)}`,
+                `${item.kind ?? 'step'} · ${formatDuration(item.actualDurationMs ?? item.value ?? 0)}${item.clipped ? ' (clipped in chart for readability)' : ''}`,
                 `${formatNumber(item.tokens ?? 0)} tokens`,
               ].join('<br/>');
             },
@@ -1141,6 +1154,11 @@ function StepTimelineView({
             axisLabel: {
               color: '#8c7a6b',
               fontSize: 11,
+              interval: 0,
+              formatter: (value: string) => {
+                if (value.length <= 34) return value;
+                return `${value.slice(0, 33)}…`;
+              },
             },
             axisTick: {
               show: false,
@@ -1799,7 +1817,7 @@ export function TraceDetailWorkbench({
 
           <section className={styles.workspace}>
             <article className={styles.viewCard}>
-              <div className={`${styles.viewBody} ${mode === 'execution_path' ? styles.viewBodyFlush : ''}`}>
+              <div className={`${styles.viewBody} ${mode === 'execution_path' || mode === 'step_timeline' ? styles.viewBodyFlush : ''}`}>
                 {mode === 'execution_path' ? (
                   <ExecutionPathView detail={detail} selectedSpanId={selectedSpan?.spanId ?? null} onSelectSpan={onSelectSpan} />
                 ) : null}
