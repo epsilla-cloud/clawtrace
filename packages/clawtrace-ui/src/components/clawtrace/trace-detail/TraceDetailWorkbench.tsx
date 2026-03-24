@@ -1806,7 +1806,7 @@ export function TraceDetailWorkbench({
                 <p className={styles.viewCardSubtitle}>{modeMeta.description}</p>
               </header>
 
-              <div className={styles.viewBody}>
+              <div className={`${styles.viewBody} ${mode === 'execution_path' ? styles.viewBodyFlush : ''}`}>
                 {mode === 'execution_path' ? (
                   <ExecutionPathView detail={detail} selectedSpanId={selectedSpan?.spanId ?? null} onSelectSpan={onSelectSpan} />
                 ) : null}
