@@ -724,7 +724,7 @@ function TracyAvatar({ compact = false }: { compact?: boolean }) {
   return (
     <span className={compact ? styles.tracyAvatarBubble : styles.tracyAvatarHeader} aria-hidden="true">
       <Image
-        src="/tracy-avatar.jpg"
+        src="/tracy.png"
         alt=""
         width={compact ? 24 : 28}
         height={compact ? 24 : 28}
