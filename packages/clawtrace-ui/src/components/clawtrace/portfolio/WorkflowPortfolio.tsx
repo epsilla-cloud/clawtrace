@@ -428,6 +428,8 @@ type TracyPanelProps = {
   trendRuns: number[];
   trendCost: number[];
   modelsUsed: string[];
+  open: boolean;
+  onToggleOpen: () => void;
 };
 
 type TracyContext = {
@@ -870,8 +872,9 @@ function TracyPanel({
   trendRuns,
   trendCost,
   modelsUsed,
+  open,
+  onToggleOpen,
 }: TracyPanelProps) {
-  const [expanded, setExpanded] = useState(true);
   const [draft, setDraft] = useState('');
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
   const [isListening, setIsListening] = useState(false);
@@ -999,15 +1002,24 @@ function TracyPanel({
     pushAssistantMessage(responseQuery);
   };
 
-  const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === 'Enter' && !event.shiftKey) {
+  const onComposerKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
       event.preventDefault();
       onSend();
     }
   };
 
   return (
-    <aside className={`${styles.tracyPanel} ${expanded ? styles.tracyExpanded : styles.tracyCollapsed}`} aria-label="Tracy side chat">
+    <aside className={`${styles.tracyPanel} ${open ? styles.tracyExpanded : styles.tracyCollapsed}`} aria-label="Tracy side chat">
+      <button
+        type="button"
+        className={styles.tracyEdgeToggle}
+        onClick={onToggleOpen}
+        aria-label={open ? 'Collapse Tracy panel' : 'Expand Tracy panel'}
+        aria-expanded={open}
+      >
+        <span className={styles.tracyEdgeToggleGlyph}>{open ? '⟩' : '⟨'}</span>
+      </button>
       <header className={styles.tracyHeader}>
         <div className={styles.tracyHeaderIdentity}>
           <span className={styles.tracyAvatarHeader} aria-hidden="true">
@@ -1015,18 +1027,9 @@ function TracyPanel({
           </span>
           <p className={styles.tracyName}>Tracy</p>
         </div>
-        <button
-          type="button"
-          className={styles.tracyToggle}
-          onClick={() => setExpanded((current) => !current)}
-          aria-label={expanded ? 'Collapse Tracy panel' : 'Expand Tracy panel'}
-          aria-expanded={expanded}
-        >
-          {expanded ? 'Hide' : 'Show'}
-        </button>
       </header>
 
-      {expanded ? (
+      {open ? (
         <>
           <div className={styles.tracyTranscript}>
             {messages.map((message) => (
@@ -1097,33 +1100,40 @@ function TracyPanel({
             ) : null}
 
             <div className={styles.tracyComposerRow}>
-              <button type="button" className={styles.tracyIconButton} onClick={onPickFiles} aria-label="Attach files">
-                <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.tracyIconSvg}>
-                  <path d="M21.44 11.05l-8.49 8.49a6 6 0 1 1-8.49-8.49l8.49-8.49a4 4 0 0 1 5.66 5.66l-8.5 8.5a2 2 0 1 1-2.82-2.83l7.78-7.78" />
-                </svg>
-              </button>
-              <button
-                type="button"
-                className={`${styles.tracyIconButton} ${isListening ? styles.tracyVoiceActive : ''}`}
-                onClick={onVoiceToggle}
-                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-                disabled={!voiceSupported}
-              >
-                <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.tracyIconSvg}>
-                  <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z" />
-                  <path d="M19 11a7 7 0 0 1-14 0" />
-                  <path d="M12 18v3" />
-                  <path d="M9 21h6" />
-                </svg>
-              </button>
-              <textarea
-                className={styles.tracyTextArea}
-                value={draft}
-                onChange={(event) => setDraft(event.currentTarget.value)}
-                onKeyDown={onComposerKeyDown}
-                placeholder="Ask Tracy about cost or reliability..."
-                rows={1}
-              />
+              <div className={styles.tracyInputShell}>
+                <button
+                  type="button"
+                  className={styles.tracyIconButton}
+                  onClick={onPickFiles}
+                  aria-label="Attach files"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.tracyIconSvg}>
+                    <path d="M21.44 11.05l-8.49 8.49a6 6 0 1 1-8.49-8.49l8.49-8.49a4 4 0 0 1 5.66 5.66l-8.5 8.5a2 2 0 1 1-2.82-2.83l7.78-7.78" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.tracyIconButton} ${isListening ? styles.tracyVoiceActive : ''}`}
+                  onClick={onVoiceToggle}
+                  aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                  disabled={!voiceSupported}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.tracyIconSvg}>
+                    <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z" />
+                    <path d="M19 11a7 7 0 0 1-14 0" />
+                    <path d="M12 18v3" />
+                    <path d="M9 21h6" />
+                  </svg>
+                </button>
+                <input
+                  type="text"
+                  className={styles.tracyTextInput}
+                  value={draft}
+                  onChange={(event) => setDraft(event.currentTarget.value)}
+                  onKeyDown={onComposerKeyDown}
+                  placeholder="Ask Tracy about cost or reliability"
+                />
+              </div>
               <button type="button" className={styles.tracySendButton} onClick={onSend}>
                 Send
               </button>
@@ -1132,11 +1142,7 @@ function TracyPanel({
             <input ref={fileInputRef} type="file" multiple onChange={onFilesSelected} className={styles.tracyHiddenInput} />
           </footer>
         </>
-      ) : (
-        <div className={styles.tracyCollapsedBody}>
-          <p className={styles.tracyCollapsedText}>Tracy is ready when you want a quick investigation.</p>
-        </div>
-      )}
+      ) : null}
     </aside>
   );
 }
@@ -1190,6 +1196,7 @@ const TRACE_STATUS_CLASS: Record<TraceStatus, string> = {
 export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowPortfolioProps) {
   const [snapshot, setSnapshot] = useState<OpenClawDiscoverySnapshot | null>(initialSnapshot ?? null);
   const [loadingSnapshot, setLoadingSnapshot] = useState<boolean>(!initialSnapshot);
+  const [tracyOpen, setTracyOpen] = useState(true);
   const [traceQuery, setTraceQuery] = useState('');
   const [agentFilter, setAgentFilter] = useState<string>('all');
   const [workflowFilter, setWorkflowFilter] = useState<string>('all');
@@ -1396,7 +1403,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
   if (!snapshot || !metrics) {
     return (
       <main className={styles.page}>
-        <section className={styles.shell}>
+        <section className={`${styles.shell} ${tracyOpen ? styles.shellTracyOpen : styles.shellTracyCollapsed}`}>
           <div className={styles.leftRail}>
             <FlowLeftNav flow={flow} allFlows={allFlows} />
           </div>
@@ -1452,7 +1459,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             </header>
           </section>
 
-          <aside className={styles.tracyRail}>
+          <aside className={`${styles.tracyRail} ${tracyOpen ? styles.tracyRailOpen : styles.tracyRailClosed}`}>
             <TracyPanel
               flow={flow}
               traceRows={[]}
@@ -1463,6 +1470,8 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
               trendRuns={trendRuns}
               trendCost={trendCost}
               modelsUsed={[]}
+              open={tracyOpen}
+              onToggleOpen={() => setTracyOpen((current) => !current)}
             />
           </aside>
         </section>
@@ -1472,7 +1481,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
 
   return (
     <main className={styles.page}>
-      <section className={styles.shell}>
+      <section className={`${styles.shell} ${tracyOpen ? styles.shellTracyOpen : styles.shellTracyCollapsed}`}>
         <div className={styles.leftRail}>
           <FlowLeftNav flow={flow} allFlows={allFlows} />
         </div>
@@ -1689,7 +1698,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
           </section>
         </section>
 
-        <aside className={styles.tracyRail}>
+        <aside className={`${styles.tracyRail} ${tracyOpen ? styles.tracyRailOpen : styles.tracyRailClosed}`}>
           <TracyPanel
             flow={flow}
             traceRows={traceRows}
@@ -1700,6 +1709,8 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             trendRuns={trendRuns}
             trendCost={trendCost}
             modelsUsed={metrics.modelsUsed}
+            open={tracyOpen}
+            onToggleOpen={() => setTracyOpen((current) => !current)}
           />
         </aside>
       </section>

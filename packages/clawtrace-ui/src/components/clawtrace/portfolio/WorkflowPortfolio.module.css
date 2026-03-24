@@ -18,6 +18,15 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) minmax(320px, 380px);
   align-items: stretch;
+  transition: grid-template-columns 180ms ease;
+}
+
+.shellTracyOpen {
+  grid-template-columns: auto minmax(0, 1fr) minmax(320px, 380px);
+}
+
+.shellTracyCollapsed {
+  grid-template-columns: auto minmax(0, 1fr) 0;
 }
 
 .leftRail {
@@ -112,14 +121,26 @@
   top: 0;
   height: 100dvh;
   min-height: 100vh;
+  background: transparent;
+  overflow: visible;
+}
+
+.tracyRailOpen {
   border-left: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
   background: color-mix(in srgb, var(--ct-panel-bg) 86%, white);
 }
 
+.tracyRailClosed {
+  border-left: 0;
+  background: transparent;
+}
+
 .tracyPanel {
+  position: relative;
   height: 100%;
   display: grid;
   grid-template-rows: auto 1fr auto;
+  overflow: visible;
 }
 
 .tracyExpanded {
@@ -127,7 +148,16 @@
 }
 
 .tracyCollapsed {
-  grid-template-rows: auto 1fr;
+  grid-template-rows: 0;
+  width: 0;
+  min-width: 0;
+}
+
+.tracyCollapsed .tracyHeader,
+.tracyCollapsed .tracyTranscript,
+.tracyCollapsed .tracyComposer,
+.tracyCollapsed .tracyCollapsedBody {
+  display: none;
 }
 
 .tracyHeader {
@@ -169,16 +199,28 @@
   color: var(--ct-text);
 }
 
-.tracyToggle {
-  height: 30px;
-  border-radius: 9px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
-  background: color-mix(in srgb, var(--ct-panel-subtle) 72%, white);
+.tracyEdgeToggle {
+  position: absolute;
+  left: -14px;
+  top: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: color-mix(in srgb, var(--ct-panel-bg) 88%, white);
   color: var(--ct-soft-text);
-  padding: 0 10px;
-  font-size: var(--ct-text-body-sm);
-  font-weight: 560;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
+  z-index: 3;
+  box-shadow: 0 2px 12px rgba(24, 12, 4, 0.08);
+}
+
+.tracyEdgeToggleGlyph {
+  font-size: 16px;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 
 .tracyTranscript {
@@ -338,22 +380,38 @@
 
 .tracyComposerRow {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: 8px;
 }
 
+.tracyInputShell {
+  min-height: 38px;
+  border-radius: var(--ct-control-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 6px 0 4px;
+}
+
 .tracyIconButton {
-  height: 34px;
-  width: 34px;
-  border-radius: 9px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
-  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
+  height: 28px;
+  width: 28px;
+  border-radius: 8px;
+  border: 0;
+  background: transparent;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   color: #6f6257;
+  flex-shrink: 0;
+}
+
+.tracyIconButton:hover {
+  background: color-mix(in srgb, var(--ct-panel-subtle) 76%, white);
 }
 
 .tracyIconButton:disabled {
@@ -372,23 +430,24 @@
 }
 
 .tracyVoiceActive {
-  border-color: color-mix(in srgb, var(--ct-accent) 52%, white);
-  background: color-mix(in srgb, var(--ct-accent) 78%, white);
+  background: color-mix(in srgb, var(--ct-accent) 80%, white);
 }
 
-.tracyTextArea {
-  min-height: 34px;
-  max-height: 110px;
-  resize: vertical;
-  border-radius: var(--ct-control-radius);
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  background: #fff;
-  padding: 8px 10px;
+.tracyTextInput {
+  min-width: 0;
+  width: 100%;
+  height: 34px;
+  border: 0;
+  background: transparent;
+  padding: 0 6px;
   font-size: var(--ct-text-body-sm);
   color: var(--ct-soft-text);
   font-family: inherit;
   line-height: 1.25;
-  overflow: hidden;
+}
+
+.tracyTextInput:focus {
+  outline: none;
 }
 
 .tracySendButton {
@@ -746,7 +805,9 @@
 }
 
 @media (max-width: 1280px) {
-  .shell {
+  .shell,
+  .shellTracyOpen,
+  .shellTracyCollapsed {
     grid-template-columns: auto minmax(0, 1fr);
   }
 
