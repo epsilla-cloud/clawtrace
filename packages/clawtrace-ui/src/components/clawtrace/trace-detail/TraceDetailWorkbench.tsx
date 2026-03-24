@@ -19,6 +19,7 @@ import type {
   TraceDetailPhase,
   TraceDetailSnapshot,
   TraceDetailSpan,
+  TraceDetailSpanKind,
   TraceDetailViewMode,
 } from '../../../lib/trace-detail';
 import styles from './TraceDetailWorkbench.module.css';
@@ -980,213 +981,87 @@ function ActorMapView({
         dedupedBySpanId.set(span.spanId, span);
       }
     }
-    const dedupedSpans = [...dedupedBySpanId.values()];
-    if (!dedupedSpans.length) {
+    const spans = [...dedupedBySpanId.values()].sort((a, b) => a.startMs - b.startMs);
+    if (!spans.length) {
       container.innerHTML = '';
       return;
     }
 
-    type EntityBucket = {
-      id: string;
-      label: string;
-      type: 'agent';
-      tools: Set<string>;
-      models: Set<string>;
-      llmCalls: number;
-      toolCalls: number;
-      tokensIn: number;
-      tokensOut: number;
-      durationMs: number;
-      parentSessionSpanId: string | null;
-      representativeSpanId: string | null;
-      isMain: boolean;
+    const parentBySpanId = buildExecutionParentBySpanId(spans);
+    const spanById = new Map(spans.map((span) => [span.spanId, span]));
+
+    const sessionMetrics = new Map<string, { llmCalls: number; toolCalls: number }>();
+    for (const span of spans) {
+      if (!span.sessionKey) continue;
+      if (!sessionMetrics.has(span.sessionKey)) {
+        sessionMetrics.set(span.sessionKey, { llmCalls: 0, toolCalls: 0 });
+      }
+      const metrics = sessionMetrics.get(span.sessionKey);
+      if (!metrics) continue;
+      if (span.kind === 'llm_call') metrics.llmCalls += 1;
+      if (span.kind === 'tool_call') metrics.toolCalls += 1;
+    }
+
+    const depthCache = new Map<string, number>();
+    const resolveDepth = (spanId: string, trail: Set<string> = new Set()): number => {
+      const cached = depthCache.get(spanId);
+      if (cached !== undefined) return cached;
+      if (trail.has(spanId)) return 0;
+      trail.add(spanId);
+      const parentId = parentBySpanId.get(spanId) ?? null;
+      if (!parentId || !spanById.has(parentId)) {
+        depthCache.set(spanId, 0);
+        return 0;
+      }
+      const depth = resolveDepth(parentId, trail) + 1;
+      depthCache.set(spanId, depth);
+      return depth;
     };
 
-    const entities = new Map<string, EntityBucket>();
-
-    for (const span of dedupedSpans) {
-      const sessionKey = span.sessionKey;
-      if (!sessionKey) continue;
-      if (!entities.has(sessionKey)) {
-        let label = span.agentId ?? 'agent';
-        if (sessionKey.includes(':subagent:')) {
-          const uuid = sessionKey.split(':subagent:')[1] ?? '';
-          const spawnCall = dedupedSpans.find(
-            (candidate) =>
-              candidate.toolName === 'sessions_spawn'
-              && candidate.toolParams
-              && JSON.stringify(candidate.toolParams).includes(uuid),
-          );
-          if (spawnCall?.toolParams && typeof spawnCall.toolParams.label === 'string' && spawnCall.toolParams.label.trim()) {
-            label = spawnCall.toolParams.label.trim();
-          } else {
-            label = `subagent:${uuid.slice(0, 8)}`;
-          }
-        } else if (sessionKey === 'agent:main:main') {
-          label = 'main agent';
-        }
-
-        entities.set(sessionKey, {
-          id: sessionKey,
-          label,
-          type: 'agent',
-          tools: new Set(),
-          models: new Set(),
-          llmCalls: 0,
-          toolCalls: 0,
-          tokensIn: 0,
-          tokensOut: 0,
-          durationMs: 0,
-          parentSessionSpanId: null,
-          representativeSpanId: span.spanId,
-          isMain: !sessionKey.includes(':subagent:'),
-        });
-      }
-
-      const bucket = entities.get(sessionKey);
-      if (!bucket) continue;
-      if (!bucket.representativeSpanId) {
-        bucket.representativeSpanId = span.spanId;
-      }
-
-      if (span.kind === 'session') {
-        bucket.durationMs = span.resolvedDurationMs || span.durationMs || 0;
-        bucket.parentSessionSpanId = span.parentSpanId ?? null;
-      }
-
-      if (span.kind === 'llm_call') {
-        bucket.llmCalls += 1;
-        bucket.tokensIn += span.tokensIn || 0;
-        bucket.tokensOut += span.tokensOut || 0;
-        if (span.model) {
-          bucket.models.add(span.model);
-        }
-      }
-
-      if (span.kind === 'tool_call' && span.toolName && span.toolName !== 'sessions_spawn') {
-        bucket.toolCalls += 1;
-        bucket.tools.add(span.toolName);
-      }
-    }
-
-    const sessionSpanToKey = new Map<string, string>();
-    for (const span of dedupedSpans) {
-      if (span.kind === 'session' && span.sessionKey) {
-        sessionSpanToKey.set(span.spanId, span.sessionKey);
-      }
-    }
-
     type GraphNode = {
-      id: string;
-      type: 'agent' | 'tool' | 'model';
+      spanId: string;
+      span: TraceDetailSpan;
       label: string;
+      kind: TraceDetailSpanKind;
       r: number;
       x: number;
       y: number;
       vx: number;
       vy: number;
+      depth: number;
+      targetX: number;
+      targetY: number;
       fixed?: boolean;
-      data?: EntityBucket;
-      relatedSpanId: string | null;
     };
     type GraphLink = {
       source: number;
       target: number;
-      type: 'uses-tool' | 'uses-model' | 'spawns';
+      type: 'hierarchy';
     };
 
-    const nodes: GraphNode[] = [];
-    const nodeIndexById = new Map<string, number>();
-
+    const nodes: GraphNode[] = spans.map((span) => ({
+      spanId: span.spanId,
+      span,
+      label: compactActorNodeLabel(span),
+      kind: span.kind,
+      r: span.kind === 'session' ? 34 : span.kind === 'llm_call' ? 19 : span.kind === 'subagent' ? 23 : 12,
+      x: 0,
+      y: 0,
+      vx: 0,
+      vy: 0,
+      depth: resolveDepth(span.spanId),
+      targetX: 0,
+      targetY: 0,
+    }));
+    const nodeIndexBySpanId = new Map(nodes.map((node, index) => [node.spanId, index]));
     const links: GraphLink[] = [];
-
-    for (const [sessionKey, entity] of entities.entries()) {
-      nodeIndexById.set(`entity:${sessionKey}`, nodes.length);
-      nodes.push({
-        id: sessionKey,
-        type: 'agent',
-        label: entity.label,
-        r: entity.isMain ? 34 : 26,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-        data: entity,
-        relatedSpanId: entity.representativeSpanId,
-      });
-    }
-
-    for (const [sessionKey, entity] of entities.entries()) {
-      for (const toolName of entity.tools) {
-        const toolKey = `${sessionKey}::tool:${toolName}`;
-        const representativeSpan =
-          dedupedSpans.find((span) => span.sessionKey === sessionKey && span.toolName === toolName)
-          ?? null;
-        nodeIndexById.set(toolKey, nodes.length);
-        nodes.push({
-          id: toolKey,
-          type: 'tool',
-          label: toolName,
-          r: 12,
-          x: 0,
-          y: 0,
-          vx: 0,
-          vy: 0,
-          relatedSpanId: representativeSpan?.spanId ?? entity.representativeSpanId,
-        });
-        const source = nodeIndexById.get(`entity:${sessionKey}`);
-        const target = nodeIndexById.get(toolKey);
-        if (source != null && target != null) {
-          links.push({ source, target, type: 'uses-tool' });
-        }
-      }
-    }
-
-    const allModels = new Set<string>();
-    for (const entity of entities.values()) {
-      for (const model of entity.models) {
-        allModels.add(model);
-      }
-    }
-
-    for (const model of allModels) {
-      const modelKey = `model:${model}`;
-      const representativeSpan =
-        dedupedSpans.find((span) => span.kind === 'llm_call' && span.model === model)
-        ?? null;
-      nodeIndexById.set(modelKey, nodes.length);
-      nodes.push({
-        id: modelKey,
-        type: 'model',
-        label: model.split('/').pop()?.replace(/-/g, ' ') ?? model,
-        r: 18,
-        x: 0,
-        y: 0,
-        vx: 0,
-        vy: 0,
-        relatedSpanId: representativeSpan?.spanId ?? null,
-      });
-    }
-
-    for (const [sessionKey, entity] of entities.entries()) {
-      for (const model of entity.models) {
-        const source = nodeIndexById.get(`entity:${sessionKey}`);
-        const target = nodeIndexById.get(`model:${model}`);
-        if (source != null && target != null) {
-          links.push({ source, target, type: 'uses-model' });
-        }
-      }
-    }
-
-    for (const [sessionKey, entity] of entities.entries()) {
-      if (!entity.parentSessionSpanId) continue;
-      const parentSessionKey = sessionSpanToKey.get(entity.parentSessionSpanId);
-      if (!parentSessionKey || !entities.has(parentSessionKey)) continue;
-      const source = nodeIndexById.get(`entity:${parentSessionKey}`);
-      const target = nodeIndexById.get(`entity:${sessionKey}`);
-      if (source != null && target != null) {
-        links.push({ source, target, type: 'spawns' });
-      }
+    for (const span of spans) {
+      const parentSpanId = parentBySpanId.get(span.spanId) ?? null;
+      if (!parentSpanId) continue;
+      const source = nodeIndexBySpanId.get(parentSpanId);
+      const target = nodeIndexBySpanId.get(span.spanId);
+      if (source == null || target == null) continue;
+      links.push({ source, target, type: 'hierarchy' });
     }
 
     const ns = 'http://www.w3.org/2000/svg';
@@ -1194,16 +1069,24 @@ function ActorMapView({
     const H = Math.max(420, container.clientHeight || 0);
     const cx = W / 2;
     const cy = H / 2;
-    const colors = {
-      agent: '#2563eb',
-      model: '#ca8a04',
-      tool: '#16a34a',
-    } as const;
-    const bgColors = {
-      agent: '#eff6ff',
-      model: '#fefce8',
-      tool: '#f0fdf4',
-    } as const;
+    const colors: Record<TraceDetailSpanKind, string> = {
+      session: '#2563eb',
+      llm_call: '#ca8a04',
+      tool_call: '#16a34a',
+      subagent: '#9333ea',
+    };
+    const bgColors: Record<TraceDetailSpanKind, string> = {
+      session: '#eff6ff',
+      llm_call: '#fefce8',
+      tool_call: '#f0fdf4',
+      subagent: '#f3e8ff',
+    };
+    const iconByKind: Record<TraceDetailSpanKind, string> = {
+      session: '🤖',
+      llm_call: '🧠',
+      tool_call: '🔧',
+      subagent: '🤖',
+    };
 
     container.innerHTML = '';
     const esc = (value: string): string =>
@@ -1214,14 +1097,28 @@ function ActorMapView({
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#39;');
 
-    nodes.forEach((node, index) => {
-      const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2;
-      const distance = node.type === 'agent' ? 80 : 180 + Math.random() * 60;
-      node.x = cx + Math.cos(angle) * distance;
-      node.y = cy + Math.sin(angle) * distance;
-      node.vx = 0;
-      node.vy = 0;
-    });
+    const maxDepth = Math.max(...nodes.map((node) => node.depth), 1);
+    const byDepth = new Map<number, GraphNode[]>();
+    for (const node of nodes) {
+      const bucket = byDepth.get(node.depth) ?? [];
+      bucket.push(node);
+      byDepth.set(node.depth, bucket);
+    }
+
+    const depthStep = maxDepth > 0 ? Math.max(120, (W - 220) / maxDepth) : 0;
+    for (const [depth, bucket] of byDepth.entries()) {
+      bucket.sort((a, b) => a.span.startMs - b.span.startMs);
+      const bucketCount = bucket.length;
+      for (let index = 0; index < bucketCount; index += 1) {
+        const node = bucket[index];
+        const targetX = Math.min(W - 80, 82 + depth * depthStep);
+        const targetY = ((index + 1) / (bucketCount + 1)) * (H - 70) + 22;
+        node.targetX = targetX;
+        node.targetY = targetY;
+        node.x = targetX + (Math.random() - 0.5) * 22;
+        node.y = targetY + (Math.random() - 0.5) * 14;
+      }
+    }
 
     const svg = document.createElementNS(ns, 'svg');
     svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
@@ -1247,11 +1144,6 @@ function ActorMapView({
       const line = document.createElementNS(ns, 'line');
       line.classList.add(styles.actorGraphLink);
       line.setAttribute('marker-end', `url(#${marker.id})`);
-      if (link.type === 'spawns') {
-        line.style.stroke = '#2563eb';
-        line.style.strokeWidth = '2';
-        line.style.strokeDasharray = '6,3';
-      }
       svg.appendChild(line);
       return line;
     });
@@ -1264,39 +1156,51 @@ function ActorMapView({
 
       const circle = document.createElementNS(ns, 'circle');
       circle.setAttribute('r', String(node.r));
-      circle.setAttribute('fill', bgColors[node.type] ?? '#ffffff');
-      circle.setAttribute('stroke', colors[node.type] ?? '#9ca3af');
-      const isSelected = selectedEntityId === `entity:${node.id}`;
+      circle.setAttribute('fill', bgColors[node.kind] ?? '#ffffff');
+      circle.setAttribute('stroke', colors[node.kind] ?? '#9ca3af');
+      const isSelected = selectedEntityId === `entity:${node.spanId}`;
       circle.setAttribute('stroke-width', isSelected ? '3' : '2');
       group.appendChild(circle);
 
       const icon = document.createElementNS(ns, 'text');
       icon.setAttribute('text-anchor', 'middle');
-      icon.setAttribute('dy', node.type === 'agent' ? '-4' : '1');
-      icon.setAttribute('font-size', node.type === 'agent' ? '16' : '12');
-      icon.textContent = node.type === 'agent' ? '🤖' : node.type === 'model' ? '🧠' : '🔧';
+      icon.setAttribute('dy', node.kind === 'session' || node.kind === 'subagent' ? '-4' : '1');
+      icon.setAttribute('font-size', node.kind === 'session' || node.kind === 'subagent' ? '16' : '12');
+      icon.textContent = iconByKind[node.kind];
       group.appendChild(icon);
 
       const label = document.createElementNS(ns, 'text');
       label.setAttribute('text-anchor', 'middle');
-      label.setAttribute('dy', node.type === 'agent' ? '12' : '24');
-      label.setAttribute('fill', colors[node.type] ?? '#6b7280');
+      label.setAttribute('dy', node.kind === 'session' || node.kind === 'subagent' ? '12' : '24');
+      label.setAttribute('fill', colors[node.kind] ?? '#6b7280');
       label.setAttribute('font-size', '10');
       const labelText = node.label.length > 20 ? `${node.label.slice(0, 18)}…` : node.label;
       label.textContent = labelText;
       group.appendChild(label);
 
-      if (node.type === 'agent' && node.data) {
+      if ((node.kind === 'session' || node.kind === 'subagent') && node.span.sessionKey) {
+        const metrics = sessionMetrics.get(node.span.sessionKey);
+        if (metrics) {
+          const stats = document.createElementNS(ns, 'text');
+          stats.classList.add(styles.actorGraphNodeStats);
+          stats.setAttribute('text-anchor', 'middle');
+          stats.setAttribute('dy', '23');
+          stats.textContent = `${metrics.llmCalls} llm / ${metrics.toolCalls} tools`;
+          group.appendChild(stats);
+        }
+      }
+
+      if (node.kind === 'tool_call') {
         const stats = document.createElementNS(ns, 'text');
         stats.classList.add(styles.actorGraphNodeStats);
         stats.setAttribute('text-anchor', 'middle');
         stats.setAttribute('dy', '23');
-        stats.textContent = `${node.data.llmCalls} llm / ${node.data.toolCalls} tools`;
+        stats.textContent = formatDuration(node.span.resolvedDurationMs);
         group.appendChild(stats);
       }
 
       group.addEventListener('click', () => {
-        onSelect(`entity:${node.id}`, node.relatedSpanId, node.label);
+        onSelect(`entity:${node.spanId}`, node.spanId, spanDisplayLabel(node.span));
       });
 
       let dragging = false;
@@ -1334,28 +1238,15 @@ function ActorMapView({
           tip.className = styles.actorGraphTooltip;
           container.appendChild(tip);
         }
-        let content = `<div class="${styles.actorTooltipTitle}">${esc(node.label)}</div>`;
-        if (node.type === 'agent' && node.data) {
-          const data = node.data;
-          content += `<div class="${styles.actorTooltipRow}">LLM calls: ${data.llmCalls}</div>`;
-          content += `<div class="${styles.actorTooltipRow}">Tool calls: ${data.toolCalls}</div>`;
-          content += `<div class="${styles.actorTooltipRow}">Tokens: ${formatNumber(data.tokensIn)} → ${formatNumber(data.tokensOut)}</div>`;
-          if (data.models.size) {
-            content += `<div class="${styles.actorTooltipRow}">Models: ${esc([...data.models].join(', '))}</div>`;
-          }
-          if (data.tools.size) {
-            content += `<div class="${styles.actorTooltipRow}">Tools: ${esc([...data.tools].join(', '))}</div>`;
-          }
-          if (data.durationMs > 0) {
-            content += `<div class="${styles.actorTooltipRow}">Duration: ${formatDuration(data.durationMs)}</div>`;
-          }
-        } else if (node.relatedSpanId) {
-          const span = dedupedBySpanId.get(node.relatedSpanId);
-          if (span) {
-            content += `<div class="${styles.actorTooltipRow}">${spanKindLabel(span)}</div>`;
-            content += `<div class="${styles.actorTooltipRow}">${formatDuration(span.resolvedDurationMs)} · ${formatNumber(span.totalTokens)} tok</div>`;
-          }
+        let content = `<div class="${styles.actorTooltipTitle}">${esc(spanDisplayLabel(node.span))}</div>`;
+        content += `<div class="${styles.actorTooltipRow}">${spanKindLabel(node.span)}</div>`;
+        if (node.span.kind === 'llm_call' && node.span.model) {
+          content += `<div class="${styles.actorTooltipRow}">Model: ${esc(node.span.model)}</div>`;
         }
+        if (node.span.kind === 'tool_call' && node.span.toolName) {
+          content += `<div class="${styles.actorTooltipRow}">Tool: ${esc(node.span.toolName)}</div>`;
+        }
+        content += `<div class="${styles.actorTooltipRow}">${formatDuration(node.span.resolvedDurationMs)} · ${formatNumber(node.span.totalTokens)} tok</div>`;
         tip.innerHTML = content;
         tip.style.display = 'block';
       });
@@ -1377,7 +1268,7 @@ function ActorMapView({
 
     const legend = document.createElement('div');
     legend.className = styles.actorGraphLegend;
-    legend.innerHTML = `<span class="${styles.actorLegendSession}">Agent</span><span class="${styles.actorLegendModel}">Model</span><span class="${styles.actorLegendTool}">Tool</span>`;
+    legend.innerHTML = `<span class="${styles.actorLegendSession}">Session</span><span class="${styles.actorLegendModel}">Model</span><span class="${styles.actorLegendTool}">Tool</span>`;
     container.appendChild(svg);
     container.appendChild(legend);
 
@@ -1394,8 +1285,8 @@ function ActorMapView({
           let dx = b.x - a.x;
           let dy = b.y - a.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const minDist = a.r + b.r + 40;
-          const force = 800 / (dist * dist);
+          const minDist = a.r + b.r + 36;
+          const force = 620 / (dist * dist);
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
           if (!a.fixed) {
@@ -1428,8 +1319,8 @@ function ActorMapView({
         const dx = target.x - source.x;
         const dy = target.y - source.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const targetDist = source.r + target.r + 80;
-        const force = (dist - targetDist) * 0.01;
+        const targetDist = source.r + target.r + 64;
+        const force = (dist - targetDist) * 0.016;
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
         if (!source.fixed) {
@@ -1444,10 +1335,12 @@ function ActorMapView({
 
       for (const node of nodes) {
         if (node.fixed) continue;
-        node.vx += (cx - node.x) * 0.002;
-        node.vy += (cy - node.y) * 0.002;
-        node.vx *= 0.85;
-        node.vy *= 0.85;
+        node.vx += (node.targetX - node.x) * 0.016;
+        node.vy += (node.targetY - node.y) * 0.016;
+        node.vx += (cx - node.x) * 0.0007;
+        node.vy += (cy - node.y) * 0.0005;
+        node.vx *= 0.84;
+        node.vy *= 0.84;
         node.x += node.vx;
         node.y += node.vy;
         node.x = Math.max(node.r + 5, Math.min(W - node.r - 5, node.x));
