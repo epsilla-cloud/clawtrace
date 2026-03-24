@@ -1233,7 +1233,16 @@ function formatTraceName(traceId: string, signals: string[]): string {
   return `${signals[0].replace(/_/g, ' ')} · ${shortTraceId}`;
 }
 
-function normalizeTraceStatus(status: string | undefined): TraceStatus {
+function normalizeTraceStatus(
+  status: string | undefined,
+  inputTokens: number,
+  outputTokens: number,
+): TraceStatus {
+  // Hard rule: zero-token runs are treated as failed executions.
+  if (inputTokens === 0 && outputTokens === 0) {
+    return 'failure';
+  }
+
   if (status === 'success' || status === 'failure' || status === 'running') {
     return status;
   }
@@ -1356,7 +1365,11 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             trajectory.startedAtMs >= resolvedRange.startMs && trajectory.startedAtMs < resolvedRange.endExclusiveMs
         )
         .map((trajectory) => {
-          const status = normalizeTraceStatus(trajectory.resultStatus);
+          const status = normalizeTraceStatus(
+            trajectory.resultStatus,
+            Math.max(0, trajectory.inputTokens),
+            Math.max(0, trajectory.outputTokens),
+          );
           return {
             key: `${workflow.id}:${trajectory.traceId}:${trajectory.startedAtMs}`,
             traceId: trajectory.traceId,
