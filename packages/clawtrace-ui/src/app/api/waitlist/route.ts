@@ -3,6 +3,8 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const WAITLIST_WEBHOOK_URL =
+  'https://script.google.com/macros/s/AKfycbzvEZ5W-lMZFrWFs6htyyeGjp4IEbfvRtVL6Y-381cw9DC8fT1-fpx8N5SPyOkrHzAI/exec';
 
 type WaitlistPayload = {
   email?: unknown;
@@ -25,29 +27,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const webhook = process.env.CLAWTRACE_WAITLIST_WEBHOOK_URL;
-    if (webhook) {
-      const webhookResponse = await fetch(webhook, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email,
-          source,
-          submittedAt: new Date().toISOString(),
-        }),
-      });
+    const webhookResponse = await fetch(WAITLIST_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email,
+        source,
+        submittedAt: new Date().toISOString(),
+      }),
+    });
 
-      if (!webhookResponse.ok) {
-        return NextResponse.json(
-          { error: 'Waitlist webhook failed.' },
-          {
-            status: 502,
-            headers: { 'Cache-Control': 'no-store' },
-          },
-        );
-      }
+    if (!webhookResponse.ok) {
+      return NextResponse.json(
+        { error: 'Waitlist webhook failed.' },
+        {
+          status: 502,
+          headers: { 'Cache-Control': 'no-store' },
+        },
+      );
     }
 
     return NextResponse.json(
