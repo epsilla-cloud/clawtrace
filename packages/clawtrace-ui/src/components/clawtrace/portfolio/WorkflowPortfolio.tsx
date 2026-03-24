@@ -1335,6 +1335,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
   const trendLabels = trend.map((point) => point.label);
   const trendRuns = trend.map((point) => point.runs);
   const trendCost = trend.map((point) => point.costUsd);
+  const sevenDayRange = useMemo(() => resolveTimeRange('7d', todayIso, todayIso), [todayIso]);
   const rangeTrajectories = useMemo(() => {
     if (!snapshot) {
       return [];
@@ -1349,9 +1350,39 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
   const runsInRange = rangeTrajectories.length;
   const tokensInRange = rangeTrajectories.reduce((sum, trajectory) => sum + trajectory.totalTokens, 0);
   const costInRange = rangeTrajectories.reduce((sum, trajectory) => sum + trajectory.estimatedCostUsd, 0);
-  const totalSuccessfulRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.success, 0);
-  const totalRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.total, 0);
-  const portfolioSuccessRate = totalRuns > 0 ? Math.round((totalSuccessfulRuns / totalRuns) * 100) : 0;
+  const successStats7d = useMemo(() => {
+    if (!snapshot) {
+      return { success: 0, total: 0 };
+    }
+
+    let success = 0;
+    let total = 0;
+
+    for (const workflow of snapshot.workflows) {
+      for (const trajectory of workflow.trajectories) {
+        if (
+          trajectory.startedAtMs < sevenDayRange.startMs
+          || trajectory.startedAtMs >= sevenDayRange.endExclusiveMs
+        ) {
+          continue;
+        }
+
+        total += 1;
+        const status = normalizeTraceStatus(
+          trajectory.resultStatus,
+          Math.max(0, trajectory.inputTokens),
+          Math.max(0, trajectory.outputTokens),
+        );
+        if (status === 'success') {
+          success += 1;
+        }
+      }
+    }
+
+    return { success, total };
+  }, [snapshot, sevenDayRange.endExclusiveMs, sevenDayRange.startMs]);
+  const portfolioSuccessRate =
+    successStats7d.total > 0 ? Math.round((successStats7d.success / successStats7d.total) * 100) : 0;
 
   const traceRows = useMemo<TraceRow[]>(() => {
     if (!snapshot) {
