@@ -165,51 +165,17 @@
     color-mix(in srgb, var(--ct-panel-bg) 88%, white) 0%,
     color-mix(in srgb, var(--ct-panel-subtle) 62%, white) 100%
   );
-  padding: 12px;
+  padding: 0;
+  overflow: hidden;
   box-shadow: 0 34px 70px -58px rgba(74, 36, 14, 0.56);
 }
 
 .heroImage {
   width: 100%;
-  height: clamp(290px, 42vw, 540px);
-  object-fit: cover;
-  border-radius: 16px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  height: auto;
+  object-fit: contain;
+  border-radius: 24px;
   display: block;
-}
-
-.heroStats {
-  position: absolute;
-  left: 24px;
-  right: 24px;
-  bottom: 24px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.statCard {
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 66%, white);
-  background: color-mix(in srgb, var(--ct-panel-bg) 86%, white);
-  backdrop-filter: blur(8px);
-  padding: 9px 10px;
-}
-
-.statLabel {
-  margin: 0;
-  color: var(--ct-muted);
-  font-size: var(--ct-text-meta);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 600;
-}
-
-.statValue {
-  margin: 5px 0 0;
-  color: var(--ct-text);
-  font-size: var(--ct-text-body-sm);
-  font-weight: 560;
 }
 
 .backers {

@@ -5,6 +5,7 @@ import { Cormorant_Garamond } from 'next/font/google';
 import { FormEvent, useState } from 'react';
 import idcLogo from '../../../../idc.png';
 import nvidiaLogo from '../../../../nvidia.png';
+import overviewImage from '../../../../overview.png';
 import yCombinatorLogo from '../../../../ycombinator.png';
 import styles from './LandingPage.module.css';
 
@@ -36,9 +37,6 @@ const IMPROVEMENT_BLOCKS = [
     body: 'Run one control loop that prioritizes the next action and cuts time lost in manual debugging.',
   },
 ];
-
-const HERO_IMAGE_URL =
-  'https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=2200&q=80';
 
 const logoFont = Cormorant_Garamond({
   subsets: ['latin'],
@@ -128,29 +126,14 @@ export function LandingPage() {
 
         <div className={styles.heroFrame}>
           <Image
-            src={HERO_IMAGE_URL}
-            alt="ClawTrace agent run overview visual"
-            width={2200}
-            height={1400}
+            src={overviewImage}
+            alt="ClawTrace overview dashboard"
+            width={overviewImage.width}
+            height={overviewImage.height}
             priority
             sizes="(max-width: 980px) 100vw, 1120px"
             className={styles.heroImage}
           />
-
-          <div className={styles.heroStats}>
-            <article className={styles.statCard}>
-              <p className={styles.statLabel}>Quality</p>
-              <p className={styles.statValue}>Better run outcomes</p>
-            </article>
-            <article className={styles.statCard}>
-              <p className={styles.statLabel}>Cost</p>
-              <p className={styles.statValue}>Lower spend waste</p>
-            </article>
-            <article className={styles.statCard}>
-              <p className={styles.statLabel}>Speed</p>
-              <p className={styles.statValue}>Faster incident fixes</p>
-            </article>
-          </div>
         </div>
       </section>
 
