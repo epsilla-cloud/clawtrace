@@ -1,5 +1,9 @@
-import { redirect } from 'next/navigation';
+import { LandingPage } from '../components/clawtrace/landing/LandingPage';
 
 export default function HomePage() {
-  redirect('/onboarding/connect');
+  return (
+    <div className="operator clawtrace">
+      <LandingPage />
+    </div>
+  );
 }

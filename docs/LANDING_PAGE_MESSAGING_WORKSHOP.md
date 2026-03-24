@@ -1,7 +1,7 @@
 # ClawTrace Landing Page Messaging Workshop
 
 Last updated: 2026-03-24  
-Status: Locked for implementation
+Status: Implemented in `packages/clawtrace-ui`
 
 ## 0) Final Selection
 
@@ -115,3 +115,11 @@ Short framing:
 ## 6) Decision
 
 Landing-page message is approved and ready to build using Sketch 3.
+
+## 7) Implementation Mapping
+
+Implemented files:
+- `packages/clawtrace-ui/src/app/page.tsx`
+- `packages/clawtrace-ui/src/components/clawtrace/landing/LandingPage.tsx`
+- `packages/clawtrace-ui/src/components/clawtrace/landing/LandingPage.module.css`
+- `packages/clawtrace-ui/src/app/api/waitlist/route.ts`

@@ -1,0 +1,222 @@
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--ct-page-bg);
+  color: var(--ct-text);
+  padding: 20px clamp(18px, 3vw, 40px) 56px;
+}
+
+.header {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand {
+  margin: 0;
+  font-size: var(--ct-text-panel-title);
+  font-weight: 620;
+  letter-spacing: -0.01em;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navLink {
+  height: var(--ct-control-height);
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--ct-control-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 40%, white);
+  color: var(--ct-soft-text);
+  text-decoration: none;
+  padding: 0 12px;
+  font-size: var(--ct-text-body-sm);
+}
+
+.hero {
+  width: min(1040px, 100%);
+  margin: 68px auto 34px;
+  border-radius: var(--ct-shell-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--ct-panel-bg) 95%, white) 0%,
+    color-mix(in srgb, var(--ct-panel-subtle) 64%, white) 100%
+  );
+  padding: clamp(26px, 4vw, 44px);
+}
+
+.kicker {
+  margin: 0 0 14px;
+  color: var(--ct-muted);
+  font-size: var(--ct-text-meta);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 620;
+}
+
+.headline {
+  margin: 0;
+  max-width: 16ch;
+  font-size: clamp(36px, 6vw, 62px);
+  line-height: 1.03;
+  letter-spacing: -0.02em;
+  font-weight: 650;
+}
+
+.subhead {
+  margin: 14px 0 0;
+  max-width: 52ch;
+  color: var(--ct-soft-text);
+  font-size: clamp(18px, 2.2vw, 24px);
+  line-height: 1.35;
+}
+
+.valueGrid {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.valueCard {
+  border-radius: var(--ct-panel-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 76%, white);
+  background: #fff;
+  padding: 18px 16px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: var(--ct-text-section-title);
+  line-height: 1.15;
+  letter-spacing: -0.006em;
+  font-weight: 600;
+}
+
+.cardList {
+  margin: 12px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.cardListItem {
+  color: var(--ct-soft-text);
+  font-size: var(--ct-text-body);
+  line-height: 1.44;
+}
+
+.cta {
+  width: min(1040px, 100%);
+  margin: 24px auto 0;
+  border-radius: var(--ct-panel-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ct-accent) 42%, white) 0%,
+    color-mix(in srgb, var(--ct-panel-bg) 92%, white) 100%
+  );
+  padding: 18px 16px;
+}
+
+.ctaTitle {
+  margin: 0;
+  font-size: var(--ct-text-section-title);
+  line-height: 1.2;
+  font-weight: 600;
+}
+
+.ctaSub {
+  margin: 6px 0 0;
+  color: var(--ct-soft-text);
+  font-size: var(--ct-text-body-sm);
+}
+
+.form {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.input {
+  height: calc(var(--ct-control-height) + 4px);
+  border-radius: var(--ct-control-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 76%, white);
+  background: #fff;
+  color: var(--ct-text);
+  padding: 0 12px;
+  font-size: var(--ct-text-body);
+  outline: none;
+}
+
+.input:focus {
+  border-color: color-mix(in srgb, var(--ct-primary) 40%, var(--ct-border));
+  box-shadow: 0 0 0 3px var(--ct-focus);
+}
+
+.button {
+  height: calc(var(--ct-control-height) + 4px);
+  border-radius: var(--ct-control-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-primary-strong) 65%, white);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ct-primary) 90%, white) 0%,
+    color-mix(in srgb, var(--ct-primary-strong) 90%, white) 100%
+  );
+  color: #fff;
+  padding: 0 14px;
+  font-size: var(--ct-text-body-sm);
+  font-weight: 620;
+  cursor: pointer;
+}
+
+.button:disabled {
+  cursor: wait;
+  opacity: 0.75;
+}
+
+.feedback {
+  margin: 10px 0 0;
+  font-size: var(--ct-text-meta);
+}
+
+.success {
+  color: #2e6a3b;
+}
+
+.error {
+  color: #9c3c1f;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
+
+@media (max-width: 960px) {
+  .valueGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .form {
+    grid-template-columns: 1fr;
+  }
+}
