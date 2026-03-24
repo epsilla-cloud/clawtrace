@@ -409,6 +409,11 @@ type TracyInlineChartSpec = {
   visual: 'line' | 'bar' | 'pie';
 };
 
+type TracyMessageLink = {
+  label: string;
+  href: string;
+};
+
 type TracyMessage = {
   id: string;
   role: TracyMessageRole;
@@ -416,6 +421,7 @@ type TracyMessage = {
   attachments?: string[];
   charts?: TracyInlineChartSpec[];
   actions?: string[];
+  links?: TracyMessageLink[];
 };
 
 type TracyPanelProps = {
@@ -594,11 +600,16 @@ function summarizeCostPriority(context: TracyContext): string {
   const peakFrequencyDays = context.trendLabels.filter((_, index) => frequencySeries[index] === peakFrequency && peakFrequency > 0);
 
   return [
-    `Most of the spend is coming from ${first.name} at ${formatCurrency(first.costUsd)} (${firstShare}% of total 7-day cost).`,
-    `${second.name !== 'n/a' ? `Second is ${second.name} at ${formatCurrency(second.costUsd)}.` : 'No second major cost cluster yet.'}`,
-    `${first.name} ran ${first.runs} times in the past 7 days, with a daily peak of ${peakFrequency} run${peakFrequency === 1 ? '' : 's'}${peakFrequencyDays.length ? ` on ${peakFrequencyDays.join(', ')}` : ''}.`,
-    `Single hottest run is ${highestRun.traceName} at ${formatCurrency(highestRun.estimatedCostUsd)} (${formatNumber(highestRun.inputTokens + highestRun.outputTokens)} tokens).`,
-    'Top actions: switch to a smaller model for this flow and reduce the run frequency where it does not impact business goals.',
+    'Cost summary',
+    `- Biggest spend driver: ${first.name} at ${formatCurrency(first.costUsd)} (${firstShare}% of total ${context.rangeLabel} cost).`,
+    `${second.name !== 'n/a' ? `- Second highest: ${second.name} at ${formatCurrency(second.costUsd)}.` : '- No second major cost cluster yet.'}`,
+    '',
+    'Frequency evidence',
+    `- ${first.name} ran ${first.runs} times in the selected range.`,
+    `- Daily peak was ${peakFrequency} run${peakFrequency === 1 ? '' : 's'}${peakFrequencyDays.length ? ` on ${peakFrequencyDays.join(', ')}` : ''}.`,
+    '',
+    'Hottest trace',
+    `- ${highestRun.traceName} · ${formatCurrency(highestRun.estimatedCostUsd)} · ${formatNumber(highestRun.inputTokens + highestRun.outputTokens)} total tokens.`,
   ].join('\n');
 }
 
@@ -637,17 +648,34 @@ function summarizeContractAssist(context: TracyContext): string {
   ].join('\n');
 }
 
+function buildTraceDetailHref(row: TraceRow): string {
+  return `/control-room/${encodeURIComponent(row.workflowId)}?trace=${encodeURIComponent(row.traceId)}`;
+}
+
 function buildTracyResponse(query: string, context: TracyContext): Omit<TracyMessage, 'id' | 'role'> {
   const normalized = query.toLowerCase();
   const baseCharts = createTracyCharts(context);
   const breakdown = getWorkflowCostBreakdown(context);
   const topWorkflow = breakdown[0]?.name ?? 'Top workflow';
+  const hottestRun = [...context.traceRows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
+  const costLinks = hottestRun
+    ? [
+        {
+          label: `Open hottest trace details (${hottestRun.traceId.slice(0, 8)})`,
+          href: buildTraceDetailHref(hottestRun),
+        },
+      ]
+    : undefined;
 
   if (normalized.includes('cost') || normalized.includes('spend') || normalized.includes('budget')) {
     return {
       text: summarizeCostPriority(context),
       charts: [buildCostSharePieChart(context), buildFrequencyBarChart(context, topWorkflow)],
-      actions: ['Switch to a smaller model', 'Reduce the frequency'],
+      actions: [
+        'Switch this flow to a smaller model for routine steps.',
+        'Reduce run frequency where output timing does not impact business goals.',
+      ],
+      links: costLinks,
     };
   }
 
@@ -655,7 +683,8 @@ function buildTracyResponse(query: string, context: TracyContext): Omit<TracyMes
     return {
       text: summarizeCostPriority(context),
       charts: [buildFrequencyBarChart(context, topWorkflow)],
-      actions: ['Reduce the frequency', 'Set a max daily run cap'],
+      actions: ['Reduce run frequency for low-impact windows.', 'Set a max daily run cap for this flow.'],
+      links: costLinks,
     };
   }
 
@@ -663,14 +692,14 @@ function buildTracyResponse(query: string, context: TracyContext): Omit<TracyMes
     return {
       text: `I reviewed the latest risky runs and drafted a short brief.\n${summarizeIncidentBrief(context)}`,
       charts: [baseCharts[0], baseCharts[1]],
-      actions: ['Open latest run detail', 'Generate incident memo'],
+      actions: ['Open the latest risky trace detail.', 'Generate and share an incident memo.'],
     };
   }
 
   if (normalized.includes('contract') || normalized.includes('policy') || normalized.includes('rule')) {
     return {
       text: `I checked drift and repeat patterns, then prepared contract edits.\n${summarizeContractAssist(context)}`,
-      actions: ['Apply contract suggestions', 'Open verification setup'],
+      actions: ['Apply the contract suggestions to the target flow.', 'Open verification setup and add hard checks.'],
     };
   }
 
@@ -707,8 +736,25 @@ function seedTracyMessages(flow: ClawTraceFlowDefinition, context: TracyContext,
       text: firstResponse.text,
       charts: firstResponse.charts,
       actions: firstResponse.actions,
+      links: firstResponse.links,
     },
   ];
+}
+
+function TracyAvatar({ compact = false }: { compact?: boolean }) {
+  return (
+    <span className={compact ? styles.tracyAvatarBubble : styles.tracyAvatarHeader} aria-hidden="true">
+      <svg className={styles.tracyAvatarGraphic} viewBox="0 0 64 64">
+        <circle cx="32" cy="32" r="31" fill="#f5e6db" />
+        <ellipse cx="32" cy="49" rx="16" ry="11" fill="#bf7e62" />
+        <circle cx="32" cy="24" r="12" fill="#f2c6a3" />
+        <path d="M20 23c0-8 5-13 12-13s12 5 12 13v3H20v-3Z" fill="#6d4b39" />
+        <circle cx="27" cy="25" r="1.4" fill="#4a2f1f" />
+        <circle cx="37" cy="25" r="1.4" fill="#4a2f1f" />
+        <path d="M28 30c1.1 1.2 2.4 1.8 4 1.8s2.9-.6 4-1.8" fill="none" stroke="#9a5b43" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+    </span>
+  );
 }
 
 function TracyInlineChart({ chart }: { chart: TracyInlineChartSpec }) {
@@ -942,6 +988,7 @@ function TracyPanel({
         text: assistantPayload.text,
         charts: assistantPayload.charts,
         actions: assistantPayload.actions,
+        links: assistantPayload.links,
       },
     ]);
   };
@@ -1022,9 +1069,7 @@ function TracyPanel({
       </button>
       <header className={styles.tracyHeader}>
         <div className={styles.tracyHeaderIdentity}>
-          <span className={styles.tracyAvatarHeader} aria-hidden="true">
-            T
-          </span>
+          <TracyAvatar />
           <p className={styles.tracyName}>Tracy</p>
         </div>
       </header>
@@ -1040,9 +1085,7 @@ function TracyPanel({
                 }`}
               >
                 {message.role === 'assistant' ? (
-                  <span className={styles.tracyAvatarBubble} aria-hidden="true">
-                    T
-                  </span>
+                  <TracyAvatar compact />
                 ) : null}
                 <article className={`${styles.tracyMessage} ${tracyRoleClass(message.role)}`}>
                   <p className={styles.tracySender}>{message.role === 'assistant' ? 'Tracy' : 'You'}</p>
@@ -1067,11 +1110,24 @@ function TracyPanel({
                   ) : null}
 
                   {message.actions?.length ? (
-                    <div className={styles.tracyActionRow}>
-                      {message.actions.map((action) => (
-                        <span key={`${message.id}-${action}`} className={styles.tracyActionChip}>
-                          {action}
-                        </span>
+                    <div className={styles.tracyActionTextBlock}>
+                      <p className={styles.tracyActionTitle}>Recommended actions</p>
+                      <ol className={styles.tracyActionList}>
+                        {message.actions.map((action) => (
+                          <li key={`${message.id}-${action}`} className={styles.tracyActionItem}>
+                            {action}
+                          </li>
+                        ))}
+                      </ol>
+                    </div>
+                  ) : null}
+
+                  {message.links?.length ? (
+                    <div className={styles.tracyLinkList}>
+                      {message.links.map((linkItem) => (
+                        <Link key={`${message.id}-${linkItem.href}`} href={linkItem.href} className={styles.tracyTraceLink}>
+                          {linkItem.label}
+                        </Link>
                       ))}
                     </div>
                   ) : null}

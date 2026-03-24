@@ -180,14 +180,12 @@
   width: 28px;
   height: 28px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #9d4f46 0%, #835130 100%);
-  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
+  overflow: hidden;
 }
 
 .tracyName {
@@ -251,15 +249,20 @@
   width: 24px;
   height: 24px;
   border-radius: 999px;
-  background: linear-gradient(135deg, #9d4f46 0%, #835130 100%);
-  color: #fff;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
-  font-weight: 700;
   margin-top: 2px;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.tracyAvatarGraphic {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .tracyMessage {
@@ -358,6 +361,46 @@
 
 .tracyActionChip {
   font-weight: 560;
+}
+
+.tracyActionTextBlock {
+  display: grid;
+  gap: 5px;
+}
+
+.tracyActionTitle {
+  margin: 0;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+  font-weight: 620;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.tracyActionList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 2px;
+}
+
+.tracyActionItem {
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
+  line-height: 1.4;
+}
+
+.tracyLinkList {
+  display: grid;
+  gap: 4px;
+}
+
+.tracyTraceLink {
+  color: #9a4f44;
+  font-size: var(--ct-text-body-sm);
+  font-weight: 560;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .tracyAttachmentRemove {
