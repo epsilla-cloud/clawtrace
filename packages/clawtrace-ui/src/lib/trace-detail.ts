@@ -782,26 +782,98 @@ function selectWindowBounds(params: {
   selectedSpans: TraceDetailSpan[];
 } {
   const { selectedTrajectory, mergedSpans } = params;
+  const spanApproxEnd = (span: TraceDetailSpan): number => {
+    if (typeof span.endMs === 'number' && Number.isFinite(span.endMs)) {
+      return span.endMs;
+    }
+    if (typeof span.durationMs === 'number' && Number.isFinite(span.durationMs) && span.durationMs > 0) {
+      return span.startMs + span.durationMs;
+    }
+    return span.startMs;
+  };
+
+  const percentile = (values: number[], ratio: number): number => {
+    if (!values.length) return 0;
+    const sorted = [...values].sort((a, b) => a - b);
+    const index = Math.max(0, Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * ratio)));
+    return sorted[index] ?? 0;
+  };
+
   const minObservedStart = Math.min(...mergedSpans.map((span) => span.startMs));
   const maxObservedEnd = Math.max(
-    ...mergedSpans.map((span) => span.endMs ?? span.startMs),
+    ...mergedSpans.map((span) => spanApproxEnd(span)),
     minObservedStart + 1,
   );
   const fallbackStart = Number.isFinite(minObservedStart) ? minObservedStart : selectedTrajectory.startedAtMs;
   const fallbackEnd = Number.isFinite(maxObservedEnd) ? maxObservedEnd : Math.max(selectedTrajectory.endedAtMs, fallbackStart + 1);
 
-  const windowStartMs = Math.min(
-    selectedTrajectory.startedAtMs > 0 ? selectedTrajectory.startedAtMs : fallbackStart,
-    fallbackStart,
-  );
-  const windowEndMs = Math.max(
-    selectedTrajectory.endedAtMs > windowStartMs ? selectedTrajectory.endedAtMs : fallbackEnd,
-    fallbackEnd,
-    windowStartMs + 1,
+  const candidateStart = selectedTrajectory.startedAtMs > 0 ? selectedTrajectory.startedAtMs : fallbackStart;
+  const candidateDuration = selectedTrajectory.durationMs > 0
+    ? selectedTrajectory.durationMs
+    : Math.max(1, selectedTrajectory.endedAtMs - candidateStart);
+  const candidateEnd = selectedTrajectory.endedAtMs > candidateStart
+    ? selectedTrajectory.endedAtMs
+    : candidateStart + Math.max(1, candidateDuration);
+
+  const sortedSpans = mergedSpans
+    .slice()
+    .sort((a, b) => a.startMs - b.startMs || spanApproxEnd(a) - spanApproxEnd(b));
+  const observedDurations = sortedSpans
+    .map((span) => Math.max(0, spanApproxEnd(span) - span.startMs))
+    .filter((duration) => duration > 0);
+  const p90Duration = percentile(observedDurations, 0.9);
+  const gapThresholdMs = Math.max(
+    120_000,
+    Math.min(1_800_000, Math.max(candidateDuration * 3, p90Duration * 8)),
   );
 
+  const clusters: Array<{ startMs: number; endMs: number; spans: TraceDetailSpan[] }> = [];
+  for (const span of sortedSpans) {
+    const spanStart = span.startMs;
+    const spanEnd = spanApproxEnd(span);
+    const currentCluster = clusters[clusters.length - 1];
+    if (!currentCluster) {
+      clusters.push({ startMs: spanStart, endMs: spanEnd, spans: [span] });
+      continue;
+    }
+
+    if (spanStart - currentCluster.endMs > gapThresholdMs) {
+      clusters.push({ startMs: spanStart, endMs: spanEnd, spans: [span] });
+      continue;
+    }
+
+    currentCluster.spans.push(span);
+    currentCluster.endMs = Math.max(currentCluster.endMs, spanEnd);
+  }
+
+  const targetStart = Number.isFinite(candidateStart) ? candidateStart : fallbackStart;
+  const targetEnd = Number.isFinite(candidateEnd) && candidateEnd > targetStart
+    ? candidateEnd
+    : Math.max(targetStart + 1, fallbackEnd);
+
+  const selectedCluster = clusters.length
+    ? clusters
+      .slice()
+      .sort((a, b) => {
+        const overlapA = Math.max(0, Math.min(a.endMs, targetEnd) - Math.max(a.startMs, targetStart));
+        const overlapB = Math.max(0, Math.min(b.endMs, targetEnd) - Math.max(b.startMs, targetStart));
+        if (overlapA !== overlapB) {
+          return overlapB - overlapA;
+        }
+        const distanceA = Math.abs(a.startMs - targetStart);
+        const distanceB = Math.abs(b.startMs - targetStart);
+        if (distanceA !== distanceB) {
+          return distanceA - distanceB;
+        }
+        return b.spans.length - a.spans.length;
+      })[0]
+    : null;
+
+  const windowStartMs = selectedCluster?.startMs ?? targetStart ?? fallbackStart;
+  const windowEndMs = Math.max(windowStartMs + 1, selectedCluster?.endMs ?? targetEnd ?? fallbackEnd);
+
   const selectedByTime = mergedSpans.filter(
-    (span) => span.startMs >= windowStartMs && span.startMs <= windowEndMs,
+    (span) => span.startMs <= windowEndMs && spanApproxEnd(span) >= windowStartMs,
   );
 
   if (!selectedByTime.length) {
