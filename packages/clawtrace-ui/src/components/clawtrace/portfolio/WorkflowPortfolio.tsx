@@ -1478,7 +1478,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
 
           <section className={styles.dashboard}>
             <header className={styles.pageTopRow}>
-              <h1 className={styles.pageTitle}>Control Room</h1>
+              <h1 className={styles.pageTitle}>Overview</h1>
               <div className={styles.rangeControls}>
                 <label className={styles.rangeLabel} htmlFor="control-room-range-select">
                   Time range
@@ -1556,7 +1556,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
 
         <section className={styles.dashboard}>
           <header className={styles.pageTopRow}>
-            <h1 className={styles.pageTitle}>Control Room</h1>
+            <h1 className={styles.pageTitle}>Overview</h1>
             <div className={styles.rangeControls}>
               <label className={styles.rangeLabel} htmlFor="control-room-range-select">
                 Time range

@@ -175,7 +175,7 @@ function buildTranscript(flowId: string, snapshot: OpenClawDiscoverySnapshot): O
     {
       id: 'f2-a2',
       role: 'assistant',
-      text: 'Open the portfolio to monitor all workflows, inspect trajectories, and apply these recommendations directly from the control room.',
+      text: 'Open the portfolio to monitor all workflows, inspect trajectories, and apply these recommendations directly from the overview.',
     },
   ];
 }

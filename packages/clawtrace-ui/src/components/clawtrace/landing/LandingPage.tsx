@@ -129,7 +129,7 @@ export function LandingPage() {
         <div className={styles.heroFrame}>
           <Image
             src={HERO_IMAGE_URL}
-            alt="ClawTrace agent run control room visual"
+            alt="ClawTrace agent run overview visual"
             width={2200}
             height={1400}
             priority

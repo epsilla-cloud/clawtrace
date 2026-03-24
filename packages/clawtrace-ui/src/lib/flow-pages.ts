@@ -139,7 +139,7 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         target: 'f3-control-room',
       },
     ],
-    primaryActionLabel: 'Open Daily Control Room',
+    primaryActionLabel: 'Open Daily Overview',
     successChecks: [
       'One workflow selected',
       'Primary action is clear',
@@ -151,7 +151,7 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
     order: 3,
     route: '/control-room',
     phase: 'Operate',
-    title: 'Daily Control Room',
+    title: 'Daily Overview',
     subtitle: 'Page 4. Calm, scanable daily operations view.',
     firstTimeHint: 'This page is for triage and prioritization, not deep investigation.',
     userQuestion: 'Are we healthy right now, and where should I focus?',
@@ -427,7 +427,7 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         target: 'f5-triage',
       },
     ],
-    primaryActionLabel: 'Return to Control Room',
+    primaryActionLabel: 'Return to Overview',
     successChecks: [
       'Drift source is identified',
       'Fix path is selected',
@@ -503,7 +503,7 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
         target: 'f3-control-room',
       },
     ],
-    primaryActionLabel: 'Restart Journey at Control Room',
+    primaryActionLabel: 'Restart Journey at Overview',
     successChecks: [
       'Feedback attached to a concrete run',
       'Signal categorized for product/eval loops',

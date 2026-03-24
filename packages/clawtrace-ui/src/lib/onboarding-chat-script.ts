@@ -96,15 +96,15 @@ const ONBOARDING_SCRIPTS: Record<OnboardingFlowId, OnboardingChatScript> = {
       {
         id: 'f2-a-2',
         role: 'assistant',
-        text: 'Yes. Daily home is a calm control room. Investigation drawer opens only when trust degrades or you ask for deeper analysis.',
+        text: 'Yes. Daily home is a calm overview. Investigation drawer opens only when trust degrades or you ask for deeper analysis.',
       },
       {
         id: 'f2-s-2',
         role: 'system',
-        text: 'Onboarding complete. Control room is ready with one focused workflow and explicit verification criteria.',
+        text: 'Onboarding complete. Overview is ready with one focused workflow and explicit verification criteria.',
       },
     ],
-    quickReplies: ['Open control room', 'Explain primary action logic', 'Review verification criteria'],
+    quickReplies: ['Open overview', 'Explain primary action logic', 'Review verification criteria'],
   },
 };
 
