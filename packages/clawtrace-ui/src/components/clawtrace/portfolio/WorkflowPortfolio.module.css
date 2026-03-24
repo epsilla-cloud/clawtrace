@@ -114,15 +114,9 @@
   padding: 8px;
 }
 
-.trendPlot svg {
+.trendCanvas {
   width: 100%;
   height: 100%;
-}
-
-.trendLine {
-  fill: none;
-  stroke: var(--ct-primary);
-  stroke-width: 1.6;
 }
 
 .trendMeta {

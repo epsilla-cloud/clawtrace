@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import * as echarts from 'echarts';
+import type { EChartsOption } from 'echarts';
 import { FlowLeftNav } from '../flow/FlowLeftNav';
 import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
 import type { OpenClawDiscoverySnapshot, WorkflowDiscovery } from '../../../lib/openclaw-discovery';
@@ -117,36 +119,112 @@ function buildSevenDayTrend(snapshot: OpenClawDiscoverySnapshot): TrendPoint[] {
   }));
 }
 
-function getLinePoints(values: number[], width = 100, height = 32): string {
-  if (!values.length) {
-    return '';
-  }
-
-  const maxValue = Math.max(...values, 1);
-  const step = values.length === 1 ? 0 : width / (values.length - 1);
-
-  return values
-    .map((value, index) => {
-      const x = index * step;
-      const y = height - (value / maxValue) * height;
-      return `${x},${y}`;
-    })
-    .join(' ');
-}
-
 type TrendChartProps = {
   title: string;
   subtitle: string;
-  points: TrendPoint[];
-  valueKey: 'runs' | 'costUsd';
+  categories: string[];
+  values: number[];
+  valueMode: 'number' | 'currency';
   formatValue: (value: number) => string;
 };
 
-function TrendChart({ title, subtitle, points, valueKey, formatValue }: TrendChartProps) {
-  const values = points.map((point) => point[valueKey]);
-  const line = getLinePoints(values);
+function TrendChart({ title, subtitle, categories, values, valueMode, formatValue }: TrendChartProps) {
+  const chartRef = useRef<HTMLDivElement | null>(null);
   const maxValue = Math.max(...values, 0);
   const latest = values.length ? values[values.length - 1] : 0;
+
+  useEffect(() => {
+    const node = chartRef.current;
+    if (!node) {
+      return;
+    }
+
+    const chart = echarts.init(node);
+    const option: EChartsOption = {
+      animation: false,
+      grid: {
+        left: 34,
+        right: 16,
+        top: 12,
+        bottom: 26,
+      },
+      tooltip: {
+        trigger: 'axis',
+        formatter: (params: unknown) => {
+          const data = Array.isArray(params) && params.length ? params[0] : null;
+          if (!data || typeof data !== 'object') {
+            return '';
+          }
+
+          const item = data as { axisValueLabel?: string; value?: number };
+          const value = typeof item.value === 'number' ? item.value : 0;
+          return `${item.axisValueLabel ?? ''}<br/>${valueMode === 'currency' ? formatCurrency(value) : formatNumber(value)}`;
+        },
+      },
+      xAxis: {
+        type: 'category',
+        data: categories,
+        boundaryGap: false,
+        axisLine: {
+          lineStyle: {
+            color: '#d7cbc0',
+          },
+        },
+        axisLabel: {
+          color: '#7b6d62',
+          fontSize: 11,
+        },
+      },
+      yAxis: {
+        type: 'value',
+        axisLine: {
+          show: false,
+        },
+        axisTick: {
+          show: false,
+        },
+        splitLine: {
+          lineStyle: {
+            color: '#ede6df',
+          },
+        },
+        axisLabel: {
+          color: '#7b6d62',
+          fontSize: 11,
+          formatter: (value: number) => (valueMode === 'currency' ? `$${value.toFixed(2)}` : `${value}`),
+        },
+      },
+      series: [
+        {
+          type: 'line',
+          data: values,
+          smooth: 0.22,
+          symbol: 'circle',
+          symbolSize: 6,
+          lineStyle: {
+            color: '#99613a',
+            width: 2,
+          },
+          itemStyle: {
+            color: '#99613a',
+          },
+          areaStyle: {
+            color: 'rgba(153, 97, 58, 0.12)',
+          },
+        },
+      ],
+    };
+
+    chart.setOption(option, true);
+
+    const onResize = () => chart.resize();
+    window.addEventListener('resize', onResize);
+
+    return () => {
+      window.removeEventListener('resize', onResize);
+      chart.dispose();
+    };
+  }, [categories, values, valueMode]);
 
   return (
     <article className={styles.trendCard}>
@@ -156,9 +234,7 @@ function TrendChart({ title, subtitle, points, valueKey, formatValue }: TrendCha
       </header>
 
       <div className={styles.trendPlot}>
-        <svg viewBox="0 0 100 32" preserveAspectRatio="none" role="img" aria-label={title}>
-          <polyline className={styles.trendLine} points={line} />
-        </svg>
+        <div className={styles.trendCanvas} ref={chartRef} aria-label={title} />
       </div>
 
       <div className={styles.trendMeta}>
@@ -167,8 +243,8 @@ function TrendChart({ title, subtitle, points, valueKey, formatValue }: TrendCha
       </div>
 
       <div className={styles.trendLabels}>
-        {points.map((point) => (
-          <span key={`${title}-${point.dayStartMs}`}>{point.label}</span>
+        {categories.map((category) => (
+          <span key={`${title}-${category}`}>{category}</span>
         ))}
       </div>
     </article>
@@ -223,6 +299,9 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
   const agents = snapshot?.workflows ?? [];
   const metrics = snapshot?.metrics;
   const trend = snapshot ? buildSevenDayTrend(snapshot) : [];
+  const trendLabels = trend.map((point) => point.label);
+  const trendRuns = trend.map((point) => point.runs);
+  const trendCost = trend.map((point) => point.costUsd);
   const totalSuccessfulRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.success, 0);
   const totalRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.total, 0);
   const portfolioSuccessRate = totalRuns > 0 ? Math.round((totalSuccessfulRuns / totalRuns) * 100) : 0;
@@ -307,15 +386,17 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             <TrendChart
               title="Agent runs over time"
               subtitle="Last 7 days"
-              points={trend}
-              valueKey="runs"
+              categories={trendLabels}
+              values={trendRuns}
+              valueMode="number"
               formatValue={(value) => formatNumber(value)}
             />
             <TrendChart
               title="Token cost over time"
               subtitle="Estimated USD, last 7 days"
-              points={trend}
-              valueKey="costUsd"
+              categories={trendLabels}
+              values={trendCost}
+              valueMode="currency"
               formatValue={(value) => formatCurrency(value)}
             />
           </section>
