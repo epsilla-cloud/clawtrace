@@ -408,6 +408,7 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
   nodes: TraceDetailEntityNode[];
   links: TraceDetailEntityLink[];
 } {
+  const shortSpanRef = (spanId: string): string => spanId.slice(0, 4);
   const actorBuckets = new Map<
     string,
     {
@@ -417,8 +418,6 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
       tokensIn: number;
       tokensOut: number;
       totalTokens: number;
-      models: Set<string>;
-      tools: Set<string>;
       representativeSpanId: string | null;
       sessionSpanParentId: string | null;
     }
@@ -444,8 +443,6 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
         tokensIn: 0,
         tokensOut: 0,
         totalTokens: 0,
-        models: new Set(),
-        tools: new Set(),
         representativeSpanId: span.spanId,
         sessionSpanParentId: span.kind === 'session' ? span.parentSpanId : null,
       });
@@ -459,9 +456,6 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
       bucket.tokensIn += span.tokensIn;
       bucket.tokensOut += span.tokensOut;
       bucket.totalTokens += span.totalTokens;
-      if (span.model) {
-        bucket.models.add(span.model);
-      }
       if (!bucket.representativeSpanId) {
         bucket.representativeSpanId = span.spanId;
       }
@@ -469,9 +463,6 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
 
     if (span.kind === 'tool_call') {
       bucket.toolCalls += 1;
-      if (span.toolName) {
-        bucket.tools.add(span.toolName);
-      }
       if (!bucket.representativeSpanId) {
         bucket.representativeSpanId = span.spanId;
       }
@@ -501,60 +492,56 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
     });
   }
 
-  for (const [sessionKey, bucket] of actorBuckets.entries()) {
-    for (const tool of bucket.tools) {
-      const toolNodeId = `tool:${sessionKey}:${tool}`;
+  for (const span of spans) {
+    if (!span.sessionKey || !actorBuckets.has(span.sessionKey)) {
+      continue;
+    }
+    const actorNodeId = `actor:${span.sessionKey}`;
+
+    if (span.kind === 'tool_call') {
+      const toolLabel = span.toolName ?? span.name ?? 'tool';
+      const toolNodeId = `tool:${span.spanId}`;
       nodes.push({
         id: toolNodeId,
         type: 'tool',
-        label: tool,
-        relatedSpanId: bucket.representativeSpanId,
+        label: `${toolLabel} · ${shortSpanRef(span.spanId)}`,
+        relatedSpanId: span.spanId,
         metrics: {
           llmCalls: 0,
           toolCalls: 1,
-          tokensIn: 0,
-          tokensOut: 0,
-          totalTokens: 0,
+          tokensIn: span.tokensIn,
+          tokensOut: span.tokensOut,
+          totalTokens: span.totalTokens,
         },
       });
       links.push({
-        id: `link:${sessionKey}:tool:${tool}`,
-        source: `actor:${sessionKey}`,
+        id: `link:${span.sessionKey}:tool:${span.spanId}`,
+        source: actorNodeId,
         target: toolNodeId,
         kind: 'uses_tool',
       });
     }
-  }
 
-  const modelSet = new Set<string>();
-  for (const bucket of actorBuckets.values()) {
-    for (const model of bucket.models.values()) {
-      modelSet.add(model);
-    }
-  }
-
-  for (const model of modelSet) {
-    nodes.push({
-      id: `model:${model}`,
-      type: 'model',
-      label: model,
-      relatedSpanId: null,
-      metrics: {
-        llmCalls: 0,
-        toolCalls: 0,
-        tokensIn: 0,
-        tokensOut: 0,
-        totalTokens: 0,
-      },
-    });
-  }
-
-  for (const [sessionKey, bucket] of actorBuckets.entries()) {
-    for (const model of bucket.models) {
+    if (span.kind === 'llm_call') {
+      const modelLabel = span.model ?? 'unknown model';
+      const modelNodeId = `model:${span.spanId}`;
+      nodes.push({
+        id: modelNodeId,
+        type: 'model',
+        label: `${modelLabel} · ${shortSpanRef(span.spanId)}`,
+        relatedSpanId: span.spanId,
+        metrics: {
+          llmCalls: 1,
+          toolCalls: 0,
+          tokensIn: span.tokensIn,
+          tokensOut: span.tokensOut,
+          totalTokens: span.totalTokens,
+        },
+      });
       links.push({
-        id: `link:${sessionKey}:model:${model}`,
-        source: `actor:${sessionKey}`,
-        target: `model:${model}`,
+        id: `link:${span.sessionKey}:model:${span.spanId}`,
+        source: actorNodeId,
+        target: modelNodeId,
         kind: 'uses_model',
       });
     }

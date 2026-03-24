@@ -921,6 +921,11 @@ function ActorMapView({
       if (disposed || !dom) return;
 
       chartInstance = echarts.init(dom);
+      const nodeCount = detail.entityGraph.nodes.length;
+      const showAllLabels = nodeCount <= 40;
+      const forceRepulsion = nodeCount > 70 ? 760 : nodeCount > 40 ? 620 : 420;
+      const forceEdgeMin = nodeCount > 60 ? 54 : 68;
+      const forceEdgeMax = nodeCount > 60 ? 130 : 160;
 
       const nodes = detail.entityGraph.nodes.map((node) => {
         const nodeColor =
@@ -930,7 +935,13 @@ function ActorMapView({
               ? '#6b8f34'
               : '#ba7b2c';
 
-        const baseSymbolSize = node.type === 'actor' ? 54 : node.type === 'model' ? 40 : 34;
+        const baseSymbolSize = node.type === 'actor' ? 42 : node.type === 'model' ? 19 : 16;
+        const labelText =
+          node.type === 'actor'
+            ? node.label
+            : showAllLabels
+              ? node.label
+              : node.label.split(' · ')[0] ?? node.label;
 
         return {
           id: node.id,
@@ -946,10 +957,12 @@ function ActorMapView({
             shadowColor: 'rgba(32,19,9,0.18)',
           },
           label: {
-            show: true,
+            show: node.type === 'actor' || showAllLabels,
             color: '#2f2217',
-            fontSize: 11,
-            formatter: node.type === 'actor' ? `{b}` : `{b}`,
+            fontSize: node.type === 'actor' ? 11 : 10,
+            formatter: () => labelText,
+            overflow: 'truncate',
+            width: node.type === 'actor' ? 120 : 96,
           },
           relatedSpanId: node.relatedSpanId,
           nodeType: node.type,
@@ -984,9 +997,9 @@ function ActorMapView({
               layout: 'force',
               roam: true,
               force: {
-                repulsion: 320,
+                repulsion: forceRepulsion,
                 gravity: 0.08,
-                edgeLength: [80, 160],
+                edgeLength: [forceEdgeMin, forceEdgeMax],
               },
               emphasis: {
                 focus: 'adjacency',
