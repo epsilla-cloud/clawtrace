@@ -1029,8 +1029,6 @@ function ActorMapView({
       vx: number;
       vy: number;
       depth: number;
-      targetX: number;
-      targetY: number;
       fixed?: boolean;
     };
     type GraphLink = {
@@ -1050,8 +1048,6 @@ function ActorMapView({
       vx: 0,
       vy: 0,
       depth: resolveDepth(span.spanId),
-      targetX: 0,
-      targetY: 0,
     }));
     const nodeIndexBySpanId = new Map(nodes.map((node, index) => [node.spanId, index]));
     const links: GraphLink[] = [];
@@ -1104,19 +1100,14 @@ function ActorMapView({
       bucket.push(node);
       byDepth.set(node.depth, bucket);
     }
-
-    const depthStep = maxDepth > 0 ? Math.max(120, (W - 220) / maxDepth) : 0;
     for (const [depth, bucket] of byDepth.entries()) {
       bucket.sort((a, b) => a.span.startMs - b.span.startMs);
-      const bucketCount = bucket.length;
-      for (let index = 0; index < bucketCount; index += 1) {
+      const ringRadius = depth === 0 ? 0 : 96 + depth * 52;
+      for (let index = 0; index < bucket.length; index += 1) {
         const node = bucket[index];
-        const targetX = Math.min(W - 80, 82 + depth * depthStep);
-        const targetY = ((index + 1) / (bucketCount + 1)) * (H - 70) + 22;
-        node.targetX = targetX;
-        node.targetY = targetY;
-        node.x = targetX + (Math.random() - 0.5) * 22;
-        node.y = targetY + (Math.random() - 0.5) * 14;
+        const angle = (index / Math.max(bucket.length, 1)) * Math.PI * 2;
+        node.x = cx + Math.cos(angle) * ringRadius + (Math.random() - 0.5) * 14;
+        node.y = cy + Math.sin(angle) * ringRadius + (Math.random() - 0.5) * 14;
       }
     }
 
@@ -1188,15 +1179,6 @@ function ActorMapView({
           stats.textContent = `${metrics.llmCalls} llm / ${metrics.toolCalls} tools`;
           group.appendChild(stats);
         }
-      }
-
-      if (node.kind === 'tool_call') {
-        const stats = document.createElementNS(ns, 'text');
-        stats.classList.add(styles.actorGraphNodeStats);
-        stats.setAttribute('text-anchor', 'middle');
-        stats.setAttribute('dy', '23');
-        stats.textContent = formatDuration(node.span.resolvedDurationMs);
-        group.appendChild(stats);
       }
 
       group.addEventListener('click', () => {
@@ -1335,10 +1317,9 @@ function ActorMapView({
 
       for (const node of nodes) {
         if (node.fixed) continue;
-        node.vx += (node.targetX - node.x) * 0.016;
-        node.vy += (node.targetY - node.y) * 0.016;
-        node.vx += (cx - node.x) * 0.0007;
-        node.vy += (cy - node.y) * 0.0005;
+        const centerPull = node.kind === 'session' ? 0.005 : 0.0018;
+        node.vx += (cx - node.x) * centerPull;
+        node.vy += (cy - node.y) * centerPull;
         node.vx *= 0.84;
         node.vy *= 0.84;
         node.x += node.vx;
