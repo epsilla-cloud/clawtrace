@@ -6,6 +6,7 @@ import { OnboardingGuidedConversation } from '../../components/clawtrace/onboard
 import { WorkflowPortfolio } from '../../components/clawtrace/portfolio/WorkflowPortfolio';
 import { CLAWTRACE_FLOW_PAGES, getAdjacentFlow, getFlowBySegments } from '../../lib/flow-pages';
 import { isOnboardingFlowId } from '../../lib/onboarding-chat-script';
+import { loadOpenClawDiscoverySnapshot } from '../../lib/openclaw-discovery';
 
 type FlowRoutePageProps = {
   params: Promise<{
@@ -64,9 +65,10 @@ export default async function FlowRoutePage({ params }: FlowRoutePageProps) {
   }
 
   if (flow.id === 'f3-control-room') {
+    const snapshot = await loadOpenClawDiscoverySnapshot().catch(() => null);
     return (
       <div className="operator clawtrace">
-        <WorkflowPortfolio flow={flow} allFlows={CLAWTRACE_FLOW_PAGES} />
+        <WorkflowPortfolio initialSnapshot={snapshot} flow={flow} allFlows={CLAWTRACE_FLOW_PAGES} />
       </div>
     );
   }

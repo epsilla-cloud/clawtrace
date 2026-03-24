@@ -114,40 +114,40 @@
 
 .trendCard {
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 12px;
+  border-radius: 14px;
   background: #fff;
-  padding: 14px;
+  padding: 14px 14px 12px;
   display: grid;
-  gap: 12px;
+  gap: 8px;
+  box-shadow: 0 1px 0 rgba(145, 121, 104, 0.06);
 }
 
-.trendCard header {
+.trendHeader {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 16px;
+  padding: 0 2px;
 }
 
 .trendTitle {
   margin: 0;
-  font-size: clamp(17px, 2vw, 20px);
+  font-size: clamp(20px, 2.2vw, 24px);
   font-weight: 590;
   letter-spacing: -0.01em;
+  line-height: 1.1;
 }
 
 .trendSubtitle {
-  margin: 3px 0 0;
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: #7f6e62;
 }
 
 .trendPlot {
   width: 100%;
-  height: 212px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
-  padding: 6px;
+  height: 220px;
+  padding: 0;
 }
 
 .trendCanvas {
@@ -155,25 +155,31 @@
   height: 100%;
 }
 
-.trendMeta {
+.trendStats {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 7px;
+  align-items: center;
+  gap: 8px;
 }
 
-.trendMetaBadge {
-  height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
+.trendStat {
+  min-width: 92px;
+  border-radius: 11px;
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  background: color-mix(in srgb, var(--ct-panel-subtle) 78%, white);
-  color: var(--ct-soft-text);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 76%, white);
+  padding: 6px 8px;
+  display: grid;
+  gap: 1px;
+}
+
+.trendStatLabel {
   font-size: var(--ct-text-meta);
-  font-weight: 570;
+  color: var(--ct-muted);
+}
+
+.trendStatValue {
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
+  font-weight: 620;
 }
 
 .tableSection {
@@ -345,7 +351,12 @@
   }
 
   .trendPlot {
-    height: 186px;
+    height: 190px;
+  }
+
+  .trendHeader {
+    flex-direction: column;
+    align-items: flex-start;
   }
 }
 

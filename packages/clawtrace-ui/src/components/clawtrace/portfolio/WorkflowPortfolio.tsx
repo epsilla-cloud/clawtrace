@@ -2,17 +2,10 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import * as echarts from 'echarts/core';
-import { LineChart } from 'echarts/charts';
-import { GridComponent, TooltipComponent } from 'echarts/components';
-import { CanvasRenderer } from 'echarts/renderers';
-import type { EChartsOption } from 'echarts';
 import { FlowLeftNav } from '../flow/FlowLeftNav';
 import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
 import type { OpenClawDiscoverySnapshot, WorkflowDiscovery } from '../../../lib/openclaw-discovery';
 import styles from './WorkflowPortfolio.module.css';
-
-echarts.use([LineChart, GridComponent, TooltipComponent, CanvasRenderer]);
 
 type WorkflowPortfolioProps = {
   initialSnapshot?: OpenClawDiscoverySnapshot | null;
@@ -153,8 +146,9 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
   const latest = values.length ? values[values.length - 1] : 0;
   const yAxisMax = getNiceYAxisMax(maxValue);
   const isCost = valueMode === 'currency';
-  const lineColor = isCost ? '#9b4d45' : '#875333';
-  const areaColor = isCost ? 'rgba(155, 77, 69, 0.14)' : 'rgba(135, 83, 51, 0.16)';
+  const lineColor = isCost ? '#9d4f46' : '#835130';
+  const areaColorTop = isCost ? 'rgba(157, 79, 70, 0.22)' : 'rgba(131, 81, 48, 0.24)';
+  const areaColorBottom = isCost ? 'rgba(157, 79, 70, 0.03)' : 'rgba(131, 81, 48, 0.03)';
 
   useEffect(() => {
     const node = chartRef.current;
@@ -162,8 +156,10 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
       return;
     }
 
-    const chart = echarts.init(node);
-    const option: EChartsOption = {
+    let chart: { setOption: (option: unknown, notMerge?: boolean) => void; resize: () => void; dispose: () => void } | null = null;
+    let canceled = false;
+
+    const option = {
       animation: false,
       grid: {
         left: 44,
@@ -173,6 +169,13 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
       },
       tooltip: {
         trigger: 'axis',
+        axisPointer: {
+          type: 'line',
+          lineStyle: {
+            color: '#bca89a',
+            width: 1,
+          },
+        },
         backgroundColor: '#2b2522',
         borderWidth: 0,
         textStyle: {
@@ -199,12 +202,12 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
         },
         axisLine: {
           lineStyle: {
-            color: '#d6c7bc',
+            color: '#d2c2b7',
             width: 1.2,
           },
         },
         axisLabel: {
-          color: '#78695f',
+          color: '#786a60',
           fontSize: 12,
           margin: 14,
         },
@@ -222,7 +225,7 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
         },
         splitLine: {
           lineStyle: {
-            color: '#ece2db',
+            color: '#e8ddd5',
             type: 'dashed',
           },
         },
@@ -248,7 +251,7 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
           symbolSize: 7,
           lineStyle: {
             color: lineColor,
-            width: 3,
+            width: 3.2,
           },
           itemStyle: {
             color: '#fff',
@@ -256,33 +259,60 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
             borderWidth: 2,
           },
           areaStyle: {
-            color: areaColor,
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [
+                { offset: 0, color: areaColorTop },
+                { offset: 1, color: areaColorBottom },
+              ],
+            },
           },
         },
       ],
     };
 
-    chart.setOption(option, true);
+    const onResize = () => {
+      chart?.resize();
+    };
 
-    const onResize = () => chart.resize();
-    window.addEventListener('resize', onResize);
+    void (async () => {
+      const echarts = await import('echarts');
+      if (canceled || !node) {
+        return;
+      }
+
+      chart = echarts.init(node);
+      chart.setOption(option, true);
+      window.addEventListener('resize', onResize);
+    })();
 
     return () => {
+      canceled = true;
       window.removeEventListener('resize', onResize);
-      chart.dispose();
+      chart?.dispose();
     };
   }, [categories, values, valueMode]);
 
   return (
     <article className={styles.trendCard}>
-      <header>
+      <header className={styles.trendHeader}>
         <div>
           <h2 className={styles.trendTitle}>{title}</h2>
           <p className={styles.trendSubtitle}>{subtitle}</p>
         </div>
-        <div className={styles.trendMeta}>
-          <span className={styles.trendMetaBadge}>Peak {formatValue(maxValue)}</span>
-          <span className={styles.trendMetaBadge}>Latest {formatValue(latest)}</span>
+        <div className={styles.trendStats}>
+          <div className={styles.trendStat}>
+            <span className={styles.trendStatLabel}>Peak</span>
+            <span className={styles.trendStatValue}>{formatValue(maxValue)}</span>
+          </div>
+          <div className={styles.trendStat}>
+            <span className={styles.trendStatLabel}>Latest</span>
+            <span className={styles.trendStatValue}>{formatValue(latest)}</span>
+          </div>
         </div>
       </header>
 
