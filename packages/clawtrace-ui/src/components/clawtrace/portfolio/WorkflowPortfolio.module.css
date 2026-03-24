@@ -1,0 +1,385 @@
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: var(--ct-page-bg);
+  color: var(--ct-text);
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.summaryBar {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: color-mix(in srgb, var(--ct-panel-bg) 90%, white);
+}
+
+.summaryMetric {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px;
+  display: grid;
+  gap: 2px;
+}
+
+.summaryLabel {
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+}
+
+.summaryValue {
+  font-size: var(--ct-text-body);
+  color: var(--ct-text);
+  font-weight: 600;
+}
+
+.layout {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr) 360px;
+  gap: 12px;
+  padding: 12px;
+}
+
+.portfolio,
+.cockpit,
+.recommendationRail {
+  min-height: 0;
+}
+
+.portfolio {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 12px;
+  background: #fff;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+}
+
+.sectionHeader {
+  padding: 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--ct-text-panel-title);
+  line-height: 1.24;
+  letter-spacing: -0.01em;
+  font-family: var(--ct-font-body);
+  font-weight: 560;
+}
+
+.sectionSubtitle {
+  margin: 5px 0 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-muted);
+}
+
+.filterRow {
+  padding: 10px 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+}
+
+.filterInput {
+  width: 100%;
+  height: 34px;
+  border-radius: var(--ct-control-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: #fff;
+  padding: 0 10px;
+  font-size: var(--ct-text-body-sm);
+}
+
+.workflowList {
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.workflowCard {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 66%, white);
+  padding: 10px;
+  text-align: left;
+  display: grid;
+  gap: 5px;
+}
+
+.workflowCardSelected {
+  background: color-mix(in srgb, var(--ct-accent) 62%, white);
+  border-color: color-mix(in srgb, var(--ct-primary) 26%, var(--ct-border));
+}
+
+.workflowCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workflowName {
+  margin: 0;
+  font-size: var(--ct-text-body);
+  font-weight: 560;
+  color: var(--ct-text);
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: var(--ct-text-meta);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.workflowMeta {
+  margin: 0;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-soft-text);
+}
+
+.cockpit {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 12px;
+  background: #fff;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.cockpitGrid {
+  min-height: 0;
+  overflow: auto;
+  padding: 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+
+.panel,
+.panelWide {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 64%, white);
+  padding: 10px;
+}
+
+.panelWide {
+  grid-column: 1 / -1;
+}
+
+.panelTitle {
+  margin: 0;
+  font-size: var(--ct-text-body);
+  font-weight: 560;
+}
+
+.tagList,
+.modelList,
+.recommendationList,
+.stateList {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.tagItem,
+.recommendationItem {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 9px;
+  background: #fff;
+  padding: 8px;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
+  line-height: 1.35;
+}
+
+.metricGrid {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.metricCell {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 9px;
+  background: #fff;
+  padding: 7px;
+  display: grid;
+  gap: 2px;
+}
+
+.metricLabel {
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+}
+
+.metricValue {
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-text);
+  font-weight: 600;
+}
+
+.modelItem,
+.stateItem {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 9px;
+  background: #fff;
+  padding: 7px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
+}
+
+.trajectoryList {
+  margin-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+
+.trajectoryRow {
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border-radius: 9px;
+  background: #fff;
+  padding: 8px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.trajectoryTitle {
+  margin: 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.trajectoryMeta {
+  margin: 4px 0 0;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-soft-text);
+}
+
+.trajectoryStats {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+}
+
+.emptyState {
+  margin: 8px 0 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-muted);
+}
+
+.recommendationRail {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
+.recommendationTitle {
+  margin: 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-text);
+  font-weight: 560;
+}
+
+.recommendationBody {
+  margin: 4px 0 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
+  line-height: 1.35;
+}
+
+.recommendationMeta {
+  margin: 5px 0 0;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.stateHealthy {
+  background: var(--ct-trust-healthy-bg);
+  color: var(--ct-trust-healthy-text);
+  border-color: var(--ct-trust-healthy-border);
+}
+
+.stateAtRisk {
+  background: var(--ct-trust-at-risk-bg);
+  color: var(--ct-trust-at-risk-text);
+  border-color: var(--ct-trust-at-risk-border);
+}
+
+.stateDrifting {
+  background: var(--ct-trust-drifting-bg);
+  color: var(--ct-trust-drifting-text);
+  border-color: var(--ct-trust-drifting-border);
+}
+
+.stateBlocked {
+  background: var(--ct-trust-blocked-bg);
+  color: var(--ct-trust-blocked-text);
+  border-color: var(--ct-trust-blocked-border);
+}
+
+.stateAwaiting {
+  background: var(--ct-trust-awaiting-bg);
+  color: var(--ct-trust-awaiting-text);
+  border-color: var(--ct-trust-awaiting-border);
+}
+
+.statePartial {
+  background: var(--ct-trust-partial-bg);
+  color: var(--ct-trust-partial-text);
+  border-color: var(--ct-trust-partial-border);
+}
+
+@media (max-width: 1400px) {
+  .layout {
+    grid-template-columns: 290px minmax(0, 1fr);
+  }
+
+  .recommendationRail {
+    grid-column: 1 / -1;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1080px) {
+  .summaryBar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .recommendationRail {
+    grid-template-columns: 1fr;
+  }
+
+  .cockpitGrid {
+    grid-template-columns: 1fr;
+  }
+}
