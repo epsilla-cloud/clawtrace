@@ -1735,35 +1735,17 @@ export function TraceDetailWorkbench({
             </div>
           </header>
 
-          <section className={styles.traceMetaBar}>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Trace</span>
-              <span className={styles.metaValue}>{detail.trace.baseTraceId}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Duration</span>
-              <span className={styles.metaValue}>{formatDuration(detail.trace.durationMs)}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Tokens</span>
-              <span className={styles.metaValue}>{formatNumber(detail.trace.totalTokens)}</span>
-            </div>
-            <div className={styles.metaItem}>
-              <span className={styles.metaLabel}>Est. cost</span>
-              <span className={styles.metaValue}>{formatCurrency(detail.trace.estimatedCostUsd)}</span>
-            </div>
-          </section>
-
-          <section className={styles.modeBar}>
+          <section className={styles.modeSwitcher} role="tablist" aria-label="Trace detail views">
             {MODE_ITEMS.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className={`${styles.modeButton} ${mode === item.id ? styles.modeButtonActive : ''}`}
                 onClick={() => setMode(item.id)}
+                role="tab"
+                aria-selected={mode === item.id}
               >
                 <span className={styles.modeLabel}>{item.label}</span>
-                <span className={styles.modeDescription}>{item.description}</span>
               </button>
             ))}
           </section>

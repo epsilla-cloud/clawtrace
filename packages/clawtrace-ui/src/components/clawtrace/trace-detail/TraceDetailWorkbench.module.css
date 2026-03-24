@@ -84,81 +84,49 @@
   padding: 0 10px;
 }
 
-.traceMetaBar {
+.modeSwitcher {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.metaItem {
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 10px;
-  background: #fff;
-  padding: 10px;
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.metaLabel {
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.metaValue {
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-soft-text);
-  font-weight: 560;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.modeBar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 70%, white);
 }
 
 .modeButton {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 11px;
-  background: #fff;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
   color: var(--ct-soft-text);
-  padding: 9px 10px;
-  text-align: left;
+  padding: 10px 12px;
+  text-align: center;
   cursor: pointer;
-  display: grid;
-  gap: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: border-color var(--ct-duration-fast) var(--ct-ease-standard),
     box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
-    transform var(--ct-duration-fast) var(--ct-ease-standard);
+    transform var(--ct-duration-fast) var(--ct-ease-standard),
+    background-color var(--ct-duration-fast) var(--ct-ease-standard);
 }
 
 .modeButton:hover {
-  border-color: color-mix(in srgb, var(--ct-primary) 24%, var(--ct-border));
-  transform: translateY(-1px);
+  background: #fff;
+  border-color: color-mix(in srgb, var(--ct-primary) 20%, var(--ct-border));
 }
 
 .modeButtonActive {
-  background: color-mix(in srgb, var(--ct-accent) 78%, white);
+  background: #fff;
   border-color: color-mix(in srgb, var(--ct-primary) 26%, var(--ct-border));
   box-shadow: var(--ct-shadow-selected);
 }
 
 .modeLabel {
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.2;
-  font-weight: 620;
+  font-weight: 600;
   color: var(--ct-text);
-}
-
-.modeDescription {
-  font-size: var(--ct-text-meta);
-  line-height: 1.3;
-  color: var(--ct-muted);
 }
 
 .workspace {
@@ -1040,11 +1008,7 @@
     display: none;
   }
 
-  .modeBar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .traceMetaBar {
+  .modeSwitcher {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1059,8 +1023,7 @@
     align-items: flex-start;
   }
 
-  .modeBar,
-  .traceMetaBar,
+  .modeSwitcher,
   .efficiencySummaryRow {
     grid-template-columns: 1fr;
   }
