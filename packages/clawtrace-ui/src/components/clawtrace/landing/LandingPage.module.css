@@ -40,9 +40,12 @@
 .brand {
   color: var(--ct-text);
   text-decoration: none;
-  font-size: 20px;
-  font-weight: 640;
-  letter-spacing: -0.012em;
+  font-size: 34px;
+  font-weight: 700;
+  font-style: italic;
+  letter-spacing: -0.018em;
+  line-height: 1;
+  transform: translateY(-1px);
 }
 
 .nav {

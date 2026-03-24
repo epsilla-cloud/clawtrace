@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { Cormorant_Garamond } from 'next/font/google';
 import { FormEvent, useState } from 'react';
 import idcLogo from '../../../../idc.png';
 import nvidiaLogo from '../../../../nvidia.png';
@@ -38,6 +39,12 @@ const IMPROVEMENT_BLOCKS = [
 
 const HERO_IMAGE_URL =
   'https://images.unsplash.com/photo-1518773553398-650c184e0bb3?auto=format&fit=crop&w=2200&q=80';
+
+const logoFont = Cormorant_Garamond({
+  subsets: ['latin'],
+  weight: ['600', '700'],
+  style: ['normal', 'italic'],
+});
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -90,7 +97,7 @@ export function LandingPage() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <a href="/" className={styles.brand}>
+        <a href="/" className={`${styles.brand} ${logoFont.className}`}>
           ClawTrace
         </a>
 
