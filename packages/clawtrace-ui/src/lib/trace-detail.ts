@@ -782,27 +782,26 @@ function selectWindowBounds(params: {
   selectedSpans: TraceDetailSpan[];
 } {
   const { selectedTrajectory, mergedSpans } = params;
-  const llmSpans = mergedSpans
-    .filter((span) => span.kind === 'llm_call')
-    .sort((a, b) => a.startMs - b.startMs);
+  const minObservedStart = Math.min(...mergedSpans.map((span) => span.startMs));
+  const maxObservedEnd = Math.max(
+    ...mergedSpans.map((span) => span.endMs ?? span.startMs),
+    minObservedStart + 1,
+  );
+  const fallbackStart = Number.isFinite(minObservedStart) ? minObservedStart : selectedTrajectory.startedAtMs;
+  const fallbackEnd = Number.isFinite(maxObservedEnd) ? maxObservedEnd : Math.max(selectedTrajectory.endedAtMs, fallbackStart + 1);
 
-  const fallbackStart = selectedTrajectory.startedAtMs;
-  const selectedLlm =
-    llmSpans.find((span) => span.startMs === fallbackStart)
-    ?? llmSpans
-      .slice()
-      .sort((a, b) => Math.abs(a.startMs - fallbackStart) - Math.abs(b.startMs - fallbackStart))[0]
-    ?? null;
-
-  const windowStartMs = selectedLlm?.startMs ?? fallbackStart;
-  const nextLlm = llmSpans.find((span) => span.startMs > windowStartMs);
-  const explicitEnd = selectedTrajectory.endedAtMs > windowStartMs ? selectedTrajectory.endedAtMs : 0;
-  const maxKnownEnd = Math.max(...mergedSpans.map((span) => span.endMs ?? span.startMs));
-  const inferredEndCandidate = nextLlm?.startMs ?? (explicitEnd || maxKnownEnd || windowStartMs + 1);
-  const windowEndMs = Math.max(windowStartMs + 1, inferredEndCandidate);
+  const windowStartMs = Math.min(
+    selectedTrajectory.startedAtMs > 0 ? selectedTrajectory.startedAtMs : fallbackStart,
+    fallbackStart,
+  );
+  const windowEndMs = Math.max(
+    selectedTrajectory.endedAtMs > windowStartMs ? selectedTrajectory.endedAtMs : fallbackEnd,
+    fallbackEnd,
+    windowStartMs + 1,
+  );
 
   const selectedByTime = mergedSpans.filter(
-    (span) => span.startMs >= windowStartMs && span.startMs < windowEndMs,
+    (span) => span.startMs >= windowStartMs && span.startMs <= windowEndMs,
   );
 
   if (!selectedByTime.length) {

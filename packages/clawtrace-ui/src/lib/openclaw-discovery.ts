@@ -170,6 +170,7 @@ type CronRun = {
 
 type TraceSpan = {
   traceId?: string;
+  spanId?: string;
   sessionKey?: string;
   kind?: string;
   name?: string;
@@ -718,64 +719,70 @@ function buildTrajectoriesFromTraceGroup(
   nowMs: number,
   fallbackModel: string | null,
 ): WorkflowTrajectory[] {
-  type LlmWindow = {
+  type MergedSpan = {
+    spanId: string;
+    kind: string;
     startMs: number;
     endMs: number;
+    hasClosed: boolean;
     inputTokens: number;
     outputTokens: number;
     totalTokens: number;
     model: string | null;
-    hasClosed: boolean;
-    hasOpen: boolean;
     signals: Set<string>;
     mutatingBoundaries: Set<string>;
   };
 
   const sortedSpans = [...group.spans].sort((a, b) => toNumber(a.startMs) - toNumber(b.startMs));
-  const llmWindows = new Map<number, LlmWindow>();
+  const mergedBySpanId = new Map<string, MergedSpan>();
+  const fallbackKeyCounts = new Map<string, number>();
 
   for (const span of sortedSpans) {
-    if (span.kind !== 'llm_call') {
-      continue;
-    }
-
     const startMs = toNumber(span.startMs);
-    if (startMs <= 0) {
+    if (startMs <= 0 || !span.kind) {
       continue;
     }
 
-    const existing = llmWindows.get(startMs);
+    const rawEndMs = toNumber(span.endMs);
     const inferred = signalsFromTraceSpan(span);
-    const endMs = toNumber(span.endMs);
-    const spanTokens = extractSpanTotalTokens(span);
     const spanInputTokens = Math.max(0, toNumber(span.tokensIn));
     const spanOutputTokens = Math.max(0, toNumber(span.tokensOut));
+    const spanTotalTokens = extractSpanTotalTokens(span);
 
+    let spanKey = span.spanId ?? null;
+    if (!spanKey) {
+      const fallbackBase = `${span.kind}:${startMs}:${span.model ?? span.toolName ?? 'na'}`;
+      const sequence = (fallbackKeyCounts.get(fallbackBase) ?? 0) + 1;
+      fallbackKeyCounts.set(fallbackBase, sequence);
+      spanKey = `${fallbackBase}:${sequence}`;
+    }
+
+    const existing = mergedBySpanId.get(spanKey);
     if (!existing) {
-      llmWindows.set(startMs, {
+      mergedBySpanId.set(spanKey, {
+        spanId: spanKey,
+        kind: span.kind,
         startMs,
-        endMs: endMs > 0 ? endMs : startMs,
+        endMs: rawEndMs > 0 ? rawEndMs : startMs,
+        hasClosed: rawEndMs > 0,
         inputTokens: spanInputTokens,
         outputTokens: spanOutputTokens,
-        totalTokens: spanTokens,
+        totalTokens: spanTotalTokens,
         model: span.model ?? null,
-        hasClosed: endMs > 0,
-        hasOpen: endMs <= 0,
         signals: new Set(inferred.signals),
         mutatingBoundaries: new Set(inferred.mutatingBoundaries),
       });
       continue;
     }
 
-    existing.endMs = Math.max(existing.endMs, endMs > 0 ? endMs : startMs);
+    existing.endMs = Math.max(existing.endMs, rawEndMs > 0 ? rawEndMs : startMs);
+    existing.hasClosed = existing.hasClosed || rawEndMs > 0;
     existing.inputTokens = Math.max(existing.inputTokens, spanInputTokens);
     existing.outputTokens = Math.max(existing.outputTokens, spanOutputTokens);
-    existing.totalTokens = Math.max(existing.totalTokens, spanTokens);
+    existing.totalTokens = Math.max(existing.totalTokens, spanTotalTokens);
     if (!existing.model && span.model) {
       existing.model = span.model;
     }
-    existing.hasClosed = existing.hasClosed || endMs > 0;
-    existing.hasOpen = existing.hasOpen || endMs <= 0;
     for (const signal of inferred.signals) {
       existing.signals.add(signal);
     }
@@ -784,74 +791,62 @@ function buildTrajectoriesFromTraceGroup(
     }
   }
 
-  const windows = Array.from(llmWindows.values()).sort((a, b) => a.startMs - b.startMs);
-  if (!windows.length) {
+  const mergedSpans = Array.from(mergedBySpanId.values()).sort((a, b) => a.startMs - b.startMs);
+  const llmSpans = mergedSpans.filter((span) => span.kind === 'llm_call');
+  const toolSpans = mergedSpans.filter((span) => span.kind === 'tool_call');
+  if (!llmSpans.length && !toolSpans.length) {
     return [];
   }
 
-  const trajectories: WorkflowTrajectory[] = [];
-
-  for (let index = 0; index < windows.length; index += 1) {
-    const window = windows[index];
-    const nextWindowStartMs = windows[index + 1]?.startMs ?? Number.POSITIVE_INFINITY;
-    const windowEndMs = window.hasClosed
-      ? Math.max(window.endMs, window.startMs)
-      : Math.max(window.startMs, Math.min(group.lastObservedMs || nowMs, nowMs));
-
-    const toolSpansForWindow = sortedSpans.filter((span) => {
-      if (span.kind !== 'tool_call') {
-        return false;
-      }
-      const startMs = toNumber(span.startMs);
-      if (startMs < window.startMs) {
-        return false;
-      }
-      if (Number.isFinite(nextWindowStartMs) && startMs >= nextWindowStartMs) {
-        return false;
-      }
-      if (!Number.isFinite(nextWindowStartMs) && startMs > windowEndMs) {
-        return false;
-      }
-      return true;
-    });
-
-    const allSignals = new Set(window.signals);
-    const allMutatingBoundaries = new Set(window.mutatingBoundaries);
-    for (const toolSpan of toolSpansForWindow) {
-      const inferred = signalsFromTraceSpan(toolSpan);
-      for (const signal of inferred.signals) {
-        allSignals.add(signal);
-      }
-      for (const boundary of inferred.mutatingBoundaries) {
-        allMutatingBoundaries.add(boundary);
-      }
+  const startedAtMs = mergedSpans[0]?.startMs ?? 0;
+  const latestObservedMs = Math.max(
+    ...mergedSpans.map((span) => Math.max(span.startMs, span.endMs)),
+    group.lastObservedMs || 0,
+    nowMs,
+  );
+  const endedAtMs = Math.max(startedAtMs, latestObservedMs);
+  const inputTokens = llmSpans.reduce((sum, span) => sum + span.inputTokens, 0);
+  const outputTokens = llmSpans.reduce((sum, span) => sum + span.outputTokens, 0);
+  const totalTokens = llmSpans.reduce((sum, span) => sum + span.totalTokens, 0);
+  const models = Array.from(new Set(llmSpans.map((span) => span.model).filter(Boolean))) as string[];
+  const allSignals = new Set<string>();
+  const allMutatingBoundaries = new Set<string>();
+  for (const span of mergedSpans) {
+    for (const signal of span.signals) {
+      allSignals.add(signal);
     }
+    for (const boundary of span.mutatingBoundaries) {
+      allMutatingBoundaries.add(boundary);
+    }
+  }
 
-    const costModel = window.model ?? fallbackModel ?? null;
-    const estimatedCostUsd = estimateCostUsdFromTokens(window.totalTokens, costModel);
+  const costModel = models[0] ?? fallbackModel ?? null;
+  const estimatedCostUsd = estimateCostUsdFromTokens(totalTokens, costModel);
+  const hasOpenLlm = llmSpans.some((span) => !span.hasClosed);
+  const status: WorkflowTrajectory['status'] = hasOpenLlm ? 'running' : 'completed';
+  const resultStatus: WorkflowTrajectory['resultStatus'] = hasOpenLlm ? 'running' : 'unknown';
 
-    trajectories.push({
-      traceId: `${group.traceId}:${window.startMs}`,
+  return [
+    {
+      traceId: group.traceId,
       sessionKey: group.sessionKey,
-      startedAtMs: window.startMs,
-      endedAtMs: windowEndMs,
-      durationMs: Math.max(0, windowEndMs - window.startMs),
-      llmCalls: 1,
-      toolCalls: toolSpansForWindow.length,
-      inputTokens: window.inputTokens,
-      outputTokens: window.outputTokens,
-      totalTokens: window.totalTokens,
-      models: window.model ? [window.model] : [],
+      startedAtMs,
+      endedAtMs,
+      durationMs: Math.max(0, endedAtMs - startedAtMs),
+      llmCalls: llmSpans.length,
+      toolCalls: toolSpans.length,
+      inputTokens,
+      outputTokens,
+      totalTokens,
+      models,
       signals: Array.from(allSignals).sort(),
       mutatingBoundaries: Array.from(allMutatingBoundaries).sort(),
       costModel,
       estimatedCostUsd,
-      resultStatus: window.hasClosed ? 'unknown' : 'running',
-      status: window.hasClosed ? 'completed' : 'running',
-    });
-  }
-
-  return trajectories;
+      resultStatus,
+      status,
+    },
+  ];
 }
 
 function aggregateModelUsage(runs: CronRun[], trajectories: WorkflowTrajectory[]): Array<{ model: string; count: number }> {
