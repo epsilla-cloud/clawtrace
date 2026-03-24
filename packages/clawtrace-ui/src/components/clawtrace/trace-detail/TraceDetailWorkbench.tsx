@@ -226,6 +226,68 @@ function spanDisplayLabel(span: TraceDetailSpan): string {
   return `Session · ${span.agentId ?? span.sessionKey ?? span.name}`;
 }
 
+function buildExecutionParentBySpanId(spans: TraceDetailSpan[]): Map<string, string | null> {
+  const spanById = new Map(spans.map((span) => [span.spanId, span]));
+  const llmBySession = new Map<string, TraceDetailSpan[]>();
+
+  for (const span of spans) {
+    if (span.kind !== 'llm_call') {
+      continue;
+    }
+    const sessionKey = span.sessionKey ?? '__unknown_session__';
+    const bucket = llmBySession.get(sessionKey) ?? [];
+    bucket.push(span);
+    llmBySession.set(sessionKey, bucket);
+  }
+
+  for (const bucket of llmBySession.values()) {
+    bucket.sort((a, b) => a.startMs - b.startMs);
+  }
+
+  const parentBySpan = new Map<string, string | null>();
+
+  for (const span of spans) {
+    let parentSpanId = span.parentSpanId ?? null;
+    const rawParent = parentSpanId ? spanById.get(parentSpanId) ?? null : null;
+
+    if (span.kind === 'tool_call' && (!rawParent || rawParent.kind === 'session')) {
+      const sessionKey = span.sessionKey ?? rawParent?.sessionKey ?? '__unknown_session__';
+      const llmCandidates = llmBySession.get(sessionKey) ?? [];
+
+      let chosenParent = llmCandidates
+        .filter((candidate) => candidate.startMs <= span.startMs && candidate.resolvedEndMs >= span.startMs)
+        .sort((a, b) => b.startMs - a.startMs)[0];
+
+      if (!chosenParent) {
+        chosenParent = llmCandidates
+          .filter((candidate) => candidate.startMs <= span.startMs)
+          .sort((a, b) => b.startMs - a.startMs)[0];
+      }
+
+      if (chosenParent) {
+        parentSpanId = chosenParent.spanId;
+      }
+    }
+
+    parentBySpan.set(span.spanId, parentSpanId);
+  }
+
+  return parentBySpan;
+}
+
+function compactActorNodeLabel(span: TraceDetailSpan): string {
+  if (span.kind === 'session') {
+    return span.agentId ?? 'session';
+  }
+  if (span.kind === 'llm_call') {
+    return span.model ?? 'model';
+  }
+  if (span.kind === 'tool_call') {
+    return span.toolName ?? span.name.replace(/^tool:/, '');
+  }
+  return span.childAgentId ?? 'subagent';
+}
+
 function buildSelectionSummary(source: SelectionSource | null): string {
   if (!source) {
     return 'Selected from this run';
@@ -905,143 +967,534 @@ function ActorMapView({
   selectedEntityId: string | null;
   onSelect: (entityId: string, spanId: string | null, label: string) => void;
 }) {
-  const chartRef = useRef<HTMLDivElement | null>(null);
+  const graphRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    const dom = chartRef.current;
-    if (!dom) return;
+    const container = graphRef.current;
+    if (!container) return;
 
-    let disposed = false;
-    let chartInstance: ReturnType<EChartsLike['init']> | null = null;
+    const dedupedBySpanId = new Map<string, TraceDetailSpan>();
+    for (const span of detail.spans) {
+      const existing = dedupedBySpanId.get(span.spanId);
+      if (!existing || span.hasClosedRecord) {
+        dedupedBySpanId.set(span.spanId, span);
+      }
+    }
+    const dedupedSpans = [...dedupedBySpanId.values()];
+    if (!dedupedSpans.length) {
+      container.innerHTML = '';
+      return;
+    }
 
-    const onResize = () => chartInstance?.resize();
+    type EntityBucket = {
+      id: string;
+      label: string;
+      type: 'agent';
+      tools: Set<string>;
+      models: Set<string>;
+      llmCalls: number;
+      toolCalls: number;
+      tokensIn: number;
+      tokensOut: number;
+      durationMs: number;
+      parentSessionSpanId: string | null;
+      representativeSpanId: string | null;
+      isMain: boolean;
+    };
 
-    void (async () => {
-      const echarts = (await import('echarts')) as unknown as EChartsLike;
-      if (disposed || !dom) return;
+    const entities = new Map<string, EntityBucket>();
 
-      chartInstance = echarts.init(dom);
-      const nodeCount = detail.entityGraph.nodes.length;
-      const showAllLabels = nodeCount <= 40;
-      const forceRepulsion = nodeCount > 70 ? 760 : nodeCount > 40 ? 620 : 420;
-      const forceEdgeMin = nodeCount > 60 ? 54 : 68;
-      const forceEdgeMax = nodeCount > 60 ? 130 : 160;
+    for (const span of dedupedSpans) {
+      const sessionKey = span.sessionKey;
+      if (!sessionKey) continue;
+      if (!entities.has(sessionKey)) {
+        let label = span.agentId ?? 'agent';
+        if (sessionKey.includes(':subagent:')) {
+          const uuid = sessionKey.split(':subagent:')[1] ?? '';
+          const spawnCall = dedupedSpans.find(
+            (candidate) =>
+              candidate.toolName === 'sessions_spawn'
+              && candidate.toolParams
+              && JSON.stringify(candidate.toolParams).includes(uuid),
+          );
+          if (spawnCall?.toolParams && typeof spawnCall.toolParams.label === 'string' && spawnCall.toolParams.label.trim()) {
+            label = spawnCall.toolParams.label.trim();
+          } else {
+            label = `subagent:${uuid.slice(0, 8)}`;
+          }
+        } else if (sessionKey === 'agent:main:main') {
+          label = 'main agent';
+        }
 
-      const nodes = detail.entityGraph.nodes.map((node) => {
-        const nodeColor =
-          node.type === 'actor'
-            ? '#3b62bd'
-            : node.type === 'tool'
-              ? '#6b8f34'
-              : '#ba7b2c';
+        entities.set(sessionKey, {
+          id: sessionKey,
+          label,
+          type: 'agent',
+          tools: new Set(),
+          models: new Set(),
+          llmCalls: 0,
+          toolCalls: 0,
+          tokensIn: 0,
+          tokensOut: 0,
+          durationMs: 0,
+          parentSessionSpanId: null,
+          representativeSpanId: span.spanId,
+          isMain: !sessionKey.includes(':subagent:'),
+        });
+      }
 
-        const baseSymbolSize = node.type === 'actor' ? 42 : node.type === 'model' ? 19 : 16;
-        const labelText =
-          node.type === 'actor'
-            ? node.label
-            : showAllLabels
-              ? node.label
-              : node.label.split(' · ')[0] ?? node.label;
+      const bucket = entities.get(sessionKey);
+      if (!bucket) continue;
+      if (!bucket.representativeSpanId) {
+        bucket.representativeSpanId = span.spanId;
+      }
 
-        return {
-          id: node.id,
-          name: node.label,
-          value: node.metrics.totalTokens,
-          category: node.type,
-          symbolSize: baseSymbolSize,
-          itemStyle: {
-            color: nodeColor,
-            borderColor: selectedEntityId === node.id ? '#2e2115' : '#fff',
-            borderWidth: selectedEntityId === node.id ? 2 : 1,
-            shadowBlur: selectedEntityId === node.id ? 12 : 0,
-            shadowColor: 'rgba(32,19,9,0.18)',
-          },
-          label: {
-            show: node.type === 'actor' || showAllLabels,
-            color: '#2f2217',
-            fontSize: node.type === 'actor' ? 11 : 10,
-            formatter: () => labelText,
-            overflow: 'truncate',
-            width: node.type === 'actor' ? 120 : 96,
-          },
-          relatedSpanId: node.relatedSpanId,
-          nodeType: node.type,
-        };
+      if (span.kind === 'session') {
+        bucket.durationMs = span.resolvedDurationMs || span.durationMs || 0;
+        bucket.parentSessionSpanId = span.parentSpanId ?? null;
+      }
+
+      if (span.kind === 'llm_call') {
+        bucket.llmCalls += 1;
+        bucket.tokensIn += span.tokensIn || 0;
+        bucket.tokensOut += span.tokensOut || 0;
+        if (span.model) {
+          bucket.models.add(span.model);
+        }
+      }
+
+      if (span.kind === 'tool_call' && span.toolName && span.toolName !== 'sessions_spawn') {
+        bucket.toolCalls += 1;
+        bucket.tools.add(span.toolName);
+      }
+    }
+
+    const sessionSpanToKey = new Map<string, string>();
+    for (const span of dedupedSpans) {
+      if (span.kind === 'session' && span.sessionKey) {
+        sessionSpanToKey.set(span.spanId, span.sessionKey);
+      }
+    }
+
+    type GraphNode = {
+      id: string;
+      type: 'agent' | 'tool' | 'model';
+      label: string;
+      r: number;
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      fixed?: boolean;
+      data?: EntityBucket;
+      relatedSpanId: string | null;
+    };
+    type GraphLink = {
+      source: number;
+      target: number;
+      type: 'uses-tool' | 'uses-model' | 'spawns';
+    };
+
+    const nodes: GraphNode[] = [];
+    const nodeIndexById = new Map<string, number>();
+
+    const links: GraphLink[] = [];
+
+    for (const [sessionKey, entity] of entities.entries()) {
+      nodeIndexById.set(`entity:${sessionKey}`, nodes.length);
+      nodes.push({
+        id: sessionKey,
+        type: 'agent',
+        label: entity.label,
+        r: entity.isMain ? 34 : 26,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        data: entity,
+        relatedSpanId: entity.representativeSpanId,
+      });
+    }
+
+    for (const [sessionKey, entity] of entities.entries()) {
+      for (const toolName of entity.tools) {
+        const toolKey = `${sessionKey}::tool:${toolName}`;
+        const representativeSpan =
+          dedupedSpans.find((span) => span.sessionKey === sessionKey && span.toolName === toolName)
+          ?? null;
+        nodeIndexById.set(toolKey, nodes.length);
+        nodes.push({
+          id: toolKey,
+          type: 'tool',
+          label: toolName,
+          r: 12,
+          x: 0,
+          y: 0,
+          vx: 0,
+          vy: 0,
+          relatedSpanId: representativeSpan?.spanId ?? entity.representativeSpanId,
+        });
+        const source = nodeIndexById.get(`entity:${sessionKey}`);
+        const target = nodeIndexById.get(toolKey);
+        if (source != null && target != null) {
+          links.push({ source, target, type: 'uses-tool' });
+        }
+      }
+    }
+
+    const allModels = new Set<string>();
+    for (const entity of entities.values()) {
+      for (const model of entity.models) {
+        allModels.add(model);
+      }
+    }
+
+    for (const model of allModels) {
+      const modelKey = `model:${model}`;
+      const representativeSpan =
+        dedupedSpans.find((span) => span.kind === 'llm_call' && span.model === model)
+        ?? null;
+      nodeIndexById.set(modelKey, nodes.length);
+      nodes.push({
+        id: modelKey,
+        type: 'model',
+        label: model.split('/').pop()?.replace(/-/g, ' ') ?? model,
+        r: 18,
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        relatedSpanId: representativeSpan?.spanId ?? null,
+      });
+    }
+
+    for (const [sessionKey, entity] of entities.entries()) {
+      for (const model of entity.models) {
+        const source = nodeIndexById.get(`entity:${sessionKey}`);
+        const target = nodeIndexById.get(`model:${model}`);
+        if (source != null && target != null) {
+          links.push({ source, target, type: 'uses-model' });
+        }
+      }
+    }
+
+    for (const [sessionKey, entity] of entities.entries()) {
+      if (!entity.parentSessionSpanId) continue;
+      const parentSessionKey = sessionSpanToKey.get(entity.parentSessionSpanId);
+      if (!parentSessionKey || !entities.has(parentSessionKey)) continue;
+      const source = nodeIndexById.get(`entity:${parentSessionKey}`);
+      const target = nodeIndexById.get(`entity:${sessionKey}`);
+      if (source != null && target != null) {
+        links.push({ source, target, type: 'spawns' });
+      }
+    }
+
+    const ns = 'http://www.w3.org/2000/svg';
+    const W = Math.max(720, container.clientWidth || 0);
+    const H = Math.max(420, container.clientHeight || 0);
+    const cx = W / 2;
+    const cy = H / 2;
+    const colors = {
+      agent: '#2563eb',
+      model: '#ca8a04',
+      tool: '#16a34a',
+    } as const;
+    const bgColors = {
+      agent: '#eff6ff',
+      model: '#fefce8',
+      tool: '#f0fdf4',
+    } as const;
+
+    container.innerHTML = '';
+    const esc = (value: string): string =>
+      value
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+
+    nodes.forEach((node, index) => {
+      const angle = (index / Math.max(nodes.length, 1)) * Math.PI * 2;
+      const distance = node.type === 'agent' ? 80 : 180 + Math.random() * 60;
+      node.x = cx + Math.cos(angle) * distance;
+      node.y = cy + Math.sin(angle) * distance;
+      node.vx = 0;
+      node.vy = 0;
+    });
+
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+    svg.classList.add(styles.actorSvg);
+
+    const defs = document.createElementNS(ns, 'defs');
+    const marker = document.createElementNS(ns, 'marker');
+    marker.setAttribute('id', `arrowhead-${container.id || 'actor'}`);
+    marker.setAttribute('viewBox', '0 0 10 7');
+    marker.setAttribute('refX', '10');
+    marker.setAttribute('refY', '3.5');
+    marker.setAttribute('markerWidth', '8');
+    marker.setAttribute('markerHeight', '6');
+    marker.setAttribute('orient', 'auto');
+    const arrow = document.createElementNS(ns, 'path');
+    arrow.setAttribute('d', 'M 0 0 L 10 3.5 L 0 7 z');
+    arrow.setAttribute('fill', '#9ca3af');
+    marker.appendChild(arrow);
+    defs.appendChild(marker);
+    svg.appendChild(defs);
+
+    const linkEls = links.map((link) => {
+      const line = document.createElementNS(ns, 'line');
+      line.classList.add(styles.actorGraphLink);
+      line.setAttribute('marker-end', `url(#${marker.id})`);
+      if (link.type === 'spawns') {
+        line.style.stroke = '#2563eb';
+        line.style.strokeWidth = '2';
+        line.style.strokeDasharray = '6,3';
+      }
+      svg.appendChild(line);
+      return line;
+    });
+
+    const documentCleanupHandlers: Array<() => void> = [];
+
+    const nodeEls = nodes.map((node) => {
+      const group = document.createElementNS(ns, 'g');
+      group.classList.add(styles.actorGraphNode);
+
+      const circle = document.createElementNS(ns, 'circle');
+      circle.setAttribute('r', String(node.r));
+      circle.setAttribute('fill', bgColors[node.type] ?? '#ffffff');
+      circle.setAttribute('stroke', colors[node.type] ?? '#9ca3af');
+      const isSelected = selectedEntityId === `entity:${node.id}`;
+      circle.setAttribute('stroke-width', isSelected ? '3' : '2');
+      group.appendChild(circle);
+
+      const icon = document.createElementNS(ns, 'text');
+      icon.setAttribute('text-anchor', 'middle');
+      icon.setAttribute('dy', node.type === 'agent' ? '-4' : '1');
+      icon.setAttribute('font-size', node.type === 'agent' ? '16' : '12');
+      icon.textContent = node.type === 'agent' ? '🤖' : node.type === 'model' ? '🧠' : '🔧';
+      group.appendChild(icon);
+
+      const label = document.createElementNS(ns, 'text');
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('dy', node.type === 'agent' ? '12' : '24');
+      label.setAttribute('fill', colors[node.type] ?? '#6b7280');
+      label.setAttribute('font-size', '10');
+      const labelText = node.label.length > 20 ? `${node.label.slice(0, 18)}…` : node.label;
+      label.textContent = labelText;
+      group.appendChild(label);
+
+      if (node.type === 'agent' && node.data) {
+        const stats = document.createElementNS(ns, 'text');
+        stats.classList.add(styles.actorGraphNodeStats);
+        stats.setAttribute('text-anchor', 'middle');
+        stats.setAttribute('dy', '23');
+        stats.textContent = `${node.data.llmCalls} llm / ${node.data.toolCalls} tools`;
+        group.appendChild(stats);
+      }
+
+      group.addEventListener('click', () => {
+        onSelect(`entity:${node.id}`, node.relatedSpanId, node.label);
       });
 
-      const links = detail.entityGraph.links.map((link) => ({
-        source: link.source,
-        target: link.target,
-        lineStyle: {
-          color: link.kind === 'spawns' ? '#3b62bd' : '#cab9aa',
-          width: link.kind === 'spawns' ? 2 : 1.2,
-          type: link.kind === 'spawns' ? 'dashed' : 'solid',
-          opacity: 0.85,
-        },
-      }));
+      let dragging = false;
+      const onMouseDown = (event: MouseEvent) => {
+        dragging = true;
+        node.fixed = true;
+        event.preventDefault();
+      };
+      const onMouseMove = (event: MouseEvent) => {
+        if (!dragging) return;
+        const rect = svg.getBoundingClientRect();
+        const scaleX = W / rect.width;
+        const scaleY = H / rect.height;
+        node.x = (event.clientX - rect.left) * scaleX;
+        node.y = (event.clientY - rect.top) * scaleY;
+        node.vx = 0;
+        node.vy = 0;
+      };
+      const onMouseUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        node.fixed = false;
+      };
+      group.addEventListener('mousedown', onMouseDown);
+      document.addEventListener('mousemove', onMouseMove);
+      document.addEventListener('mouseup', onMouseUp);
+      documentCleanupHandlers.push(() => document.removeEventListener('mousemove', onMouseMove));
+      documentCleanupHandlers.push(() => document.removeEventListener('mouseup', onMouseUp));
 
-      chartInstance.setOption(
-        {
-          animation: false,
-          tooltip: {
-            trigger: 'item',
-            formatter: (params: { data?: { name?: string; nodeType?: string } }) => {
-              const name = params.data?.name ?? 'node';
-              const nodeType = params.data?.nodeType ?? 'node';
-              return `${name}<br/>${nodeType}`;
-            },
-          },
-          series: [
-            {
-              type: 'graph',
-              layout: 'force',
-              roam: true,
-              force: {
-                repulsion: forceRepulsion,
-                gravity: 0.08,
-                edgeLength: [forceEdgeMin, forceEdgeMax],
-              },
-              emphasis: {
-                focus: 'adjacency',
-              },
-              data: nodes,
-              links,
-              categories: [
-                { name: 'actor' },
-                { name: 'tool' },
-                { name: 'model' },
-              ],
-              lineStyle: {
-                curveness: 0.1,
-              },
-            },
-          ],
-        },
-        true,
-      );
-
-      chartInstance.off('click');
-      chartInstance.on('click', (params: unknown) => {
-        const payload = params as { dataType?: string; data?: { id?: string; relatedSpanId?: string | null; name?: string } };
-        if (payload.dataType !== 'node' || !payload.data?.id) return;
-        onSelect(payload.data.id, payload.data.relatedSpanId ?? null, payload.data.name ?? payload.data.id);
+      group.addEventListener('mouseenter', () => {
+        let tip = container.querySelector<HTMLDivElement>('[data-actor-tooltip="true"]');
+        if (!tip) {
+          tip = document.createElement('div');
+          tip.dataset.actorTooltip = 'true';
+          tip.className = styles.actorGraphTooltip;
+          container.appendChild(tip);
+        }
+        let content = `<div class="${styles.actorTooltipTitle}">${esc(node.label)}</div>`;
+        if (node.type === 'agent' && node.data) {
+          const data = node.data;
+          content += `<div class="${styles.actorTooltipRow}">LLM calls: ${data.llmCalls}</div>`;
+          content += `<div class="${styles.actorTooltipRow}">Tool calls: ${data.toolCalls}</div>`;
+          content += `<div class="${styles.actorTooltipRow}">Tokens: ${formatNumber(data.tokensIn)} → ${formatNumber(data.tokensOut)}</div>`;
+          if (data.models.size) {
+            content += `<div class="${styles.actorTooltipRow}">Models: ${esc([...data.models].join(', '))}</div>`;
+          }
+          if (data.tools.size) {
+            content += `<div class="${styles.actorTooltipRow}">Tools: ${esc([...data.tools].join(', '))}</div>`;
+          }
+          if (data.durationMs > 0) {
+            content += `<div class="${styles.actorTooltipRow}">Duration: ${formatDuration(data.durationMs)}</div>`;
+          }
+        } else if (node.relatedSpanId) {
+          const span = dedupedBySpanId.get(node.relatedSpanId);
+          if (span) {
+            content += `<div class="${styles.actorTooltipRow}">${spanKindLabel(span)}</div>`;
+            content += `<div class="${styles.actorTooltipRow}">${formatDuration(span.resolvedDurationMs)} · ${formatNumber(span.totalTokens)} tok</div>`;
+          }
+        }
+        tip.innerHTML = content;
+        tip.style.display = 'block';
+      });
+      group.addEventListener('mouseleave', () => {
+        const tip = container.querySelector<HTMLDivElement>('[data-actor-tooltip="true"]');
+        if (tip) tip.style.display = 'none';
+      });
+      group.addEventListener('mousemove', (event) => {
+        const tip = container.querySelector<HTMLDivElement>('[data-actor-tooltip="true"]');
+        if (!tip) return;
+        const rect = container.getBoundingClientRect();
+        tip.style.left = `${event.clientX - rect.left + 12}px`;
+        tip.style.top = `${event.clientY - rect.top + 12}px`;
       });
 
-      window.addEventListener('resize', onResize);
-    })();
+      svg.appendChild(group);
+      return group;
+    });
+
+    const legend = document.createElement('div');
+    legend.className = styles.actorGraphLegend;
+    legend.innerHTML = `<span class="${styles.actorLegendSession}">Agent</span><span class="${styles.actorLegendModel}">Model</span><span class="${styles.actorLegendTool}">Tool</span>`;
+    container.appendChild(svg);
+    container.appendChild(legend);
+
+    let rafId = 0;
+    let alpha = 1;
+    const tick = () => {
+      if (alpha < 0.001) return;
+      alpha *= 0.982;
+
+      for (let i = 0; i < nodes.length; i += 1) {
+        for (let j = i + 1; j < nodes.length; j += 1) {
+          const a = nodes[i];
+          const b = nodes[j];
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+          const minDist = a.r + b.r + 40;
+          const force = 800 / (dist * dist);
+          const fx = (dx / dist) * force;
+          const fy = (dy / dist) * force;
+          if (!a.fixed) {
+            a.vx -= fx;
+            a.vy -= fy;
+          }
+          if (!b.fixed) {
+            b.vx += fx;
+            b.vy += fy;
+          }
+          if (dist < minDist) {
+            const push = (minDist - dist) * 0.28;
+            const px = (dx / dist) * push;
+            const py = (dy / dist) * push;
+            if (!a.fixed) {
+              a.x -= px;
+              a.y -= py;
+            }
+            if (!b.fixed) {
+              b.x += px;
+              b.y += py;
+            }
+          }
+        }
+      }
+
+      for (const link of links) {
+        const source = nodes[link.source];
+        const target = nodes[link.target];
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const targetDist = source.r + target.r + 80;
+        const force = (dist - targetDist) * 0.01;
+        const fx = (dx / dist) * force;
+        const fy = (dy / dist) * force;
+        if (!source.fixed) {
+          source.vx += fx;
+          source.vy += fy;
+        }
+        if (!target.fixed) {
+          target.vx -= fx;
+          target.vy -= fy;
+        }
+      }
+
+      for (const node of nodes) {
+        if (node.fixed) continue;
+        node.vx += (cx - node.x) * 0.002;
+        node.vy += (cy - node.y) * 0.002;
+        node.vx *= 0.85;
+        node.vy *= 0.85;
+        node.x += node.vx;
+        node.y += node.vy;
+        node.x = Math.max(node.r + 5, Math.min(W - node.r - 5, node.x));
+        node.y = Math.max(node.r + 5, Math.min(H - node.r - 5, node.y));
+      }
+
+      links.forEach((link, index) => {
+        const source = nodes[link.source];
+        const target = nodes[link.target];
+        const dx = target.x - source.x;
+        const dy = target.y - source.y;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const offsetX = (dx / dist) * target.r;
+        const offsetY = (dy / dist) * target.r;
+        linkEls[index].setAttribute('x1', String(source.x));
+        linkEls[index].setAttribute('y1', String(source.y));
+        linkEls[index].setAttribute('x2', String(target.x - offsetX));
+        linkEls[index].setAttribute('y2', String(target.y - offsetY));
+      });
+
+      nodes.forEach((node, index) => {
+        nodeEls[index].setAttribute('transform', `translate(${node.x},${node.y})`);
+      });
+
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    const onResize = () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(tick);
+    };
+    window.addEventListener('resize', onResize);
 
     return () => {
-      disposed = true;
+      if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener('resize', onResize);
-      chartInstance?.dispose();
+      documentCleanupHandlers.forEach((dispose) => dispose());
+      container.innerHTML = '';
     };
-  }, [detail.entityGraph.links, detail.entityGraph.nodes, onSelect, selectedEntityId]);
+  }, [detail.spans, onSelect, selectedEntityId]);
 
-  if (!detail.entityGraph.nodes.length) {
-    return <div className={styles.viewEmpty}>No entity relationships captured for this run.</div>;
+  if (!detail.spans.length) {
+    return <div className={styles.viewEmpty}>No entities to graph.</div>;
   }
 
-  return <div ref={chartRef} className={styles.actorMapCanvas} aria-label="Actor map" />;
+  return <div ref={graphRef} className={styles.actorMapCanvas} aria-label="Actor map" />;
 }
 
 function StepTimelineView({
