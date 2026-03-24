@@ -20,13 +20,13 @@ const IMPROVEMENT_BLOCKS = [
     step: '01',
     title: 'Better',
     lead: 'Less babysitting, fewer repeated mistakes.',
-    body: 'Trace unstable agent behavior, surface the likely root cause, and verify that the fix actually worked.',
+    body: 'Trace unstable agent behavior, surface the likely root cause, and get actions to improve.',
   },
   {
     step: '02',
     title: 'Cheaper',
     lead: 'Know exactly why cost spiked this week.',
-    body: 'See spend by agent run and step so you can fix the biggest leak first instead of guessing.',
+    body: 'See spend by agent run and step so you can cut cost without guessing.',
   },
   {
     step: '03',
