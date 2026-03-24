@@ -1238,8 +1238,8 @@ function normalizeTraceStatus(
   inputTokens: number,
   outputTokens: number,
 ): TraceStatus {
-  // Hard rule: zero-token runs are treated as failed executions.
-  if (inputTokens === 0 && outputTokens === 0) {
+  // Hard rule: if either token side is zero, treat as failed execution.
+  if (inputTokens === 0 || outputTokens === 0) {
     return 'failure';
   }
 
