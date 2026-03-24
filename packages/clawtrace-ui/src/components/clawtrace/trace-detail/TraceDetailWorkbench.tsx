@@ -1372,7 +1372,79 @@ function StepTimelineView({
   onSelectSpan: (spanId: string) => void;
 }) {
   const chartRef = useRef<HTMLDivElement | null>(null);
-  const timelineRows = detail.waterfall.rows.slice(0, 160);
+  const timelineRows = useMemo(() => detail.waterfall.rows.slice(0, 160), [detail.waterfall.rows]);
+
+  const timelineNormalization = useMemo(() => {
+    const percentile = (values: number[], ratio: number): number => {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const index = Math.max(0, Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * ratio)));
+      return sorted[index] ?? 0;
+    };
+
+    const rowEnds = timelineRows.map((row) => row.startOffsetMs + row.durationMs);
+    const nonSessionEnds = timelineRows
+      .filter((row) => row.kind !== 'session')
+      .map((row) => row.startOffsetMs + row.durationMs);
+    const hardMaxEnd = Math.max(...rowEnds, 1);
+
+    let maxAllowedEnd = Math.max(...nonSessionEnds, hardMaxEnd, 1);
+    if (nonSessionEnds.length >= 8) {
+      const p90End = percentile(nonSessionEnds, 0.9);
+      const p98End = percentile(nonSessionEnds, 0.98);
+      if (hardMaxEnd > p90End * 4) {
+        maxAllowedEnd = Math.max(1, p98End * 1.08, p90End * 1.5);
+      }
+    }
+
+    const traceDuration = Number.isFinite(detail.trace.durationMs) ? Math.max(0, detail.trace.durationMs) : 0;
+    if (traceDuration > 0 && traceDuration <= maxAllowedEnd * 2.2) {
+      maxAllowedEnd = Math.max(maxAllowedEnd, traceDuration);
+    }
+
+    const rows = timelineRows.map((row) => {
+      let normalizedStartMs = Number.isFinite(row.startOffsetMs) ? Math.max(0, row.startOffsetMs) : 0;
+      let normalizedDurationMs = Number.isFinite(row.durationMs) ? Math.max(1, row.durationMs) : 1;
+      let hadTimeMismatch = false;
+
+      if (normalizedStartMs > maxAllowedEnd) {
+        normalizedStartMs = Math.max(0, maxAllowedEnd - 1);
+        hadTimeMismatch = true;
+      }
+
+      if (normalizedStartMs + normalizedDurationMs > maxAllowedEnd) {
+        normalizedDurationMs = Math.max(1, maxAllowedEnd - normalizedStartMs);
+        hadTimeMismatch = true;
+      }
+
+      return {
+        ...row,
+        normalizedStartMs,
+        normalizedDurationMs,
+        hadTimeMismatch,
+      };
+    });
+
+    const mismatchCount = rows.filter((row) => row.hadTimeMismatch).length;
+    const normalizedNonSessionEndMax = Math.max(
+      ...rows
+        .filter((row) => row.kind !== 'session')
+        .map((row) => row.normalizedStartMs + row.normalizedDurationMs),
+      0,
+    );
+    const normalizedMaxEnd = Math.max(
+      ...rows.map((row) => row.normalizedStartMs + row.normalizedDurationMs),
+      1,
+    );
+
+    return {
+      rows,
+      mismatchCount,
+      normalizedNonSessionEndMax,
+      normalizedMaxEnd,
+      maxAllowedEnd,
+    };
+  }, [detail.trace.durationMs, timelineRows]);
 
   const timelineSummary = useMemo(() => {
     const summary = {
@@ -1381,6 +1453,7 @@ function StepTimelineView({
       llm: 0,
       tool: 0,
       subagent: 0,
+      mismatched: timelineNormalization.mismatchCount,
     };
     for (const row of timelineRows) {
       if (row.kind === 'session') summary.session += 1;
@@ -1389,7 +1462,7 @@ function StepTimelineView({
       if (row.kind === 'subagent') summary.subagent += 1;
     }
     return summary;
-  }, [timelineRows]);
+  }, [timelineNormalization.mismatchCount, timelineRows]);
 
   useEffect(() => {
     const dom = chartRef.current;
@@ -1406,7 +1479,7 @@ function StepTimelineView({
 
       chartInstance = echarts.init(dom);
 
-      const rows = timelineRows;
+      const rows = timelineNormalization.rows;
       const categories = rows.map((row, index) => {
         const prefix = row.kind === 'llm_call'
           ? 'M'
@@ -1424,18 +1497,15 @@ function StepTimelineView({
       });
 
       const offsetSeries = rows.map((row) => ({
-        value: row.startOffsetMs,
+        value: row.normalizedStartMs,
         spanId: row.spanId,
       }));
 
-      const nonSessionEndMax = Math.max(
-        ...rows
-          .filter((row) => row.kind !== 'session')
-          .map((row) => row.startOffsetMs + row.durationMs),
-        0,
-      );
-      const fullEndMax = Math.max(...rows.map((row) => row.startOffsetMs + row.durationMs), 1);
-      const maxValue = nonSessionEndMax > 0 ? Math.max(nonSessionEndMax * 1.06, 1) : fullEndMax;
+      const nonSessionEndMax = timelineNormalization.normalizedNonSessionEndMax;
+      const fullEndMax = timelineNormalization.normalizedMaxEnd;
+      const maxValue = nonSessionEndMax > 0
+        ? Math.max(nonSessionEndMax * 1.06, 1)
+        : Math.max(fullEndMax, 1);
       const chartHeight = Math.max(360, dom.clientHeight || 0);
       const targetRowPitchPx = 26;
       const visibleRowsByHeight = Math.max(
@@ -1447,13 +1517,13 @@ function StepTimelineView({
       const gridLeftPx = 186;
       const gridRightPx = useVerticalZoom ? 36 : 18;
       const plotWidthPx = Math.max(1, (dom.clientWidth || 960) - gridLeftPx - gridRightPx);
-      const minVisibleBarPx = 1.25;
+      const minVisibleBarPx = 10;
       const minVisibleDurationMs = (maxValue / plotWidthPx) * minVisibleBarPx;
 
       const durationSeries = rows.map((row) => {
-        const remaining = Math.max(1, maxValue - row.startOffsetMs);
-        const clipped = row.durationMs > remaining;
-        const rawDuration = clipped ? remaining : row.durationMs;
+        const remaining = Math.max(1, maxValue - row.normalizedStartMs);
+        const clipped = row.normalizedDurationMs > remaining;
+        const rawDuration = clipped ? remaining : row.normalizedDurationMs;
         const minVisibleDuration = Math.min(remaining, Math.max(rawDuration, minVisibleDurationMs));
         const durationWasExpanded = minVisibleDuration > rawDuration + 0.0001;
         const kindColor =
@@ -1472,6 +1542,7 @@ function StepTimelineView({
           tokens: row.totalTokens,
           clipped,
           durationWasExpanded,
+          hadTimeMismatch: row.hadTimeMismatch,
           actualDurationMs: row.durationMs,
           itemStyle: {
             color: kindColor,
@@ -1497,7 +1568,7 @@ function StepTimelineView({
           },
           tooltip: {
             trigger: 'item',
-            formatter: (params: { data?: { label?: string; kind?: string; value?: number; tokens?: number; clipped?: boolean; durationWasExpanded?: boolean; actualDurationMs?: number } }) => {
+            formatter: (params: { data?: { label?: string; kind?: string; value?: number; tokens?: number; clipped?: boolean; durationWasExpanded?: boolean; hadTimeMismatch?: boolean; actualDurationMs?: number } }) => {
               const item = params.data;
               if (!item) return '';
               const kindText =
@@ -1510,7 +1581,7 @@ function StepTimelineView({
                       : 'Session';
               return [
                 `<strong>${item.label ?? 'step'}</strong>`,
-                `${kindText} · ${formatDuration(item.actualDurationMs ?? item.value ?? 0)}${item.clipped ? ' (clipped for readability)' : item.durationWasExpanded ? ' (rendered with minimum visible width)' : ''}`,
+                `${kindText} · ${formatDuration(item.actualDurationMs ?? item.value ?? 0)}${item.hadTimeMismatch ? ' (normalized due to span mismatch)' : item.clipped ? ' (clipped for readability)' : item.durationWasExpanded ? ' (rendered with minimum width)' : ''}`,
                 `${formatNumber(item.tokens ?? 0)} tokens`,
               ].join('<br/>');
             },
@@ -1656,7 +1727,7 @@ function StepTimelineView({
       window.removeEventListener('resize', onResize);
       chartInstance?.dispose();
     };
-  }, [onSelectSpan, selectedSpanId, timelineRows]);
+  }, [onSelectSpan, selectedSpanId, timelineNormalization, timelineRows]);
 
   if (!detail.waterfall.rows.length) {
     return <div className={styles.viewEmpty}>No timed steps captured for this run.</div>;
@@ -1668,6 +1739,7 @@ function StepTimelineView({
         <p className={styles.timelineSummary}>
           {timelineSummary.total} steps · {timelineSummary.session} session · {timelineSummary.llm} model · {timelineSummary.tool} tool
           {timelineSummary.subagent ? ` · ${timelineSummary.subagent} subagent` : ''}
+          {timelineSummary.mismatched ? ` · normalized ${timelineSummary.mismatched} span${timelineSummary.mismatched > 1 ? 's' : ''}` : ''}
         </p>
         <div className={styles.timelineLegend}>
           <span className={styles.timelineLegendItem}>
