@@ -154,30 +154,7 @@
 }
 
 .viewCard {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
-}
-
-.viewCardHeader {
-  padding: 12px 14px 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  display: grid;
-  gap: 3px;
-}
-
-.viewCardTitle {
-  margin: 0;
-  font-size: clamp(17px, 1.8vw, 21px);
-  line-height: 1.1;
-  letter-spacing: -0.01em;
-  font-weight: 620;
-  color: var(--ct-text);
-}
-
-.viewCardSubtitle {
-  margin: 0;
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-muted);
+  display: block;
 }
 
 .viewBody {
@@ -1103,10 +1080,6 @@
 @media (max-width: 760px) {
   .pageTitle {
     font-size: clamp(20px, 6vw, 24px);
-  }
-
-  .viewCardHeader {
-    padding: 10px;
   }
 
   .viewBody {

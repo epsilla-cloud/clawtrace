@@ -1756,8 +1756,6 @@ export function TraceDetailWorkbench({
     );
   }
 
-  const modeMeta = MODE_ITEMS.find((item) => item.id === mode) ?? MODE_ITEMS[0];
-
   return (
     <main className={styles.page}>
       <section className={`${styles.shell} ${tracyOpen ? styles.shellTracyOpen : styles.shellTracyCollapsed}`}>
@@ -1801,11 +1799,6 @@ export function TraceDetailWorkbench({
 
           <section className={styles.workspace}>
             <article className={styles.viewCard}>
-              <header className={styles.viewCardHeader}>
-                <h2 className={styles.viewCardTitle}>{modeMeta.label}</h2>
-                <p className={styles.viewCardSubtitle}>{modeMeta.description}</p>
-              </header>
-
               <div className={`${styles.viewBody} ${mode === 'execution_path' ? styles.viewBodyFlush : ''}`}>
                 {mode === 'execution_path' ? (
                   <ExecutionPathView detail={detail} selectedSpanId={selectedSpan?.spanId ?? null} onSelectSpan={onSelectSpan} />
