@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const WAITLIST_WEBHOOK_URL =
-  'https://script.google.com/macros/s/AKfycbzvEZ5W-lMZFrWFs6htyyeGjp4IEbfvRtVL6Y-381cw9DC8fT1-fpx8N5SPyOkrHzAI/exec';
+  'https://script.google.com/macros/s/AKfycbwy2RJlJ66fLnqoclmjdNB09uHGXKNwaem0cFZ64zm15ad-lzo5L9lVMZg97Mi6fBLH/exec?key=replace_with_random_string';
 
 type WaitlistPayload = {
   email?: unknown;
