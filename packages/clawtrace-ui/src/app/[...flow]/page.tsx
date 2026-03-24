@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import type { ClawTraceFlowDefinition } from '../../lib/flow-pages';
 import { FlowPageTemplate } from '../../components/clawtrace/flow/FlowPageTemplate';
@@ -13,6 +14,30 @@ type FlowRoutePageProps = {
 };
 
 export const dynamic = 'force-dynamic';
+
+export async function generateMetadata({ params }: FlowRoutePageProps): Promise<Metadata> {
+  const { flow: flowSegments } = await params;
+  const flow = getFlowBySegments(flowSegments);
+
+  if (!flow) {
+    return {
+      title: 'Not Found',
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  return {
+    title: flow.title,
+    description: flow.subtitle,
+    robots: {
+      index: false,
+      follow: false,
+    },
+  };
+}
 
 export default async function FlowRoutePage({ params }: FlowRoutePageProps) {
   const { flow: flowSegments } = await params;

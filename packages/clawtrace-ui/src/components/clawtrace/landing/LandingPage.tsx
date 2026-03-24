@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { FormEvent, useState } from 'react';
 import idcLogo from '../../../../idc.png';
 import nvidiaLogo from '../../../../nvidia.png';
@@ -89,7 +90,7 @@ export function LandingPage() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <a href="#" className={styles.brand}>
+        <a href="/" className={styles.brand}>
           ClawTrace
         </a>
 
@@ -118,7 +119,15 @@ export function LandingPage() {
         </a>
 
         <div className={styles.heroFrame}>
-          <img src={HERO_IMAGE_URL} alt="ClawTrace workflow control room visual" className={styles.heroImage} />
+          <Image
+            src={HERO_IMAGE_URL}
+            alt="ClawTrace workflow control room visual"
+            width={2200}
+            height={1400}
+            priority
+            sizes="(max-width: 980px) 100vw, 1120px"
+            className={styles.heroImage}
+          />
 
           <div className={styles.heroStats}>
             <article className={styles.statCard}>
@@ -140,13 +149,14 @@ export function LandingPage() {
       <section className={styles.backers} aria-label="Backed by">
         <div className={styles.backersList}>
           {BACKERS.map((backer) => (
-            <img
+            <Image
               key={backer.name}
-              src={backer.logo.src}
+              src={backer.logo}
               alt={backer.name}
               width={backer.logo.width}
               height={backer.logo.height}
               className={styles.backerLogo}
+              sizes="(max-width: 760px) 120px, 180px"
             />
           ))}
         </div>
