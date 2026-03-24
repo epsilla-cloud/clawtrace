@@ -8,11 +8,8 @@
 .summaryBar {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
-  border-radius: 12px;
-  background: #fff;
+  gap: 10px;
+  padding: 0;
 }
 
 .shell {
@@ -33,9 +30,9 @@
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   border-radius: 10px;
   background: #fff;
-  padding: 8px;
+  padding: 10px;
   display: grid;
-  gap: 2px;
+  gap: 3px;
 }
 
 .summaryLabel {
@@ -44,38 +41,69 @@
 }
 
 .summaryValue {
-  font-size: var(--ct-text-body);
+  font-size: clamp(19px, 2.2vw, 24px);
   color: var(--ct-text);
-  font-weight: 600;
+  font-weight: 660;
+  line-height: 1.08;
+}
+
+.metricToneNeutral .summaryValue {
+  color: #6f6257;
+}
+
+.metricTonePrimary .summaryValue {
+  color: #8a4f2a;
+}
+
+.metricToneWarn .summaryValue {
+  color: #ab5d23;
+}
+
+.metricToneBlue .summaryValue {
+  color: #2f638f;
+}
+
+.metricToneCost .summaryValue {
+  color: #8e3e35;
+}
+
+.metricTonePositive .summaryValue {
+  color: #2d6f58;
+}
+
+.metricToneSuccess .summaryValue {
+  color: #375f8f;
+}
+
+.metricTonePrimary {
+  background: linear-gradient(180deg, #fffaf4 0%, #ffffff 100%);
+}
+
+.metricToneWarn {
+  background: linear-gradient(180deg, #fff8f1 0%, #ffffff 100%);
+}
+
+.metricToneBlue {
+  background: linear-gradient(180deg, #f6faff 0%, #ffffff 100%);
+}
+
+.metricToneCost {
+  background: linear-gradient(180deg, #fff7f5 0%, #ffffff 100%);
+}
+
+.metricTonePositive {
+  background: linear-gradient(180deg, #f4fbf8 0%, #ffffff 100%);
+}
+
+.metricToneSuccess {
+  background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 100%);
 }
 
 .dashboard {
   min-height: 0;
   padding: 18px 20px;
   display: grid;
-  gap: 12px;
-}
-
-.sectionHeader {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 12px;
-  background: #fff;
-  padding: 12px;
-}
-
-.sectionTitle {
-  margin: 0;
-  font-size: var(--ct-text-panel-title);
-  line-height: 1.24;
-  letter-spacing: -0.01em;
-  font-family: var(--ct-font-body);
-  font-weight: 560;
-}
-
-.sectionSubtitle {
-  margin: 5px 0 0;
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-muted);
+  gap: 14px;
 }
 
 .trendsGrid {
@@ -301,5 +329,11 @@
 @media (max-width: 980px) {
   .summaryBar {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .summaryValue {
+    font-size: 20px;
   }
 }

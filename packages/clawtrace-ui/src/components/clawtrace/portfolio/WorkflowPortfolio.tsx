@@ -329,14 +329,14 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             <FlowLeftNav flow={flow} allFlows={allFlows} />
           </div>
 
-          <section className={styles.dashboard}>
-            <header className={styles.summaryBar}>
-              <div className={styles.summaryMetric}>
-                <span className={styles.summaryLabel}>Discovery</span>
-                <span className={styles.summaryValue}>{loadingSnapshot ? 'Loading' : 'Unavailable'}</span>
-              </div>
-            </header>
-          </section>
+        <section className={styles.dashboard}>
+          <header className={styles.summaryBar}>
+            <div className={`${styles.summaryMetric} ${styles.metricToneNeutral}`}>
+              <span className={styles.summaryLabel}>Discovery</span>
+              <span className={styles.summaryValue}>{loadingSnapshot ? 'Loading' : 'Unavailable'}</span>
+            </div>
+          </header>
+        </section>
         </section>
       </main>
     );
@@ -351,35 +351,30 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
 
         <section className={styles.dashboard}>
           <header className={styles.summaryBar}>
-            <div className={styles.summaryMetric}>
+            <div className={`${styles.summaryMetric} ${styles.metricTonePrimary}`}>
               <span className={styles.summaryLabel}>Agents</span>
               <span className={styles.summaryValue}>{formatNumber(metrics.workflowCount)}</span>
             </div>
-            <div className={styles.summaryMetric}>
+            <div className={`${styles.summaryMetric} ${styles.metricToneWarn}`}>
               <span className={styles.summaryLabel}>Runs (7d)</span>
               <span className={styles.summaryValue}>{formatNumber(metrics.runsLast7d)}</span>
             </div>
-            <div className={styles.summaryMetric}>
+            <div className={`${styles.summaryMetric} ${styles.metricToneBlue}`}>
               <span className={styles.summaryLabel}>Tokens (7d)</span>
               <span className={styles.summaryValue}>{formatNumber(metrics.tokensLast7d)}</span>
             </div>
-            <div className={styles.summaryMetric}>
+            <div className={`${styles.summaryMetric} ${styles.metricToneCost}`}>
               <span className={styles.summaryLabel}>Est. Cost (7d)</span>
               <span className={styles.summaryValue}>{formatCurrency(metrics.estimatedCostUsdLast7d)}</span>
             </div>
-            <div className={styles.summaryMetric}>
+            <div className={`${styles.summaryMetric} ${styles.metricTonePositive}`}>
               <span className={styles.summaryLabel}>Active Runs</span>
               <span className={styles.summaryValue}>{formatNumber(metrics.activeTrajectories)}</span>
             </div>
-            <div className={styles.summaryMetric}>
+            <div className={`${styles.summaryMetric} ${styles.metricToneSuccess}`}>
               <span className={styles.summaryLabel}>Success Rate (7d)</span>
               <span className={styles.summaryValue}>{portfolioSuccessRate}%</span>
             </div>
-          </header>
-
-          <header className={styles.sectionHeader}>
-            <h1 className={styles.sectionTitle}>Agent Dashboard</h1>
-            <p className={styles.sectionSubtitle}>High-level trends first, then a clean table to jump into agent details.</p>
           </header>
 
           <section className={styles.trendsGrid}>
