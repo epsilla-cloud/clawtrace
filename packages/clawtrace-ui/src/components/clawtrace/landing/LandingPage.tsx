@@ -20,13 +20,13 @@ const IMPROVEMENT_BLOCKS = [
     step: '01',
     title: 'Better',
     lead: 'Less babysitting, fewer repeated mistakes.',
-    body: 'Trace unstable workflow behavior, surface the likely root cause, and verify that the fix actually worked.',
+    body: 'Trace unstable agent behavior, surface the likely root cause, and verify that the fix actually worked.',
   },
   {
     step: '02',
     title: 'Cheaper',
     lead: 'Know exactly why cost spiked this week.',
-    body: 'See spend by workflow, run, and step so you can fix the biggest leak first instead of guessing.',
+    body: 'See spend by agent run and step so you can fix the biggest leak first instead of guessing.',
   },
   {
     step: '03',
@@ -121,7 +121,7 @@ export function LandingPage() {
         <div className={styles.heroFrame}>
           <Image
             src={HERO_IMAGE_URL}
-            alt="ClawTrace workflow control room visual"
+            alt="ClawTrace agent run control room visual"
             width={2200}
             height={1400}
             priority
@@ -164,7 +164,7 @@ export function LandingPage() {
 
       <section className={styles.improvementSection} id="improvement">
         <p className={styles.sectionKicker}>How it works</p>
-        <h2 className={styles.sectionTitle}>Three moves to improve your OpenClaw performance loop.</h2>
+        <h2 className={styles.sectionTitle}>Three moves to improve your OpenClaw agent performance loop.</h2>
 
         <div className={styles.improvementGrid}>
           {IMPROVEMENT_BLOCKS.map((block) => (
