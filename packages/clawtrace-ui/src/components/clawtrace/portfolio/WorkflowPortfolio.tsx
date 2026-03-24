@@ -529,7 +529,7 @@ function buildCostSharePieChart(context: TracyContext): TracyInlineChartSpec {
   }
   return {
     id: 'cost-share-pie',
-    title: 'Cost share by flow (7d)',
+    title: 'Cost share',
     categories,
     values,
     mode: 'currency',
@@ -540,7 +540,7 @@ function buildCostSharePieChart(context: TracyContext): TracyInlineChartSpec {
 function buildFrequencyBarChart(context: TracyContext, workflowName: string): TracyInlineChartSpec {
   return {
     id: 'flow-frequency-bar',
-    title: `${workflowName} run frequency (7d)`,
+    title: `${workflowName} runs`,
     categories: context.trendLabels,
     values: buildWorkflowFrequencySeries(context, workflowName),
     mode: 'number',
@@ -600,16 +600,10 @@ function summarizeCostPriority(context: TracyContext): string {
   const peakFrequencyDays = context.trendLabels.filter((_, index) => frequencySeries[index] === peakFrequency && peakFrequency > 0);
 
   return [
-    'Cost summary',
-    `- Biggest spend driver: ${first.name} at ${formatCurrency(first.costUsd)} (${firstShare}% of total ${context.rangeLabel} cost).`,
-    `${second.name !== 'n/a' ? `- Second highest: ${second.name} at ${formatCurrency(second.costUsd)}.` : '- No second major cost cluster yet.'}`,
-    '',
-    'Frequency evidence',
-    `- ${first.name} ran ${first.runs} times in the selected range.`,
-    `- Daily peak was ${peakFrequency} run${peakFrequency === 1 ? '' : 's'}${peakFrequencyDays.length ? ` on ${peakFrequencyDays.join(', ')}` : ''}.`,
-    '',
-    'Hottest trace',
-    `- ${highestRun.traceName} · ${formatCurrency(highestRun.estimatedCostUsd)} · ${formatNumber(highestRun.inputTokens + highestRun.outputTokens)} total tokens.`,
+    `${first.name} is driving most of your spend: ${formatCurrency(first.costUsd)} (${firstShare}% of total ${context.rangeLabel} cost).`,
+    `${second.name !== 'n/a' ? `${second.name} is next at ${formatCurrency(second.costUsd)}.` : 'No clear second cost cluster yet.'}`,
+    `${first.name} ran ${first.runs} times in this range, peaking at ${peakFrequency} run${peakFrequency === 1 ? '' : 's'}${peakFrequencyDays.length ? ` on ${peakFrequencyDays.join(', ')}` : ''}.`,
+    `Hottest trace: ${highestRun.traceName} · ${formatCurrency(highestRun.estimatedCostUsd)} · ${formatNumber(highestRun.inputTokens + highestRun.outputTokens)} tokens.`,
   ].join('\n');
 }
 
@@ -661,7 +655,7 @@ function buildTracyResponse(query: string, context: TracyContext): Omit<TracyMes
   const costLinks = hottestRun
     ? [
         {
-          label: `Open hottest trace details (${hottestRun.traceId.slice(0, 8)})`,
+          label: `Open hottest trace ${hottestRun.traceId.slice(0, 8)}`,
           href: buildTraceDetailHref(hottestRun),
         },
       ]
@@ -796,10 +790,7 @@ function TracyInlineChart({ chart }: { chart: TracyInlineChartSpec }) {
                   borderWidth: 2,
                 },
                 label: {
-                  show: true,
-                  formatter: '{b}\n{d}%',
-                  fontSize: 10,
-                  color: '#6f6257',
+                  show: false,
                 },
                 data: chart.categories.map((name, index) => ({ name, value: chart.values[index] ?? 0 })),
               },
@@ -884,19 +875,10 @@ function TracyInlineChart({ chart }: { chart: TracyInlineChartSpec }) {
     };
   }, [chart.categories, chart.mode, chart.values]);
 
-  const lastValue = chart.values.length ? chart.values[chart.values.length - 1] : 0;
-  const maxValue = chart.values.length ? Math.max(...chart.values) : 0;
-  const metaText =
-    chart.visual === 'pie'
-      ? 'Share by workflow'
-      : `Peak ${chart.mode === 'currency' ? formatCurrency(maxValue) : formatNumber(maxValue)} · Latest ${
-          chart.mode === 'currency' ? formatCurrency(lastValue) : formatNumber(lastValue)
-        }`;
   return (
     <figure className={styles.tracyInlineChart}>
       <figcaption className={styles.tracyInlineTitle}>
         <span>{chart.title}</span>
-        <span className={styles.tracyInlineMeta}>{metaText}</span>
       </figcaption>
       <div
         className={styles.tracyInlineCanvas}
@@ -1091,6 +1073,16 @@ function TracyPanel({
                   <p className={styles.tracySender}>{message.role === 'assistant' ? 'Tracy' : 'You'}</p>
                   <p className={styles.tracyMessageText}>{message.text}</p>
 
+                  {message.links?.length ? (
+                    <div className={styles.tracyLinkList}>
+                      {message.links.map((linkItem) => (
+                        <Link key={`${message.id}-${linkItem.href}`} href={linkItem.href} className={styles.tracyTraceLink}>
+                          {linkItem.label}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : null}
+
                   {message.attachments?.length ? (
                     <div className={styles.tracyAttachmentRow}>
                       {message.attachments.map((name) => (
@@ -1122,15 +1114,6 @@ function TracyPanel({
                     </div>
                   ) : null}
 
-                  {message.links?.length ? (
-                    <div className={styles.tracyLinkList}>
-                      {message.links.map((linkItem) => (
-                        <Link key={`${message.id}-${linkItem.href}`} href={linkItem.href} className={styles.tracyTraceLink}>
-                          {linkItem.label}
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
                 </article>
               </div>
             ))}
