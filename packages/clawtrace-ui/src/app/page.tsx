@@ -1,5 +1,5 @@
-import { ClawTraceStandalone } from '../components/clawtrace/ClawTraceStandalone';
+import { redirect } from 'next/navigation';
 
 export default function HomePage() {
-  return <ClawTraceStandalone />;
+  redirect('/onboarding/connect');
 }
