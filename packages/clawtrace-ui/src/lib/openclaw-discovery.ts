@@ -185,18 +185,10 @@ type TraceSpan = {
   };
 };
 
-type TraceAccumulator = {
+type TraceGroup = {
   traceId: string;
   sessionKey: string;
-  startedAtMs: number;
-  endedAtMs: number;
-  llmCalls: number;
-  toolCalls: number;
-  totalTokens: number;
-  models: Set<string>;
-  signals: Set<string>;
-  mutatingBoundaries: Set<string>;
-  hasAnySpanWithoutEnd: boolean;
+  spans: TraceSpan[];
   lastObservedMs: number;
 };
 
@@ -711,29 +703,141 @@ function formatSchedule(job: CronJob): string {
   return schedule.kind ?? 'Scheduled';
 }
 
-function toTrajectory(acc: TraceAccumulator, nowMs: number, fallbackModel: string | null): WorkflowTrajectory {
-  const durationMs = Math.max(0, (acc.endedAtMs || acc.lastObservedMs) - acc.startedAtMs);
-  const running = acc.hasAnySpanWithoutEnd && nowMs - acc.lastObservedMs < 30 * 60 * 1000;
-  const models = Array.from(acc.models).sort();
-  const costModel = models[0] ?? fallbackModel ?? null;
-  const estimatedCostUsd = estimateCostUsdFromTokens(acc.totalTokens, costModel);
+function extractSpanTotalTokens(span: TraceSpan): number {
+  return Math.max(
+    0,
+    toNumber(span.attributes?.totalTokens) || toNumber(span.tokensIn) + toNumber(span.tokensOut),
+  );
+}
 
-  return {
-    traceId: acc.traceId,
-    sessionKey: acc.sessionKey,
-    startedAtMs: acc.startedAtMs,
-    endedAtMs: acc.endedAtMs || acc.lastObservedMs,
-    durationMs,
-    llmCalls: acc.llmCalls,
-    toolCalls: acc.toolCalls,
-    totalTokens: acc.totalTokens,
-    models,
-    signals: Array.from(acc.signals).sort(),
-    mutatingBoundaries: Array.from(acc.mutatingBoundaries).sort(),
-    costModel,
-    estimatedCostUsd,
-    status: running ? 'running' : 'completed',
+function buildTrajectoriesFromTraceGroup(
+  group: TraceGroup,
+  nowMs: number,
+  fallbackModel: string | null,
+): WorkflowTrajectory[] {
+  type LlmWindow = {
+    startMs: number;
+    endMs: number;
+    totalTokens: number;
+    model: string | null;
+    hasClosed: boolean;
+    hasOpen: boolean;
+    signals: Set<string>;
+    mutatingBoundaries: Set<string>;
   };
+
+  const sortedSpans = [...group.spans].sort((a, b) => toNumber(a.startMs) - toNumber(b.startMs));
+  const llmWindows = new Map<number, LlmWindow>();
+
+  for (const span of sortedSpans) {
+    if (span.kind !== 'llm_call') {
+      continue;
+    }
+
+    const startMs = toNumber(span.startMs);
+    if (startMs <= 0) {
+      continue;
+    }
+
+    const existing = llmWindows.get(startMs);
+    const inferred = signalsFromTraceSpan(span);
+    const endMs = toNumber(span.endMs);
+    const spanTokens = extractSpanTotalTokens(span);
+
+    if (!existing) {
+      llmWindows.set(startMs, {
+        startMs,
+        endMs: endMs > 0 ? endMs : startMs,
+        totalTokens: spanTokens,
+        model: span.model ?? null,
+        hasClosed: endMs > 0,
+        hasOpen: endMs <= 0,
+        signals: new Set(inferred.signals),
+        mutatingBoundaries: new Set(inferred.mutatingBoundaries),
+      });
+      continue;
+    }
+
+    existing.endMs = Math.max(existing.endMs, endMs > 0 ? endMs : startMs);
+    existing.totalTokens = Math.max(existing.totalTokens, spanTokens);
+    if (!existing.model && span.model) {
+      existing.model = span.model;
+    }
+    existing.hasClosed = existing.hasClosed || endMs > 0;
+    existing.hasOpen = existing.hasOpen || endMs <= 0;
+    for (const signal of inferred.signals) {
+      existing.signals.add(signal);
+    }
+    for (const boundary of inferred.mutatingBoundaries) {
+      existing.mutatingBoundaries.add(boundary);
+    }
+  }
+
+  const windows = Array.from(llmWindows.values()).sort((a, b) => a.startMs - b.startMs);
+  if (!windows.length) {
+    return [];
+  }
+
+  const trajectories: WorkflowTrajectory[] = [];
+
+  for (let index = 0; index < windows.length; index += 1) {
+    const window = windows[index];
+    const nextWindowStartMs = windows[index + 1]?.startMs ?? Number.POSITIVE_INFINITY;
+    const windowEndMs = window.hasClosed
+      ? Math.max(window.endMs, window.startMs)
+      : Math.max(window.startMs, Math.min(group.lastObservedMs || nowMs, nowMs));
+
+    const toolSpansForWindow = sortedSpans.filter((span) => {
+      if (span.kind !== 'tool_call') {
+        return false;
+      }
+      const startMs = toNumber(span.startMs);
+      if (startMs < window.startMs) {
+        return false;
+      }
+      if (Number.isFinite(nextWindowStartMs) && startMs >= nextWindowStartMs) {
+        return false;
+      }
+      if (!Number.isFinite(nextWindowStartMs) && startMs > windowEndMs) {
+        return false;
+      }
+      return true;
+    });
+
+    const allSignals = new Set(window.signals);
+    const allMutatingBoundaries = new Set(window.mutatingBoundaries);
+    for (const toolSpan of toolSpansForWindow) {
+      const inferred = signalsFromTraceSpan(toolSpan);
+      for (const signal of inferred.signals) {
+        allSignals.add(signal);
+      }
+      for (const boundary of inferred.mutatingBoundaries) {
+        allMutatingBoundaries.add(boundary);
+      }
+    }
+
+    const costModel = window.model ?? fallbackModel ?? null;
+    const estimatedCostUsd = estimateCostUsdFromTokens(window.totalTokens, costModel);
+
+    trajectories.push({
+      traceId: `${group.traceId}:${window.startMs}`,
+      sessionKey: group.sessionKey,
+      startedAtMs: window.startMs,
+      endedAtMs: windowEndMs,
+      durationMs: Math.max(0, windowEndMs - window.startMs),
+      llmCalls: 1,
+      toolCalls: toolSpansForWindow.length,
+      totalTokens: window.totalTokens,
+      models: window.model ? [window.model] : [],
+      signals: Array.from(allSignals).sort(),
+      mutatingBoundaries: Array.from(allMutatingBoundaries).sort(),
+      costModel,
+      estimatedCostUsd,
+      status: window.hasClosed ? 'completed' : 'running',
+    });
+  }
+
+  return trajectories;
 }
 
 function aggregateModelUsage(runs: CronRun[], trajectories: WorkflowTrajectory[]): Array<{ model: string; count: number }> {
@@ -826,7 +930,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
   }
 
   const traceFiles = await listJsonlFiles(path.join(openclawPath, 'traces'));
-  const traceAccumulators = new Map<string, TraceAccumulator>();
+  const traceGroups = new Map<string, TraceGroup>();
 
   for (const traceFile of traceFiles) {
     const spans = await readJsonLines<TraceSpan>(traceFile);
@@ -838,57 +942,26 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
 
       const key = `${span.sessionKey}::${span.traceId}`;
       const startMs = toNumber(span.startMs);
-      const endMs = toNumber(span.endMs);
-      const observedEnd = endMs > 0 ? endMs : startMs;
-      const inferred = signalsFromTraceSpan(span);
-
-      const existing = traceAccumulators.get(key);
+      const observedEnd = Math.max(startMs, toNumber(span.endMs));
+      const existing = traceGroups.get(key);
       if (!existing) {
-        traceAccumulators.set(key, {
+        traceGroups.set(key, {
           traceId: span.traceId,
           sessionKey: span.sessionKey,
-          startedAtMs: startMs,
-          endedAtMs: observedEnd,
-          llmCalls: span.kind === 'llm_call' ? 1 : 0,
-          toolCalls: span.kind === 'tool_call' ? 1 : 0,
-          totalTokens: Math.max(
-            0,
-            toNumber(span.attributes?.totalTokens) || toNumber(span.tokensIn) + toNumber(span.tokensOut),
-          ),
-          models: span.model ? new Set([span.model]) : new Set(),
-          signals: new Set(inferred.signals),
-          mutatingBoundaries: new Set(inferred.mutatingBoundaries),
-          hasAnySpanWithoutEnd: !span.endMs,
+          spans: [span],
           lastObservedMs: Math.max(startMs, observedEnd),
         });
         continue;
       }
 
-      existing.startedAtMs = Math.min(existing.startedAtMs, startMs);
-      existing.endedAtMs = Math.max(existing.endedAtMs, observedEnd);
+      existing.spans.push(span);
       existing.lastObservedMs = Math.max(existing.lastObservedMs, startMs, observedEnd);
-      existing.llmCalls += span.kind === 'llm_call' ? 1 : 0;
-      existing.toolCalls += span.kind === 'tool_call' ? 1 : 0;
-      existing.totalTokens += Math.max(
-        0,
-        toNumber(span.attributes?.totalTokens) || toNumber(span.tokensIn) + toNumber(span.tokensOut),
-      );
-      if (span.model) {
-        existing.models.add(span.model);
-      }
-      for (const signal of inferred.signals) {
-        existing.signals.add(signal);
-      }
-      for (const boundary of inferred.mutatingBoundaries) {
-        existing.mutatingBoundaries.add(boundary);
-      }
-      if (!span.endMs) {
-        existing.hasAnySpanWithoutEnd = true;
-      }
     }
   }
 
-  const trajectories = Array.from(traceAccumulators.values()).map((acc) => toTrajectory(acc, nowMs, primaryModel));
+  const trajectories = Array.from(traceGroups.values())
+    .flatMap((group) => buildTrajectoriesFromTraceGroup(group, nowMs, primaryModel))
+    .sort((a, b) => b.startedAtMs - a.startedAtMs);
 
   const configAuditPath = path.join(openclawPath, 'logs', 'config-audit.jsonl');
   const configAuditRows = await readJsonLines<{ ts?: string }>(configAuditPath);
@@ -1100,6 +1173,9 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
     const totalCostUsd = roundUsd(recentTrajectories.reduce((sum, trajectory) => sum + trajectory.estimatedCostUsd, 0));
     const mutatingBoundaries = unique(recentTrajectories.flatMap((trajectory) => trajectory.mutatingBoundaries));
     const latestTrajectory = recentTrajectories[0];
+    const inferredCompleted = recentTrajectories.filter((trajectory) => trajectory.status === 'completed').length;
+    const inferredRunning = recentTrajectories.filter((trajectory) => trajectory.status === 'running').length;
+    const inferredTotal = recentTrajectories.length;
 
     const recommendations = buildRecommendations({
       tracingEnabled,
@@ -1125,11 +1201,11 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
       inferredGoals: bucket.inferredGoals,
       failureThemes: bucket.failureThemes,
       runStats7d: {
-        total: recentTrajectories.length,
-        success: 0,
+        total: inferredTotal,
+        success: inferredCompleted,
         failed: 0,
-        unknown: recentTrajectories.length,
-        successRate: 0,
+        unknown: inferredRunning,
+        successRate: inferredTotal > 0 ? inferredCompleted / inferredTotal : 0,
       },
       tokenStats7d: {
         total: tokenTotal,
@@ -1138,7 +1214,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
       },
       costStats7d: {
         totalUsd: totalCostUsd,
-        avgPerRunUsd: roundUsd(totalCostUsd / recentTrajectories.length),
+        avgPerRunUsd: roundUsd(totalCostUsd / Math.max(inferredTotal, 1)),
         avgPerSuccessUsd: null,
       },
       modelUsage: aggregateModelUsage([], recentTrajectories),
