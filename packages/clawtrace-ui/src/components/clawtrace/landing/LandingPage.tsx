@@ -112,7 +112,7 @@ export function LandingPage() {
           Make your OpenClaw agents <span>better, cheaper, and faster.</span>
         </h1>
 
-        <p className={styles.subhead}>See what failed, where spend leaked, and what to fix first.</p>
+        <p className={styles.subhead}>See what failed, where spend leaked, and how to improve.</p>
 
         <a className={styles.primaryButton} href="#waitlist">
           Join Waitlist
