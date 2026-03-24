@@ -30,6 +30,33 @@ ClawTrace becomes the workflow reliability control plane for AI agents: before a
 - Determinism advisor with recommendation-only output
 - Incident memo generation
 - Workflow trust state / reliability state
+- Cost command layer for the same workflow:
+  - portfolio/workflow/trajectory/step-level cost attribution
+  - cost-per-success as a core reliability KPI
+  - cost-focused next-best-action recommendations
+  - budget and token-spike guardrails in the cockpit flow
+
+## Scope Expansion Addendum (2026-03-24): Cloud Trace Cost Layer
+
+Context from customer/problem interviews and operator experience:
+- users do not only ask "why did it fail?"
+- they also ask "where did the token spend go?"
+- they need this answer inside the same debugging flow, not in a separate finance tool
+
+Decision:
+- ClawTrace Phase 0 remains reliability-first, but cost attribution is now a co-equal first-class axis in that same scope.
+- The MVP narrative becomes: reliability control loop plus spend transparency and spend reduction actions.
+
+What must be true in Phase 0:
+1. Cost appears in onboarding baseline, control room, incident triage, and verification follow-through.
+2. Every workflow and trajectory view shows token and estimated/billed cost context.
+3. The system proposes cost-aware actions that preserve reliability (for example stop repeated retries, promote deterministic scripts for expensive unstable steps, tighten budgets).
+4. Trust state and incident prioritization can use cost pressure as a signal, not just failure counts.
+
+Deferred beyond Phase 0:
+- full enterprise chargeback and invoicing workflows
+- provider-perfect billed reconciliation for every model provider
+- multi-workflow budget governance across business units
 
 ## Deferred to TODOS.md
 - Progressive autonomy / approval modes for execution governance

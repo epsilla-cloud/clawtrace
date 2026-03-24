@@ -17,6 +17,7 @@ Phase 0 is reduced to one complete vertical slice:
 - one trust-state machine
 - one preflight / canary / verification loop
 - one incident memo flow
+- one cost-attribution path from workflow to trajectory to step class
 - one workflow cockpit
 - one chat-guided onboarding flow
 - one shared storage interface with local and cloud adapters
@@ -42,6 +43,12 @@ This review explicitly does not treat the broader observability suite in [CEO Pr
 6. Use one explicit workflow-run state machine with typed sub-status fields.
 7. Keep the hot operational store relational with one shared schema: SQLite locally, Postgres in SaaS.
 8. Keep Iceberg + PuppyGraph in the MVP for append-only event capture and rich analysis, but write operational truth first, then perform a bounded inline Iceberg append with deterministic replay on failure.
+9. Add run-native cost events in the same pipeline:
+   - billed cost when the provider emits it
+   - deterministic estimated cost fallback when billed cost is missing
+10. Require cost attribution pivots in Phase 0:
+   - workflow -> trajectory -> step class -> model/tool
+   - cost-per-success and retry-loop cost as first-class derived metrics
 
 ### Code Quality
 
@@ -59,6 +66,8 @@ This review explicitly does not treat the broader observability suite in [CEO Pr
 
 1. Materialize one hot control snapshot per workflow/run for the decision kernel.
 2. Return decisions first and run memo / explanation / graph enrichment asynchronously.
+3. Cost aggregation must not block control decisions; heavy rollups run asynchronously over cached projections.
+4. Cost precision class (`billed` vs `estimated`) must be explicit in all APIs and UI payloads.
 
 ## Proposed Implementation Shape
 
@@ -215,6 +224,7 @@ QA artifact written during review:
 | Operational projections | Current-state projection lags event log | Yes | Yes | Clear retry / stale-state handling |
 | Iceberg append | Analytical sink is slow or temporarily unavailable | Yes | Yes | Control decision succeeds; analytics replay later |
 | Incident memo | Memo drifts from structured evidence | Yes | Yes | Deterministic facts with model wording only |
+| Cost attribution | Provider billed cost is absent for some runs | Yes | Yes | Show explicit `estimated` label with deterministic fallback |
 
 Critical gaps flagged: 0
 

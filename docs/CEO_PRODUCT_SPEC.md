@@ -1,6 +1,6 @@
 # ClawTrace CEO Product Spec
 
-Last updated: 2026-03-22
+Last updated: 2026-03-24
 Owner: CEO (with Product + Engineering)
 Status: Draft v3 (market-informed plan)
 
@@ -21,6 +21,14 @@ Teams can see logs but cannot answer quickly:
 
 ### North-star outcome
 Reduce Mean Time To Resolution (MTTR) for agent incidents from hours to minutes.
+
+### Scope Expansion Addendum (2026-03-24): Cloud Trace Cost Layer
+
+Cloud Trace scope now explicitly includes spend attribution as a co-equal surface with reliability:
+- users must see where token/cost was consumed across portfolio, workflow, trajectory, and step class
+- users must see cost-per-success, not only raw total spend
+- users must receive cost-aware next-best-actions that preserve reliability
+- this must be embedded in onboarding and control-room flows, not shipped as a disconnected finance page
 
 ## 2) Product Principles (First-Principles)
 
@@ -84,7 +92,7 @@ Startup AI product teams running multi-agent workflows (support automation, cont
 ## V1 Jobs-to-be-Done
 
 1. Observe
-Unified run timeline, call tree, span waterfall, token/cost/latency drill-down.
+Unified run timeline, call tree, span waterfall, and token/cost/latency drill-down with spend attribution (`workflow -> trajectory -> model/tool/step`).
 
 2. Diagnose
 Root-cause assistant with confidence scoring across:
@@ -179,6 +187,7 @@ Must-have capabilities:
 - Incident View: automated failure summary + remediation playbook
 - Prebuilt Dashboards: OpenClaw operations, cost, and failure modes
 - Cost & Performance: per tenant/agent/model/tool budgets
+- Cost Attribution Layer: cost-per-success, retry-loop cost, and explicit `estimated` vs `billed` precision
 - Regression Guard: dataset/eval and pre-release gates
 
 ## 5) Business Spec

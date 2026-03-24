@@ -85,6 +85,15 @@ Fixes locked:
 - Post-onboarding chat remains present as a collapsible right-side investigation drawer.
 - No unresolved design decisions remain.
 
+### Pass 8: Cost Legibility (Scope Expansion Addendum, 2026-03-24)
+Initial rating: 4/10
+Final rating: 9/10
+
+Fixes locked:
+- Cost is part of the primary reliability reading order, not a separate finance page.
+- Users can answer "where did spend go?" at portfolio, workflow, and trajectory depth without leaving the cockpit flow.
+- Cost values must always declare precision class (`estimated` or `billed`) to preserve trust.
+
 ## Decisions Added to the Plan
 | # | Decision | Choice | Why |
 |---|----------|--------|-----|
@@ -98,6 +107,9 @@ Fixes locked:
 | 8 | Design system base | Atelier Operator + ClawTrace evidence layer | Keeps future AgentStudio integration clean. |
 | 9 | Mobile strategy | Triage-first mobile workspace | Optimizes for action and clarity on small screens. |
 | 10 | Post-onboarding chat | Collapsible investigation drawer | Keeps the product agentic without surrendering the home screen to chat. |
+| 11 | Cost in onboarding | Show imported spend baseline in F0-F2 | Makes value immediate for users who care where token spend goes. |
+| 12 | Cost in cockpit | Dedicated cost analysis panel beside health and model usage | Keeps spend and reliability decisions in one operational surface. |
+| 13 | Trajectory cost detail | Show per-trajectory spend + model context inline | Answers spend attribution without extra navigation. |
 
 ## NOT in Scope
 - Equal-depth rich cockpit blocks for every workflow on the overview page. Reason: it would blur the MVP focus and overload the workspace.
@@ -107,6 +119,7 @@ Fixes locked:
 - High-alert styling for every uncertain state. Reason: uncertainty is frequent and should be operationally legible, not panic-inducing.
 - Responsive behavior that simply stacks the desktop columns on mobile. Reason: mobile needs triage, not shrunken desktop.
 - A separate post-onboarding chat route as the main investigation path. Reason: the drawer model keeps the selected workflow cockpit central.
+- A standalone "finance/cost page" detached from incident flow. Reason: spend attribution must stay in the same reliability workflow.
 
 ## Design-System Output
 This review created a new root design source of truth:
@@ -137,7 +150,7 @@ Reason:
 |         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
 +====================================================================+
 | System Audit         | no DESIGN.md -> created; UI scope is real   |
-| Step 0               | initial rating 5/10; all 7 passes reviewed  |
+| Step 0               | initial rating 5/10; all 8 passes reviewed  |
 | Pass 1  (Info Arch)  | 6/10 -> 9/10 after fixes                    |
 | Pass 2  (States)     | 4/10 -> 9/10 after fixes                    |
 | Pass 3  (Journey)    | 5/10 -> 9/10 after fixes                    |
@@ -145,11 +158,12 @@ Reason:
 | Pass 5  (Design Sys) | 6/10 -> 9/10 after fixes                    |
 | Pass 6  (Responsive) | 3/10 -> 8/10 after fixes                    |
 | Pass 7  (Decisions)  | 1 resolved, 0 deferred                      |
+| Pass 8  (Cost UX)    | 4/10 -> 9/10 after fixes                    |
 +--------------------------------------------------------------------+
 | NOT in scope         | written (7 items)                           |
 | What already exists  | written                                     |
 | TODOS.md updates     | 0 items proposed                            |
-| Decisions made       | 10 added to plan                            |
+| Decisions made       | 13 added to plan                            |
 | Decisions deferred   | 0                                           |
 | Overall design score | 5/10 -> 9/10                                |
 +====================================================================+

@@ -140,6 +140,7 @@ Suggested v1 surface:
 
 Cost scope (must be first-class in the same flow):
 - show token and estimated cost at four levels: portfolio, workflow, trajectory, and step class
+- assume many users will ask "why did this run cost me so much?" before asking deeper trace questions
 - answer "where did cost go?" using explicit breakdowns:
   - by workflow
   - by model

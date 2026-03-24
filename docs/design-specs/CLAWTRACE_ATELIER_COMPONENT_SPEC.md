@@ -294,6 +294,7 @@ Required fields:
 - trust state
 - latest run outcome
 - one-line issue or status summary
+- 7-day token/cost summary (with `estimated` vs `billed` label)
 - latest timestamp
 - selected state
 
@@ -311,13 +312,16 @@ Required zones:
 3. primary next action card
 4. run story timeline
 5. verification breakdown
-6. state diff / drift markers
-7. recent incident memo launcher
+6. cost analysis panel (total, avg/run, cost-per-success)
+7. trajectory cost breakdown (recent trajectory rows with spend + model context)
+8. state diff / drift markers
+9. recent incident memo launcher
 
 Rules:
 - center panel must dominate the shell visually
 - primary next action sits above the fold
 - metrics never outrank evidence and next action
+- cost values must always show precision class (`estimated` or `billed`)
 
 #### `ClawTraceTrustStateBand`
 Persistent, compact, high-clarity state surface.
@@ -367,8 +371,22 @@ Per node fields:
 - time
 - step label
 - status
+- token and cost attribution when available
 - short explanation
 - expandable evidence details
+
+#### `ClawTraceCostAnalysisPanel`
+Cost command surface for selected workflow.
+
+Required fields:
+- total spend in selected window
+- average cost per run
+- cost per successful run
+- spend precision label (`estimated` or `billed`)
+
+Rules:
+- must sit beside reliability evidence, not in a detached finance-only route
+- must support direct drill-in to high-cost trajectories and steps
 
 #### `ClawTraceVerificationBreakdown`
 Structured verification summary.
