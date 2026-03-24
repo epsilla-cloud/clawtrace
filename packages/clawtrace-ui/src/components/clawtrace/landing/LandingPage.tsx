@@ -13,24 +13,18 @@ const IMPROVEMENT_BLOCKS = [
     title: 'Better',
     lead: 'Less babysitting, fewer repeated mistakes.',
     body: 'Trace unstable workflow behavior, surface the likely root cause, and verify that the fix actually worked.',
-    metricLabel: 'Focus',
-    metricValue: 'Reliability quality',
   },
   {
     step: '02',
     title: 'Cheaper',
     lead: 'Know exactly why cost spiked this week.',
     body: 'See spend by workflow, run, and step so you can fix the biggest leak first instead of guessing.',
-    metricLabel: 'Focus',
-    metricValue: 'Cost per success',
   },
   {
     step: '03',
     title: 'Faster',
     lead: 'Get from "something is wrong" to "here is the fix" quickly.',
     body: 'Run one control loop that prioritizes the next action and cuts time lost in manual debugging.',
-    metricLabel: 'Focus',
-    metricValue: 'Incident resolution speed',
   },
 ];
 
@@ -106,10 +100,6 @@ export function LandingPage() {
       </header>
 
       <section className={styles.hero} id="hero">
-        <div className={styles.heroBadge}>
-          <span>OpenClaw Control Layer</span>
-        </div>
-
         <h1 className={styles.headline}>
           Make your OpenClaw agents <span>better, cheaper, and faster.</span>
         </h1>
@@ -162,10 +152,6 @@ export function LandingPage() {
               <h3 className={styles.cardTitle}>{block.title}</h3>
               <p className={styles.cardLead}>{block.lead}</p>
               <p className={styles.cardBody}>{block.body}</p>
-              <div className={styles.cardMetric}>
-                <span className={styles.cardMetricLabel}>{block.metricLabel}</span>
-                <span className={styles.cardMetricValue}>{block.metricValue}</span>
-              </div>
             </article>
           ))}
         </div>
