@@ -209,15 +209,6 @@
   flex-wrap: wrap;
 }
 
-.backersLabel {
-  margin: 0;
-  color: var(--ct-muted);
-  font-size: var(--ct-text-meta);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  font-weight: 610;
-}
-
 .backersList {
   display: flex;
   gap: 14px;

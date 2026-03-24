@@ -138,7 +138,6 @@ export function LandingPage() {
       </section>
 
       <section className={styles.backers} aria-label="Backed by">
-        <p className={styles.backersLabel}>Backed by</p>
         <div className={styles.backersList}>
           {BACKERS.map((backer) => (
             <img
