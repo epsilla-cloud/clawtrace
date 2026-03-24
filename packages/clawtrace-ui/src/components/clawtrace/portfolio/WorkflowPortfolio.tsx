@@ -13,6 +13,16 @@ type WorkflowPortfolioProps = {
   allFlows: ClawTraceFlowDefinition[];
 };
 
+type TimeRangeKey = '1d' | '7d' | '30d' | 'custom';
+
+type ResolvedTimeRange = {
+  startMs: number;
+  endExclusiveMs: number;
+  dayCount: number;
+  label: string;
+  subtitle: string;
+};
+
 const TRUST_LABEL: Record<WorkflowDiscovery['trustState'], string> = {
   healthy: 'Healthy',
   at_risk: 'At Risk',
@@ -70,16 +80,95 @@ type TrendPoint = {
   costUsd: number;
 };
 
-function buildSevenDayTrend(snapshot: OpenClawDiscoverySnapshot): TrendPoint[] {
-  const now = Date.now();
-  const dayMs = 24 * 60 * 60 * 1000;
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-  const todayStartMs = today.getTime();
+function getDayStartMs(valueMs: number): number {
+  const date = new Date(valueMs);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
 
+function parseIsoDateToDayStartMs(isoDate: string): number | null {
+  if (!isoDate) {
+    return null;
+  }
+  const parts = isoDate.split('-').map((part) => Number(part));
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) {
+    return null;
+  }
+  const [year, month, day] = parts;
+  if (!year || !month || !day) {
+    return null;
+  }
+  const date = new Date(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  return date.getTime();
+}
+
+function toIsoDate(valueMs: number): string {
+  const date = new Date(valueMs);
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function resolveTimeRange(rangeKey: TimeRangeKey, customStartIso: string, customEndIso: string): ResolvedTimeRange {
+  const dayMs = 24 * 60 * 60 * 1000;
+  const todayStartMs = getDayStartMs(Date.now());
+  const tomorrowStartMs = todayStartMs + dayMs;
+
+  if (rangeKey === 'custom') {
+    const customStartMs = parseIsoDateToDayStartMs(customStartIso);
+    const customEndMs = parseIsoDateToDayStartMs(customEndIso);
+
+    if (customStartMs !== null && customEndMs !== null) {
+      const orderedStart = Math.min(customStartMs, customEndMs);
+      const orderedEnd = Math.max(customStartMs, customEndMs);
+      const endExclusiveMs = orderedEnd + dayMs;
+      const dayCount = Math.max(1, Math.round((endExclusiveMs - orderedStart) / dayMs));
+      return {
+        startMs: orderedStart,
+        endExclusiveMs,
+        dayCount,
+        label: 'Custom',
+        subtitle: `${formatShortDay(orderedStart)} - ${formatShortDay(orderedEnd)}`,
+      };
+    }
+  }
+
+  if (rangeKey === '1d') {
+    return {
+      startMs: todayStartMs,
+      endExclusiveMs: tomorrowStartMs,
+      dayCount: 1,
+      label: '1d',
+      subtitle: 'Last 1 day',
+    };
+  }
+
+  if (rangeKey === '30d') {
+    return {
+      startMs: todayStartMs - 29 * dayMs,
+      endExclusiveMs: tomorrowStartMs,
+      dayCount: 30,
+      label: '30d',
+      subtitle: 'Last 30 days',
+    };
+  }
+
+  return {
+    startMs: todayStartMs - 6 * dayMs,
+    endExclusiveMs: tomorrowStartMs,
+    dayCount: 7,
+    label: '7d',
+    subtitle: 'Last 7 days',
+  };
+}
+
+function buildTrend(snapshot: OpenClawDiscoverySnapshot, range: ResolvedTimeRange): TrendPoint[] {
+  const dayMs = 24 * 60 * 60 * 1000;
   const points: TrendPoint[] = [];
-  for (let offset = 6; offset >= 0; offset -= 1) {
-    const dayStartMs = todayStartMs - offset * dayMs;
+  for (let dayOffset = 0; dayOffset < range.dayCount; dayOffset += 1) {
+    const dayStartMs = range.startMs + dayOffset * dayMs;
     points.push({
       dayStartMs,
       label: formatShortDay(dayStartMs),
@@ -88,20 +177,16 @@ function buildSevenDayTrend(snapshot: OpenClawDiscoverySnapshot): TrendPoint[] {
     });
   }
 
-  const startBoundary = todayStartMs - 6 * dayMs;
-  const endBoundary = todayStartMs + dayMs;
   const indexByDay = new Map(points.map((point, index) => [point.dayStartMs, index]));
 
   for (const workflow of snapshot.workflows) {
     for (const trajectory of workflow.trajectories) {
       const startedAt = trajectory.startedAtMs;
-      if (startedAt < startBoundary || startedAt >= endBoundary) {
+      if (startedAt < range.startMs || startedAt >= range.endExclusiveMs) {
         continue;
       }
 
-      const bucketDate = new Date(startedAt);
-      bucketDate.setHours(0, 0, 0, 0);
-      const bucket = indexByDay.get(bucketDate.getTime());
+      const bucket = indexByDay.get(getDayStartMs(startedAt));
       if (bucket === undefined) {
         continue;
       }
@@ -331,6 +416,14 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
   const [snapshot, setSnapshot] = useState<OpenClawDiscoverySnapshot | null>(initialSnapshot ?? null);
   const [loadingSnapshot, setLoadingSnapshot] = useState<boolean>(!initialSnapshot);
   const [query, setQuery] = useState('');
+  const todayIso = useMemo(() => toIsoDate(Date.now()), []);
+  const [timeRange, setTimeRange] = useState<TimeRangeKey>('7d');
+  const [customStartDate, setCustomStartDate] = useState<string>(() => {
+    const date = new Date();
+    date.setDate(date.getDate() - 6);
+    return toIsoDate(date.getTime());
+  });
+  const [customEndDate, setCustomEndDate] = useState<string>(todayIso);
 
   useEffect(() => {
     let isMounted = true;
@@ -370,10 +463,28 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
 
   const agents = snapshot?.workflows ?? [];
   const metrics = snapshot?.metrics;
-  const trend = snapshot ? buildSevenDayTrend(snapshot) : [];
+  const resolvedRange = useMemo(
+    () => resolveTimeRange(timeRange, customStartDate, customEndDate),
+    [timeRange, customStartDate, customEndDate]
+  );
+  const trend = snapshot ? buildTrend(snapshot, resolvedRange) : [];
   const trendLabels = trend.map((point) => point.label);
   const trendRuns = trend.map((point) => point.runs);
   const trendCost = trend.map((point) => point.costUsd);
+  const rangeTrajectories = useMemo(() => {
+    if (!snapshot) {
+      return [];
+    }
+    return snapshot.workflows.flatMap((workflow) =>
+      workflow.trajectories.filter(
+        (trajectory) =>
+          trajectory.startedAtMs >= resolvedRange.startMs && trajectory.startedAtMs < resolvedRange.endExclusiveMs
+      )
+    );
+  }, [snapshot, resolvedRange]);
+  const runsInRange = rangeTrajectories.length;
+  const tokensInRange = rangeTrajectories.reduce((sum, trajectory) => sum + trajectory.totalTokens, 0);
+  const costInRange = rangeTrajectories.reduce((sum, trajectory) => sum + trajectory.estimatedCostUsd, 0);
   const totalSuccessfulRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.success, 0);
   const totalRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.total, 0);
   const portfolioSuccessRate = totalRuns > 0 ? Math.round((totalSuccessfulRuns / totalRuns) * 100) : 0;
@@ -402,6 +513,48 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
           </div>
 
         <section className={styles.dashboard}>
+          <header className={styles.pageTopRow}>
+            <h1 className={styles.pageTitle}>Control Room</h1>
+            <div className={styles.rangeControls}>
+              <label className={styles.rangeLabel} htmlFor="control-room-range-select">
+                Time range
+              </label>
+              <select
+                id="control-room-range-select"
+                className={styles.rangeSelect}
+                value={timeRange}
+                onChange={(event) => setTimeRange(event.currentTarget.value as TimeRangeKey)}
+                aria-label="Select time range"
+              >
+                <option value="1d">1 day</option>
+                <option value="7d">7 days</option>
+                <option value="30d">30 days</option>
+                <option value="custom">Custom</option>
+              </select>
+              {timeRange === 'custom' ? (
+                <div className={styles.customRangeRow}>
+                  <input
+                    className={styles.dateInput}
+                    type="date"
+                    value={customStartDate}
+                    max={customEndDate}
+                    onChange={(event) => setCustomStartDate(event.currentTarget.value)}
+                    aria-label="Custom start date"
+                  />
+                  <span className={styles.dateSeparator}>to</span>
+                  <input
+                    className={styles.dateInput}
+                    type="date"
+                    value={customEndDate}
+                    min={customStartDate}
+                    max={todayIso}
+                    onChange={(event) => setCustomEndDate(event.currentTarget.value)}
+                    aria-label="Custom end date"
+                  />
+                </div>
+              ) : null}
+            </div>
+          </header>
           <header className={styles.summaryBar}>
             <div className={`${styles.summaryMetric} ${styles.metricToneNeutral}`}>
               <span className={styles.summaryLabel}>Discovery</span>
@@ -422,22 +575,64 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
         </div>
 
         <section className={styles.dashboard}>
+          <header className={styles.pageTopRow}>
+            <h1 className={styles.pageTitle}>Control Room</h1>
+            <div className={styles.rangeControls}>
+              <label className={styles.rangeLabel} htmlFor="control-room-range-select">
+                Time range
+              </label>
+              <select
+                id="control-room-range-select"
+                className={styles.rangeSelect}
+                value={timeRange}
+                onChange={(event) => setTimeRange(event.currentTarget.value as TimeRangeKey)}
+                aria-label="Select time range"
+              >
+                <option value="1d">1 day</option>
+                <option value="7d">7 days</option>
+                <option value="30d">30 days</option>
+                <option value="custom">Custom</option>
+              </select>
+              {timeRange === 'custom' ? (
+                <div className={styles.customRangeRow}>
+                  <input
+                    className={styles.dateInput}
+                    type="date"
+                    value={customStartDate}
+                    max={customEndDate}
+                    onChange={(event) => setCustomStartDate(event.currentTarget.value)}
+                    aria-label="Custom start date"
+                  />
+                  <span className={styles.dateSeparator}>to</span>
+                  <input
+                    className={styles.dateInput}
+                    type="date"
+                    value={customEndDate}
+                    min={customStartDate}
+                    max={todayIso}
+                    onChange={(event) => setCustomEndDate(event.currentTarget.value)}
+                    aria-label="Custom end date"
+                  />
+                </div>
+              ) : null}
+            </div>
+          </header>
           <header className={styles.summaryBar}>
             <div className={`${styles.summaryMetric} ${styles.metricTonePrimary}`}>
               <span className={styles.summaryLabel}>Agents</span>
               <span className={styles.summaryValue}>{formatNumber(metrics.workflowCount)}</span>
             </div>
             <div className={`${styles.summaryMetric} ${styles.metricToneWarn}`}>
-              <span className={styles.summaryLabel}>Runs (7d)</span>
-              <span className={styles.summaryValue}>{formatNumber(metrics.runsLast7d)}</span>
+              <span className={styles.summaryLabel}>Runs ({resolvedRange.label})</span>
+              <span className={styles.summaryValue}>{formatNumber(runsInRange)}</span>
             </div>
             <div className={`${styles.summaryMetric} ${styles.metricToneBlue}`}>
-              <span className={styles.summaryLabel}>Tokens (7d)</span>
-              <span className={styles.summaryValue}>{formatNumber(metrics.tokensLast7d)}</span>
+              <span className={styles.summaryLabel}>Tokens ({resolvedRange.label})</span>
+              <span className={styles.summaryValue}>{formatNumber(tokensInRange)}</span>
             </div>
             <div className={`${styles.summaryMetric} ${styles.metricToneCost}`}>
-              <span className={styles.summaryLabel}>Est. Cost (7d)</span>
-              <span className={styles.summaryValue}>{formatCurrency(metrics.estimatedCostUsdLast7d)}</span>
+              <span className={styles.summaryLabel}>Est. Cost ({resolvedRange.label})</span>
+              <span className={styles.summaryValue}>{formatCurrency(costInRange)}</span>
             </div>
             <div className={`${styles.summaryMetric} ${styles.metricTonePositive}`}>
               <span className={styles.summaryLabel}>Active Runs</span>
@@ -452,7 +647,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
           <section className={styles.trendsGrid}>
             <TrendChart
               title="Agent runs over time"
-              subtitle="Last 7 days"
+              subtitle={resolvedRange.subtitle}
               categories={trendLabels}
               values={trendRuns}
               valueMode="number"
@@ -460,7 +655,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             />
             <TrendChart
               title="Token cost over time"
-              subtitle="Estimated USD, last 7 days"
+              subtitle={`Estimated USD, ${resolvedRange.subtitle}`}
               categories={trendLabels}
               values={trendCost}
               valueMode="currency"
