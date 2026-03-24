@@ -104,7 +104,7 @@
   min-height: 0;
   padding: 18px 20px;
   display: grid;
-  gap: 8px;
+  gap: 4px;
 }
 
 .pageTopRow {
@@ -142,9 +142,16 @@
   border-radius: var(--ct-control-radius);
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   background: #fff;
-  padding: 0 36px 0 12px;
+  padding: 0 44px 0 12px;
   font-size: 14px;
   color: var(--ct-soft-text);
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2.25 4.5L6 8.25L9.75 4.5' stroke='%23756257' stroke-width='1.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  background-size: 12px 12px;
 }
 
 .customRangeRow {
