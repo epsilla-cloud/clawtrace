@@ -38,7 +38,6 @@
 }
 
 .brand {
-  color: var(--ct-text);
   text-decoration: none;
   font-size: 34px;
   font-weight: 700;
@@ -46,6 +45,16 @@
   letter-spacing: -0.018em;
   line-height: 1;
   transform: translateY(-1px);
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.brandClaw {
+  color: color-mix(in srgb, var(--ct-text) 88%, #4a2f1e);
+}
+
+.brandTrace {
+  color: color-mix(in srgb, var(--ct-primary-strong) 82%, #6e3b1f);
 }
 
 .nav {

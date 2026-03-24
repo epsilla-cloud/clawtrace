@@ -98,7 +98,8 @@ export function LandingPage() {
     <main className={styles.page}>
       <header className={styles.header}>
         <a href="/" className={`${styles.brand} ${logoFont.className}`}>
-          ClawTrace
+          <span className={styles.brandClaw}>Claw</span>
+          <span className={styles.brandTrace}>Trace</span>
         </a>
 
         <nav className={styles.nav}>
