@@ -161,6 +161,19 @@ Reach an evidence-backed diagnosis quickly.
 ### Exit criteria
 - one primary intervention selected with confidence and evidence links
 
+## 4.1) Trace Detail View Language Contract
+
+When a user opens a specific run trace for deep dive, ClawTrace should use ICP-facing labels (not tracing-engineer jargon):
+
+1. `Execution Path` (source concept: Call Tree)
+2. `Actor Map` (source concept: Entity Graph)
+3. `Step Timeline` (source concept: Waterfall)
+4. `Run Efficiency` (source concept: Work Index)
+
+These labels are required in user-facing UI copy for consistency with the founder/operator ICP.
+
+Reference mapping spec: [TRACE_DETAIL_CONCEPT_RENAMING_SPEC.md](TRACE_DETAIL_CONCEPT_RENAMING_SPEC.md)
+
 ## F6 Action + Intervention
 
 ### Goal

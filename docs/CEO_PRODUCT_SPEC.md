@@ -193,7 +193,7 @@ Must-have capabilities:
 - State Time Machine: state timeline, run-to-run diffs, and last-known-good comparison
 - Run Explorer: searchable list of executions
 - Sessions View: session/thread rollups with user-facing cost and outcome metrics
-- Trace View: hierarchical spans + timeline + graph
+- Trace View: run deep dive across Execution Path, Actor Map, Step Timeline, and Run Efficiency (ICP-facing labels over trace-engineer jargon)
 - Incident View: automated failure summary + remediation playbook
 - Prebuilt Dashboards: OpenClaw operations, cost, and failure modes
 - Cost & Performance: per tenant/agent/model/tool budgets
