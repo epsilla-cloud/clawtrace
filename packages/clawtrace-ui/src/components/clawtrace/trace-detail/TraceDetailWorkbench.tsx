@@ -1105,7 +1105,14 @@ function StepTimelineView({
       );
       const fullEndMax = Math.max(...rows.map((row) => row.startOffsetMs + row.durationMs), 1);
       const maxValue = nonSessionEndMax > 0 ? Math.max(nonSessionEndMax * 1.06, 1) : fullEndMax;
-      const initialWindow = Math.max(12, Math.min(24, rows.length));
+      const chartHeight = Math.max(360, dom.clientHeight || 0);
+      const targetRowPitchPx = 26;
+      const visibleRowsByHeight = Math.max(
+        10,
+        Math.floor((chartHeight - 64) / targetRowPitchPx),
+      );
+      const visibleRowCount = Math.max(10, Math.min(visibleRowsByHeight, rows.length, 30));
+      const useVerticalZoom = rows.length > visibleRowCount;
 
       const durationSeries = rows.map((row) => {
         const remaining = Math.max(1, maxValue - row.startOffsetMs);
@@ -1144,7 +1151,7 @@ function StepTimelineView({
           grid: {
             top: 12,
             left: 186,
-            right: rows.length > 18 ? 36 : 18,
+            right: useVerticalZoom ? 36 : 18,
             bottom: 36,
             containLabel: false,
           },
@@ -1205,6 +1212,7 @@ function StepTimelineView({
             axisLabel: {
               color: '#7e6f63',
               fontSize: 11,
+              lineHeight: 16,
               interval: 0,
               formatter: (value: string) => {
                 if (value.length <= 28) return value;
@@ -1227,13 +1235,13 @@ function StepTimelineView({
               },
             },
           },
-          dataZoom: rows.length > 18
+          dataZoom: useVerticalZoom
             ? [
                 {
                   type: 'inside',
                   yAxisIndex: 0,
                   startValue: 0,
-                  endValue: initialWindow,
+                  endValue: visibleRowCount - 1,
                   zoomOnMouseWheel: 'shift',
                   moveOnMouseMove: true,
                   moveOnMouseWheel: true,
@@ -1257,7 +1265,7 @@ function StepTimelineView({
                     areaStyle: { color: 'transparent' },
                   },
                   startValue: 0,
-                  endValue: initialWindow,
+                  endValue: visibleRowCount - 1,
                 },
               ]
             : [],
