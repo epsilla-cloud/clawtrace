@@ -97,7 +97,7 @@ export function LandingPage() {
       <div className={styles.glowA} aria-hidden="true" />
       <div className={styles.glowB} aria-hidden="true" />
 
-      <header className={styles.header}>
+      <header className={`${styles.header} ${styles.reveal} ${styles.delay0}`}>
         <p className={styles.brand}>ClawTrace</p>
         <nav className={styles.nav}>
           <Link href="/onboarding/connect" className={styles.navLink}>
@@ -109,7 +109,7 @@ export function LandingPage() {
         </nav>
       </header>
 
-      <section className={styles.backerStrip} aria-label="Backed by">
+      <section className={`${styles.backerStrip} ${styles.reveal} ${styles.delay1}`} aria-label="Backed by">
         <p className={styles.backerLabel}>Backed by</p>
         <div className={styles.backerBadges}>
           {BACKERS.map((backer) => (
@@ -120,10 +120,12 @@ export function LandingPage() {
         </div>
       </section>
 
-      <section className={styles.hero}>
+      <section className={`${styles.hero} ${styles.reveal} ${styles.delay2}`}>
         <article className={styles.heroMain}>
           <p className={styles.kicker}>Built for OpenClaw operators</p>
-          <h1 className={styles.headline}>Make your OpenClaw agents better, cheaper, and faster.</h1>
+          <h1 className={styles.headline}>
+            Make your <span className={styles.headlineAccent}>OpenClaw</span> agents better, cheaper, and faster.
+          </h1>
           <p className={styles.subhead}>See what failed, where spend leaked, and what to fix first.</p>
           <a href="#waitlist" className={styles.heroButton}>
             Join Waitlist
@@ -144,9 +146,13 @@ export function LandingPage() {
         </aside>
       </section>
 
-      <section className={styles.valueGrid} aria-label="Core value sections">
-        {VALUE_SECTIONS.map((section) => (
-          <article key={section.title} className={styles.valueCard}>
+      <section className={`${styles.valueGrid} ${styles.reveal} ${styles.delay3}`} aria-label="Core value sections">
+        {VALUE_SECTIONS.map((section, index) => (
+          <article
+            key={section.title}
+            className={`${styles.valueCard} ${styles.revealCard}`}
+            style={{ animationDelay: `${220 + index * 90}ms` }}
+          >
             <p className={styles.valueLabel}>{section.label}</p>
             <h2 className={styles.cardTitle}>{section.title}</h2>
             <p className={styles.valueHighlight}>{section.highlight}</p>
@@ -161,7 +167,7 @@ export function LandingPage() {
         ))}
       </section>
 
-      <section className={styles.cta} id="waitlist">
+      <section className={`${styles.cta} ${styles.reveal} ${styles.delay4}`} id="waitlist">
         <div>
           <h2 className={styles.ctaTitle}>Join Waitlist</h2>
           <p className={styles.ctaSub}>Get early access updates and launch details.</p>
