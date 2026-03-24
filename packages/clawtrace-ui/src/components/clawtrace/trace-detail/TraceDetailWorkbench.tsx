@@ -2299,7 +2299,7 @@ export function TraceDetailWorkbench({
         <section className={styles.content}>
           <header className={styles.topRow}>
             <div className={styles.topIdentity}>
-              <h1 className={styles.pageTitle}>Run Detail</h1>
+              <h1 className={styles.pageTitle}>Tracing Detail</h1>
               <p className={styles.pageSubtitle}>
                 {detail.workflow.name} · {formatDate(detail.trace.startedAtMs)}
               </p>

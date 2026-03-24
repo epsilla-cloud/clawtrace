@@ -906,9 +906,9 @@
 
 .tracyName {
   margin: 0;
-  font-size: 38px;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   font-weight: 620;
   color: var(--ct-text);
 }
