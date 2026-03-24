@@ -204,9 +204,40 @@
   border-radius: 10px;
   background: color-mix(in srgb, var(--ct-panel-subtle) 46%, white);
   height: 100%;
-  overflow: auto;
+  overflow: hidden;
   min-height: 0;
-  padding: 8px 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.treeHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 72%, white);
+}
+
+.treeHeaderStep,
+.treeHeaderMetric {
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  font-weight: 620;
+}
+
+.treeHeaderMetric {
+  min-width: 86px;
+  text-align: right;
+}
+
+.treeRows {
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 0;
 }
 
 .treeRow,
@@ -216,10 +247,12 @@
   background: transparent;
   min-height: 34px;
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 8px;
   padding-right: 10px;
+  padding-top: 1px;
+  padding-bottom: 1px;
   text-align: left;
   cursor: pointer;
 }
@@ -231,6 +264,13 @@
 
 .treeRowSelected {
   background: color-mix(in srgb, var(--ct-accent) 78%, white);
+}
+
+.treeStepCell {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .treeKindDot {
@@ -266,10 +306,20 @@
   color: var(--ct-soft-text);
 }
 
-.treeMeta {
-  font-size: var(--ct-text-meta);
+.treeDuration,
+.treeTokens {
+  font-size: var(--ct-text-body-sm);
   color: var(--ct-muted);
   white-space: nowrap;
+  text-align: right;
+}
+
+.treeDuration {
+  min-width: 72px;
+}
+
+.treeTokens {
+  min-width: 96px;
 }
 
 .treeGroupCaret {
@@ -288,6 +338,12 @@
   font-size: var(--ct-text-meta);
   min-height: 20px;
   padding: 0 6px;
+}
+
+.treeGroupChildren {
+  margin: 2px 0 4px;
+  padding-left: 10px;
+  border-left: 1px dashed color-mix(in srgb, var(--ct-border) 80%, white);
 }
 
 .actorMapCanvas,
@@ -1054,10 +1110,11 @@
 
   .treeRow,
   .treeGroupRow {
-    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .treeMeta:last-child {
+  .treeTokens,
+  .treeHeaderMetric:last-child {
     display: none;
   }
 

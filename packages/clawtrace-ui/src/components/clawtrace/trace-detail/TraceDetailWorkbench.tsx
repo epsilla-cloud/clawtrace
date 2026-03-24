@@ -157,6 +157,37 @@ function formatDuration(valueMs: number): string {
   return `${(valueMs / 60_000).toFixed(1)}m`;
 }
 
+function formatCompactTokens(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) {
+    return '—';
+  }
+  if (value >= 1_000_000) {
+    const millions = value / 1_000_000;
+    return millions >= 10 ? `${Math.round(millions)}M` : `${millions.toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    const thousands = value / 1000;
+    return thousands >= 10 ? `${Math.round(thousands)}k` : `${thousands.toFixed(1)}k`;
+  }
+  return `${Math.round(value)}`;
+}
+
+function formatSpanTokenCell(span: TraceDetailSpan): string {
+  if (span.kind !== 'llm_call' && span.totalTokens <= 0) {
+    return '—';
+  }
+  return `${formatCompactTokens(span.totalTokens)} tok`;
+}
+
+function formatGroupTokenCell(spans: TraceDetailSpan[]): string {
+  const totalTokens = spans.reduce((sum, item) => sum + item.totalTokens, 0);
+  const hasAnyLlm = spans.some((item) => item.kind === 'llm_call');
+  if (!hasAnyLlm && totalTokens <= 0) {
+    return '—';
+  }
+  return `${formatCompactTokens(totalTokens)} tok`;
+}
+
 function formatPhaseTime(baseMs: number, valueMs: number): string {
   return formatDuration(Math.max(0, valueMs - baseMs));
 }
@@ -1426,10 +1457,12 @@ function ExecutionPathView({
           style={{ paddingLeft: `${12 + depth * 18}px` }}
           onClick={() => onSelectSpan(span.spanId)}
         >
-          <span className={`${styles.treeKindDot} ${styles[`kindDot${span.kind}`]}`} aria-hidden="true" />
-          <span className={styles.treeLabel}>{spanDisplayLabel(span)}</span>
-          <span className={styles.treeMeta}>{formatDuration(span.resolvedDurationMs)}</span>
-          <span className={styles.treeMeta}>{formatNumber(span.totalTokens)} tok</span>
+          <span className={styles.treeStepCell}>
+            <span className={`${styles.treeKindDot} ${styles[`kindDot${span.kind}`]}`} aria-hidden="true" />
+            <span className={styles.treeLabel}>{spanDisplayLabel(span)}</span>
+          </span>
+          <span className={styles.treeDuration}>{formatDuration(span.resolvedDurationMs)}</span>
+          <span className={styles.treeTokens}>{formatSpanTokenCell(span)}</span>
         </button>
 
         {grouped.map((group, groupIndex) => {
@@ -1455,15 +1488,24 @@ function ExecutionPathView({
                   }));
                 }}
               >
-                <span className={styles.treeGroupCaret}>{opened ? '▾' : '▸'}</span>
-                <span className={`${styles.treeKindDot} ${styles[`kindDot${first.kind}`]}`} aria-hidden="true" />
-                <span className={styles.treeGroupLabel}>{spanDisplayLabel(first)}</span>
-                <span className={styles.treeGroupBadge}>×{group.spans.length}</span>
-                <span className={styles.treeMeta}>{formatDuration(totalDuration)}</span>
-                <span className={styles.treeMeta}>{formatNumber(totalTokens)} tok</span>
+                <span className={styles.treeStepCell}>
+                  <span className={styles.treeGroupCaret}>{opened ? '▾' : '▸'}</span>
+                  <span className={`${styles.treeKindDot} ${styles[`kindDot${first.kind}`]}`} aria-hidden="true" />
+                  <span className={styles.treeGroupLabel}>{spanDisplayLabel(first)}</span>
+                  <span className={styles.treeGroupBadge}>×{group.spans.length}</span>
+                </span>
+                <span className={styles.treeDuration}>{formatDuration(totalDuration)}</span>
+                <span className={styles.treeTokens}>{formatGroupTokenCell(group.spans)}</span>
               </button>
 
-              {opened ? group.spans.map((groupSpan, innerIndex) => renderNode(groupSpan, depth + 2, `${path}-${groupIndex}-${innerIndex}`)) : null}
+              {opened ? (
+                <div
+                  className={styles.treeGroupChildren}
+                  style={{ marginLeft: `${12 + (depth + 1) * 18}px` }}
+                >
+                  {group.spans.map((groupSpan, innerIndex) => renderNode(groupSpan, depth + 1, `${path}-${groupIndex}-${innerIndex}`))}
+                </div>
+              ) : null}
             </Fragment>
           );
         })}
@@ -1477,10 +1519,17 @@ function ExecutionPathView({
 
   return (
     <div className={styles.treePanel}>
-      {detail.callTree.roots
-        .map((rootId) => spanById.get(rootId))
-        .filter((span): span is TraceDetailSpan => Boolean(span))
-        .map((span, index) => renderNode(span, 0, `root-${index}`))}
+      <header className={styles.treeHeader}>
+        <span className={styles.treeHeaderStep}>Step</span>
+        <span className={styles.treeHeaderMetric}>Duration</span>
+        <span className={styles.treeHeaderMetric}>Tokens (LLM)</span>
+      </header>
+      <div className={styles.treeRows}>
+        {detail.callTree.roots
+          .map((rootId) => spanById.get(rootId))
+          .filter((span): span is TraceDetailSpan => Boolean(span))
+          .map((span, index) => renderNode(span, 0, `root-${index}`))}
+      </div>
     </div>
   );
 }
