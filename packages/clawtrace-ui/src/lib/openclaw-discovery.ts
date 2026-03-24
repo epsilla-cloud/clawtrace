@@ -30,6 +30,8 @@ export type WorkflowTrajectory = {
   toolCalls: number;
   totalTokens: number;
   models: string[];
+  signals: string[];
+  mutatingBoundaries: string[];
   status: 'running' | 'completed';
 };
 
@@ -155,6 +157,11 @@ type TraceSpan = {
   traceId?: string;
   sessionKey?: string;
   kind?: string;
+  name?: string;
+  toolName?: string;
+  toolParams?: {
+    command?: string;
+  };
   startMs?: number;
   endMs?: number;
   durationMs?: number;
@@ -175,6 +182,8 @@ type TraceAccumulator = {
   toolCalls: number;
   totalTokens: number;
   models: Set<string>;
+  signals: Set<string>;
+  mutatingBoundaries: Set<string>;
   hasAnySpanWithoutEnd: boolean;
   lastObservedMs: number;
 };
@@ -365,6 +374,134 @@ function detectMutatingBoundaries(instructionText: string | null): string[] {
   return boundaries;
 }
 
+function signalsFromTraceSpan(span: TraceSpan): { signals: string[]; mutatingBoundaries: string[] } {
+  const text = `${span.name ?? ''} ${span.toolName ?? ''} ${span.toolParams?.command ?? ''} ${span.sessionKey ?? ''}`.toLowerCase();
+  const signals: string[] = [];
+  const mutatingBoundaries: string[] = [];
+
+  if (/moltbook/.test(text)) {
+    signals.push('moltbook_engagement');
+    mutatingBoundaries.push('external_posting');
+  }
+  if (/seo|blog|hn\.algolia|public\/blogs|sitemap/.test(text)) {
+    signals.push('seo_content');
+  }
+  if (/cover|image|png|jpg|jpeg|nano-banana|generate_image/.test(text)) {
+    signals.push('image_generation');
+    mutatingBoundaries.push('cover_image_publish');
+  }
+  if (/video|ffmpeg|youtube|faceless_videos/.test(text)) {
+    signals.push('video_generation');
+  }
+  if (/telegram|message send --channel telegram/.test(text)) {
+    signals.push('telegram_ops');
+  }
+  if (/vercel|deploy/.test(text)) {
+    signals.push('deployment');
+    mutatingBoundaries.push('deploy_to_production');
+  }
+  if (/git add|git commit|git push/.test(text)) {
+    mutatingBoundaries.push('git_push');
+  }
+  if (/sitemap/.test(text)) {
+    mutatingBoundaries.push('sitemap_update');
+  }
+
+  return {
+    signals: unique(signals),
+    mutatingBoundaries: unique(mutatingBoundaries),
+  };
+}
+
+function inferWorkflowFromTrajectory(trajectory: WorkflowTrajectory): {
+  id: string;
+  name: string;
+  scheduleLabel: string;
+  inferredGoals: string[];
+  failureThemes: string[];
+} {
+  const signals = new Set(trajectory.signals);
+  const sessionKey = trajectory.sessionKey;
+
+  if (signals.has('moltbook_engagement')) {
+    return {
+      id: 'inferred-moltbook-engagement',
+      name: 'Moltbook Engagement',
+      scheduleLabel: 'event-driven (heartbeat/inferred)',
+      inferredGoals: ['Maintain social engagement workflow quality while keeping external posting actions verifiable.'],
+      failureThemes: [],
+    };
+  }
+
+  if (signals.has('video_generation')) {
+    return {
+      id: 'inferred-video-generation',
+      name: 'Video Generation',
+      scheduleLabel: 'event-driven (inferred)',
+      inferredGoals: ['Automate video asset generation with deterministic execution and output verification.'],
+      failureThemes: [],
+    };
+  }
+
+  if (signals.has('seo_content')) {
+    return {
+      id: 'inferred-seo-content',
+      name: 'SEO Content Operations (Ad-hoc)',
+      scheduleLabel: 'event-driven (inferred)',
+      inferredGoals: ['Scale SEO content throughput while preserving deploy and quality gates.'],
+      failureThemes: [],
+    };
+  }
+
+  if (signals.has('image_generation')) {
+    return {
+      id: 'inferred-image-generation',
+      name: 'Image Generation',
+      scheduleLabel: 'event-driven (inferred)',
+      inferredGoals: ['Guarantee generated image assets are valid before any publish boundary.'],
+      failureThemes: ['cover_image_generation'],
+    };
+  }
+
+  if (signals.has('deployment')) {
+    return {
+      id: 'inferred-deployment-ops',
+      name: 'Deployment Operations',
+      scheduleLabel: 'event-driven (inferred)',
+      inferredGoals: ['Protect production deploy steps with explicit verification and rollback-safe controls.'],
+      failureThemes: ['deployment'],
+    };
+  }
+
+  if (signals.has('telegram_ops') || sessionKey.includes(':telegram:')) {
+    return {
+      id: 'inferred-telegram-ops',
+      name: 'Telegram Operations',
+      scheduleLabel: 'event-driven (inferred)',
+      inferredGoals: ['Keep Telegram-facing agent tasks observable and policy-aligned.'],
+      failureThemes: [],
+    };
+  }
+
+  if (sessionKey.includes(':subagent:')) {
+    return {
+      id: 'inferred-subagent-ops',
+      name: 'Subagent Operations',
+      scheduleLabel: 'event-driven (inferred)',
+      inferredGoals: ['Track delegated subagent executions and prevent silent drift.'],
+      failureThemes: [],
+    };
+  }
+
+  return {
+    id: 'inferred-main-ops',
+    name: 'Main Session Operations',
+    scheduleLabel: 'event-driven (inferred)',
+    inferredGoals: ['Observe non-cron agent trajectories and promote stable patterns into explicit workflows.'],
+    failureThemes: [],
+  };
+}
+
 function buildRecommendations(input: {
   tracingEnabled: boolean;
   configAuditEnabled: boolean;
@@ -516,6 +653,8 @@ function toTrajectory(acc: TraceAccumulator, nowMs: number): WorkflowTrajectory 
     toolCalls: acc.toolCalls,
     totalTokens: acc.totalTokens,
     models: Array.from(acc.models).sort(),
+    signals: Array.from(acc.signals).sort(),
+    mutatingBoundaries: Array.from(acc.mutatingBoundaries).sort(),
     status: running ? 'running' : 'completed',
   };
 }
@@ -597,6 +736,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
       const startMs = toNumber(span.startMs);
       const endMs = toNumber(span.endMs);
       const observedEnd = endMs > 0 ? endMs : startMs;
+      const inferred = signalsFromTraceSpan(span);
 
       const existing = traceAccumulators.get(key);
       if (!existing) {
@@ -612,6 +752,8 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
             toNumber(span.attributes?.totalTokens) || toNumber(span.tokensIn) + toNumber(span.tokensOut),
           ),
           models: span.model ? new Set([span.model]) : new Set(),
+          signals: new Set(inferred.signals),
+          mutatingBoundaries: new Set(inferred.mutatingBoundaries),
           hasAnySpanWithoutEnd: !span.endMs,
           lastObservedMs: Math.max(startMs, observedEnd),
         });
@@ -629,6 +771,12 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
       );
       if (span.model) {
         existing.models.add(span.model);
+      }
+      for (const signal of inferred.signals) {
+        existing.signals.add(signal);
+      }
+      for (const boundary of inferred.mutatingBoundaries) {
+        existing.mutatingBoundaries.add(boundary);
       }
       if (!span.endMs) {
         existing.hasAnySpanWithoutEnd = true;
@@ -711,6 +859,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
   }
 
   const workflows: WorkflowDiscovery[] = [];
+  const assignedTrajectoryKeys = new Set<string>();
 
   for (const job of jobs) {
     const allJobRuns = runsByJob.get(job.id) ?? [];
@@ -736,6 +885,9 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
     const trajectoriesForWorkflow = trajectories
       .filter((trajectory) => trajectory.sessionKey.includes(`:cron:${job.id}`))
       .sort((a, b) => b.startedAtMs - a.startedAtMs);
+    for (const trajectory of trajectoriesForWorkflow) {
+      assignedTrajectoryKeys.add(`${trajectory.sessionKey}::${trajectory.traceId}`);
+    }
 
     const recommendations = buildRecommendations({
       tracingEnabled,
@@ -802,7 +954,113 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
     });
   }
 
-  const runsLast7d = allRuns.filter((run) => toNumber(run.runAtMs) >= windowStartMs).length;
+  const inferredBuckets = new Map<
+    string,
+    {
+      id: string;
+      name: string;
+      scheduleLabel: string;
+      inferredGoals: string[];
+      failureThemes: string[];
+      trajectories: WorkflowTrajectory[];
+    }
+  >();
+
+  for (const trajectory of trajectories) {
+    const key = `${trajectory.sessionKey}::${trajectory.traceId}`;
+    if (assignedTrajectoryKeys.has(key)) {
+      continue;
+    }
+
+    const inferredWorkflow = inferWorkflowFromTrajectory(trajectory);
+    const existing = inferredBuckets.get(inferredWorkflow.id);
+    if (!existing) {
+      inferredBuckets.set(inferredWorkflow.id, {
+        ...inferredWorkflow,
+        trajectories: [trajectory],
+      });
+      continue;
+    }
+
+    existing.trajectories.push(trajectory);
+    existing.inferredGoals = unique([...existing.inferredGoals, ...inferredWorkflow.inferredGoals]);
+    existing.failureThemes = unique([...existing.failureThemes, ...inferredWorkflow.failureThemes]);
+  }
+
+  for (const bucket of inferredBuckets.values()) {
+    const recentTrajectories = bucket.trajectories
+      .filter((trajectory) => trajectory.startedAtMs >= windowStartMs)
+      .sort((a, b) => b.startedAtMs - a.startedAtMs);
+
+    if (!recentTrajectories.length) {
+      continue;
+    }
+
+    const tokenTotal = recentTrajectories.reduce((sum, trajectory) => sum + trajectory.totalTokens, 0);
+    const mutatingBoundaries = unique(recentTrajectories.flatMap((trajectory) => trajectory.mutatingBoundaries));
+    const latestTrajectory = recentTrajectories[0];
+
+    const recommendations = buildRecommendations({
+      tracingEnabled,
+      configAuditEnabled: configAuditRows.length > 0,
+      configChanges7d,
+      runs7d: [],
+      failureThemes: bucket.failureThemes,
+      mutatingBoundaries,
+    });
+
+    workflows.push({
+      id: bucket.id,
+      name: bucket.name,
+      enabled: true,
+      scheduleLabel: bucket.scheduleLabel,
+      trustState: 'partially_verified',
+      trustReason:
+        'This workflow is inferred from trace trajectories (non-cron). Enable explicit Cron/Heartbeat contracts for stronger determinism.',
+      instructionPath: null,
+      instructionExists: false,
+      inferredGoals: bucket.inferredGoals,
+      failureThemes: bucket.failureThemes,
+      runStats7d: {
+        total: recentTrajectories.length,
+        success: 0,
+        failed: 0,
+        unknown: recentTrajectories.length,
+        successRate: 0,
+      },
+      tokenStats7d: {
+        total: tokenTotal,
+        input: 0,
+        output: 0,
+      },
+      modelUsage: aggregateModelUsage([], recentTrajectories),
+      latestRun: {
+        status: latestTrajectory.status,
+        atMs: latestTrajectory.startedAtMs,
+        durationMs: latestTrajectory.durationMs,
+        summary: compactText(
+          latestTrajectory.signals.length
+            ? `Inferred from trajectory signals: ${latestTrajectory.signals.join(', ')}`
+            : 'Inferred from non-cron trajectory telemetry.',
+        ),
+      },
+      trajectories: recentTrajectories.slice(0, 12),
+      recommendations,
+      mutatingBoundaries,
+    });
+  }
+
+  if (workflows.length > jobs.length) {
+    warnings.push(
+      `Discovered ${workflows.length - jobs.length} additional inferred workflow group(s) from non-cron trajectories.`,
+    );
+  }
+
+  const runsLast7d =
+    allRuns.filter((run) => toNumber(run.runAtMs) >= windowStartMs).length +
+    workflows
+      .filter((workflow) => workflow.id.startsWith('inferred-'))
+      .reduce((sum, workflow) => sum + workflow.runStats7d.total, 0);
   const trajectoriesLast7d = trajectories.filter((trajectory) => trajectory.startedAtMs >= windowStartMs).length;
   const activeTrajectories = trajectories.filter((trajectory) => trajectory.status === 'running').length;
 
