@@ -178,12 +178,12 @@
 }
 
 .tracyMessage {
-  max-width: 92%;
+  max-width: 94%;
   border: 1px solid transparent;
   border-radius: 12px;
   padding: 10px;
   display: grid;
-  gap: 4px;
+  gap: 6px;
 }
 
 .tracyAssistant {
@@ -194,31 +194,96 @@
 
 .tracyUser {
   justify-self: end;
-  background: color-mix(in srgb, var(--ct-accent) 72%, white);
+  background: color-mix(in srgb, var(--ct-accent) 74%, white);
   border-color: color-mix(in srgb, var(--ct-accent-text) 20%, white);
 }
 
-.tracySystem {
-  justify-self: center;
-  width: 100%;
-  background: color-mix(in srgb, var(--ct-panel-subtle) 76%, white);
-  border-color: color-mix(in srgb, var(--ct-border) 74%, white);
-}
-
-.tracyMessageRole {
+.tracySender {
   margin: 0;
   font-size: var(--ct-text-meta);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.02em;
   color: var(--ct-muted);
+  font-weight: 620;
 }
 
 .tracyMessageText {
   margin: 0;
   font-size: var(--ct-text-body-sm);
   color: var(--ct-soft-text);
-  line-height: 1.42;
+  line-height: 1.45;
   white-space: pre-wrap;
+}
+
+.tracyChartRow {
+  display: grid;
+  gap: 8px;
+}
+
+.tracyInlineChart {
+  margin: 0;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ct-panel-subtle) 68%, white);
+  padding: 8px;
+  display: grid;
+  gap: 6px;
+}
+
+.tracyInlineTitle {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-text);
+  font-weight: 560;
+}
+
+.tracyInlineMeta {
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+  font-weight: 500;
+}
+
+.tracyInlineCanvas {
+  width: 100%;
+  height: 74px;
+}
+
+.tracyActionRow,
+.tracyAttachmentRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tracyActionChip,
+.tracyAttachmentChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 24px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
+  color: var(--ct-soft-text);
+  font-size: var(--ct-text-meta);
+  padding: 1px 8px;
+}
+
+.tracyActionChip {
+  font-weight: 560;
+}
+
+.tracyAttachmentRemove {
+  border: 0;
+  background: transparent;
+  color: var(--ct-muted);
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .tracyComposer {
@@ -257,6 +322,69 @@
 .tracyPromptButton:hover {
   border-color: color-mix(in srgb, var(--ct-accent) 42%, white);
   color: var(--ct-text);
+}
+
+.tracyComposerRow {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+
+.tracyIconButton {
+  height: 34px;
+  width: 34px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
+  cursor: pointer;
+  font-size: 15px;
+}
+
+.tracyIconButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tracyVoiceActive {
+  border-color: color-mix(in srgb, var(--ct-accent) 52%, white);
+  background: color-mix(in srgb, var(--ct-accent) 78%, white);
+}
+
+.tracyTextArea {
+  min-height: 34px;
+  max-height: 110px;
+  resize: vertical;
+  border-radius: var(--ct-control-radius);
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: #fff;
+  padding: 8px 10px;
+  font-size: var(--ct-text-body-sm);
+  color: var(--ct-soft-text);
+  font-family: inherit;
+}
+
+.tracySendButton {
+  height: 34px;
+  border-radius: var(--ct-control-radius);
+  border: 1px solid transparent;
+  background: var(--ct-primary);
+  color: #fff;
+  font-size: var(--ct-text-body-sm);
+  font-weight: 590;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.tracyHiddenInput {
+  display: none;
+}
+
+.tracyComposerHint {
+  margin: 0;
+  font-size: var(--ct-text-meta);
+  color: var(--ct-muted);
+  line-height: 1.35;
 }
 
 .tracyCollapsedBody {

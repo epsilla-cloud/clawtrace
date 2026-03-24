@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 import { FlowLeftNav } from '../flow/FlowLeftNav';
 import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
 import type { OpenClawDiscoverySnapshot } from '../../../lib/openclaw-discovery';
@@ -398,16 +398,27 @@ type TraceRow = {
   estimatedCostUsd: number;
 };
 
-type TracyMessageRole = 'assistant' | 'user' | 'system';
+type TracyMessageRole = 'assistant' | 'user';
+
+type TracyInlineChartSpec = {
+  id: string;
+  title: string;
+  categories: string[];
+  values: number[];
+  mode: 'number' | 'currency';
+};
 
 type TracyMessage = {
   id: string;
   role: TracyMessageRole;
   text: string;
+  attachments?: string[];
+  charts?: TracyInlineChartSpec[];
+  actions?: string[];
 };
 
 type TracyPrompt = {
-  id: 'failures' | 'cost' | 'next-step';
+  id: 'overview' | 'cost' | 'incident' | 'contract' | 'alert';
   label: string;
 };
 
@@ -417,179 +428,426 @@ type TracyPanelProps = {
   rangeLabel: string;
   rangeSubtitle: string;
   loading: boolean;
+  trendLabels: string[];
+  trendRuns: number[];
+  trendCost: number[];
+  modelsUsed: string[];
+};
+
+type TracyContext = {
+  traceRows: TraceRow[];
+  rangeLabel: string;
+  rangeSubtitle: string;
+  trendLabels: string[];
+  trendRuns: number[];
+  trendCost: number[];
+  modelsUsed: string[];
+};
+
+type AttachedFile = {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+};
+
+type BrowserSpeechRecognition = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start: () => void;
+  stop: () => void;
 };
 
 function tracyRoleClass(role: TracyMessageRole): string {
-  if (role === 'assistant') return styles.tracyAssistant;
-  if (role === 'user') return styles.tracyUser;
-  return styles.tracySystem;
-}
-
-function summarizeFailures(traceRows: TraceRow[]): string {
-  const failures = traceRows.filter((row) => row.status === 'failure');
-  if (!failures.length) {
-    const unknownCount = traceRows.filter((row) => row.status === 'unknown').length;
-    if (unknownCount > 0) {
-      return `Good news: no hard failures in this range. I do see ${unknownCount} unknown run${unknownCount > 1 ? 's' : ''}, so verification depth is still worth tightening.`;
-    }
-    return 'No hard failures in this range. Reliability is steady right now.';
-  }
-
-  const failuresByWorkflow = new Map<string, { count: number; costUsd: number }>();
-  for (const row of failures) {
-    const current = failuresByWorkflow.get(row.workflowName) ?? { count: 0, costUsd: 0 };
-    current.count += 1;
-    current.costUsd += row.estimatedCostUsd;
-    failuresByWorkflow.set(row.workflowName, current);
-  }
-
-  const [topWorkflow, topStats] =
-    [...failuresByWorkflow.entries()].sort((a, b) => b[1].count - a[1].count || b[1].costUsd - a[1].costUsd)[0] ?? [];
-  const failureRate = traceRows.length ? Math.round((failures.length / traceRows.length) * 100) : 0;
-
-  if (!topWorkflow || !topStats) {
-    return `I found ${failures.length} failed run${failures.length > 1 ? 's' : ''} in ${traceRows.length} traces (${failureRate}%).`;
-  }
-
-  return [
-    `I found ${failures.length} failed run${failures.length > 1 ? 's' : ''} in ${traceRows.length} traces (${failureRate}%).`,
-    `Largest concentration is ${topWorkflow} with ${topStats.count} failure${topStats.count > 1 ? 's' : ''} and ${formatCurrency(topStats.costUsd)} burned during failed attempts.`,
-    'If we stabilize that path first, you should feel reliability improve quickly.',
-  ].join('\n');
-}
-
-function summarizeCostLeaks(traceRows: TraceRow[]): string {
-  if (!traceRows.length) {
-    return 'No trace data yet, so I cannot rank spend leaks yet.';
-  }
-
-  const costByWorkflow = new Map<string, number>();
-  for (const row of traceRows) {
-    costByWorkflow.set(row.workflowName, (costByWorkflow.get(row.workflowName) ?? 0) + row.estimatedCostUsd);
-  }
-  const [topWorkflowName, topWorkflowCost] = [...costByWorkflow.entries()].sort((a, b) => b[1] - a[1])[0] ?? [];
-  const topRun = [...traceRows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
-  const totalCost = traceRows.reduce((sum, row) => sum + row.estimatedCostUsd, 0);
-
-  if (!topWorkflowName || !topRun) {
-    return `Estimated spend for this range is ${formatCurrency(totalCost)}.`;
-  }
-
-  const workflowShare = totalCost > 0 ? Math.round((topWorkflowCost / totalCost) * 100) : 0;
-
-  return [
-    `Top spend leak is ${topWorkflowName}: ${formatCurrency(topWorkflowCost)} (${workflowShare}% of total).`,
-    `Most expensive single run: ${topRun.traceName} at ${formatCurrency(topRun.estimatedCostUsd)} with ${formatNumber(topRun.inputTokens + topRun.outputTokens)} total tokens.`,
-    'If we cut prompt bloat or retries there, cost should drop first and fastest.',
-  ].join('\n');
-}
-
-function summarizeNextStep(traceRows: TraceRow[]): string {
-  if (!traceRows.length) {
-    return 'First move: let one complete day of traces land, then I can prioritize the sharpest intervention.';
-  }
-
-  const latestFailure = [...traceRows]
-    .filter((row) => row.status === 'failure')
-    .sort((a, b) => b.startedAtMs - a.startedAtMs)[0];
-  if (latestFailure) {
-    return [
-      `I would start with ${latestFailure.workflowName}.`,
-      `Latest failed run: ${latestFailure.traceName} at ${formatDate(latestFailure.startedAtMs)}.`,
-      'Action: open that run detail, inspect the first failed step, and add a deterministic guardrail before rerun.',
-    ].join('\n');
-  }
-
-  const hottestUnknown = [...traceRows]
-    .filter((row) => row.status === 'unknown')
-    .sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
-  if (hottestUnknown) {
-    return [
-      `No explicit failures right now, so next best move is verification hardening on ${hottestUnknown.workflowName}.`,
-      `Highest-cost unknown run: ${hottestUnknown.traceName} at ${formatCurrency(hottestUnknown.estimatedCostUsd)}.`,
-      'Action: add a verifier so unknown outcomes resolve into clear success/failure.',
-    ].join('\n');
-  }
-
-  const highestCost = [...traceRows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
-  return [
-    'System health looks stable. Next move is cost tuning.',
-    `Start with ${highestCost.workflowName} and its highest-cost run (${formatCurrency(highestCost.estimatedCostUsd)}).`,
-    'Action: trim context and cap retries for this path.',
-  ].join('\n');
+  return role === 'assistant' ? styles.tracyAssistant : styles.tracyUser;
 }
 
 function getTracyPrompts(flowId: ClawTraceFlowDefinition['id']): TracyPrompt[] {
   if (flowId === 'f3-control-room') {
     return [
-      { id: 'failures', label: 'What failed most recently?' },
-      { id: 'cost', label: 'Where is spend leaking?' },
-      { id: 'next-step', label: 'What should we fix first?' },
+      { id: 'overview', label: 'Give me the executive summary' },
+      { id: 'cost', label: 'Where should we cut cost first?' },
+      { id: 'incident', label: 'Write an incident brief for the latest risk' },
+      { id: 'contract', label: 'How should we tighten the agent contract?' },
+      { id: 'alert', label: 'Create an alert for sudden spend spikes' },
     ];
   }
 
   return [
-    { id: 'next-step', label: 'What is the next best action?' },
-    { id: 'failures', label: 'Any reliability hotspots?' },
-    { id: 'cost', label: 'Any cost hotspots?' },
+    { id: 'overview', label: 'Give me a quick health summary' },
+    { id: 'cost', label: 'Where is cost concentrated?' },
+    { id: 'contract', label: 'What should we improve next?' },
   ];
 }
 
-function seedTracyMessages(flow: ClawTraceFlowDefinition, traceRows: TraceRow[], rangeLabel: string, rangeSubtitle: string, loading: boolean): TracyMessage[] {
+function createTracyCharts(context: TracyContext): TracyInlineChartSpec[] {
+  return [
+    {
+      id: 'runs-trend',
+      title: 'Run activity',
+      categories: context.trendLabels,
+      values: context.trendRuns,
+      mode: 'number',
+    },
+    {
+      id: 'cost-trend',
+      title: 'Cost trend',
+      categories: context.trendLabels,
+      values: context.trendCost,
+      mode: 'currency',
+    },
+  ];
+}
+
+function summarizePortfolioOverview(context: TracyContext): string {
+  const rows = context.traceRows;
+  if (!rows.length) {
+    return [
+      `I checked ${context.rangeSubtitle.toLowerCase()} but there are no ingested runs yet.`,
+      'Once data lands, I will summarize health, spend concentration, and top actions automatically.',
+    ].join('\n');
+  }
+
+  const successCount = rows.filter((row) => row.status === 'success').length;
+  const failureCount = rows.filter((row) => row.status === 'failure').length;
+  const unknownCount = rows.filter((row) => row.status === 'unknown').length;
+  const totalCost = rows.reduce((sum, row) => sum + row.estimatedCostUsd, 0);
+  const successRate = Math.round((successCount / rows.length) * 100);
+  const workflowCount = new Set(rows.map((row) => row.workflowName)).size;
+  const costByWorkflow = new Map<string, number>();
+  for (const row of rows) {
+    costByWorkflow.set(row.workflowName, (costByWorkflow.get(row.workflowName) ?? 0) + row.estimatedCostUsd);
+  }
+  const [topCostWorkflow, topCostValue] = [...costByWorkflow.entries()].sort((a, b) => b[1] - a[1])[0] ?? ['n/a', 0];
+  const costShare = totalCost > 0 ? Math.round((topCostValue / totalCost) * 100) : 0;
+
+  const peakRunIndex = context.trendRuns.findIndex((value) => value === Math.max(...context.trendRuns, 0));
+  const peakCostIndex = context.trendCost.findIndex((value) => value === Math.max(...context.trendCost, 0));
+  const peakRunDay = peakRunIndex >= 0 ? context.trendLabels[peakRunIndex] : 'n/a';
+  const peakCostDay = peakCostIndex >= 0 ? context.trendLabels[peakCostIndex] : 'n/a';
+
+  return [
+    `I reviewed ${rows.length} runs across ${workflowCount} workflows for ${context.rangeSubtitle.toLowerCase()}.`,
+    `Overall reliability is ${successRate}% (${successCount} successful, ${failureCount} failed${unknownCount ? `, ${unknownCount} unknown` : ''}).`,
+    `Estimated spend is ${formatCurrency(totalCost)}, with ${topCostWorkflow} driving about ${costShare}% of the total.`,
+    `Volume peaked on ${peakRunDay}, while spend peaked on ${peakCostDay}, so cost pressure is driven more by run heaviness than pure run count.`,
+  ].join('\n');
+}
+
+function summarizeCostPriority(context: TracyContext): string {
+  const rows = context.traceRows;
+  if (!rows.length) {
+    return 'No run data yet, so I cannot rank cost actions.';
+  }
+
+  const byWorkflow = new Map<string, { cost: number; runs: number }>();
+  for (const row of rows) {
+    const current = byWorkflow.get(row.workflowName) ?? { cost: 0, runs: 0 };
+    current.cost += row.estimatedCostUsd;
+    current.runs += 1;
+    byWorkflow.set(row.workflowName, current);
+  }
+
+  const ranked = [...byWorkflow.entries()].sort((a, b) => b[1].cost - a[1].cost);
+  const [firstName, firstStats] = ranked[0] ?? ['n/a', { cost: 0, runs: 0 }];
+  const [secondName, secondStats] = ranked[1] ?? ['n/a', { cost: 0, runs: 0 }];
+  const total = rows.reduce((sum, row) => sum + row.estimatedCostUsd, 0);
+  const firstShare = total > 0 ? Math.round((firstStats.cost / total) * 100) : 0;
+  const highestRun = [...rows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
+
+  return [
+    `Highest leverage cut is ${firstName}: ${formatCurrency(firstStats.cost)} across ${firstStats.runs} runs (${firstShare}% share).`,
+    `${secondName !== 'n/a' ? `Second is ${secondName} at ${formatCurrency(secondStats.cost)}.` : 'No second major cost cluster yet.'}`,
+    `Single hottest run is ${highestRun.traceName} at ${formatCurrency(highestRun.estimatedCostUsd)} (${formatNumber(highestRun.inputTokens + highestRun.outputTokens)} tokens).`,
+    'Recommendation: start with prompt/context reduction and retry caps on that first workflow before broader tuning.',
+  ].join('\n');
+}
+
+function summarizeIncidentBrief(context: TracyContext): string {
+  const latestRisky = [...context.traceRows]
+    .filter((row) => row.status === 'failure' || row.status === 'unknown')
+    .sort((a, b) => b.startedAtMs - a.startedAtMs)[0];
+
+  if (!latestRisky) {
+    return [
+      'No active incident pattern in the selected range.',
+      'If you want, I can draft a preventive brief focused on cost spikes or verification drift instead.',
+    ].join('\n');
+  }
+
+  return [
+    `Incident summary: ${latestRisky.workflowName} showed a risky run at ${formatDate(latestRisky.startedAtMs)}.`,
+    `Run: ${latestRisky.traceName} · status: ${latestRisky.status} · input ${formatNumber(latestRisky.inputTokens)} · output ${formatNumber(latestRisky.outputTokens)} · cost ${formatCurrency(latestRisky.estimatedCostUsd)}.`,
+    'Likely impact: reliability confidence drops for this path and reruns can compound spend.',
+    'Suggested immediate action: inspect first failing step in run detail and pin one deterministic guard before the next execution.',
+  ].join('\n');
+}
+
+function summarizeContractAssist(context: TracyContext): string {
+  const failures = context.traceRows.filter((row) => row.status === 'failure');
+  const unknowns = context.traceRows.filter((row) => row.status === 'unknown');
+  const topCost = [...context.traceRows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
+  const modelHint = context.modelsUsed.length ? `Observed model mix: ${context.modelsUsed.join(', ')}.` : 'Model mix unavailable in this snapshot.';
+
+  return [
+    'Contract hardening proposal:',
+    `1) Add explicit success criteria and verifier checks on ${failures[0]?.workflowName ?? topCost?.workflowName ?? 'the highest-impact workflow'}.`,
+    `2) Convert unknown outcomes (${unknowns.length} in range) into explicit pass/fail with one lightweight verifier step.`,
+    `3) Add a budget guardrail on high-cost runs above ${topCost ? formatCurrency(topCost.estimatedCostUsd) : '$0.00'} with pre-run warning.`,
+    modelHint,
+  ].join('\n');
+}
+
+function summarizeAlertPlan(context: TracyContext): string {
+  const peak = Math.max(...context.trendCost, 0);
+  const avg = context.trendCost.length ? context.trendCost.reduce((sum, value) => sum + value, 0) / context.trendCost.length : 0;
+  const suggestedThreshold = Math.max(peak * 0.7, avg * 1.8);
+  return [
+    `I can draft a spend spike alert with threshold around ${formatCurrency(suggestedThreshold)} per day.`,
+    'Alert logic: trigger when daily cost exceeds threshold or when cost/run jumps >40% day-over-day.',
+    'Delivery: post to control room + notify channel with top contributing workflow and last 3 expensive runs.',
+  ].join('\n');
+}
+
+function buildTracyResponse(query: string, context: TracyContext): Omit<TracyMessage, 'id' | 'role'> {
+  const normalized = query.toLowerCase();
+  const baseCharts = createTracyCharts(context);
+
+  if (normalized.includes('cost') || normalized.includes('spend') || normalized.includes('budget')) {
+    return {
+      text: `I pulled a cost-focused cut of your traces.\n${summarizeCostPriority(context)}`,
+      charts: [baseCharts[1]],
+      actions: ['Create spend spike alert', 'Save cost dashboard'],
+    };
+  }
+
+  if (normalized.includes('incident') || normalized.includes('brief') || normalized.includes('failure') || normalized.includes('risky')) {
+    return {
+      text: `I reviewed the latest risky runs and drafted a short brief.\n${summarizeIncidentBrief(context)}`,
+      charts: [baseCharts[0], baseCharts[1]],
+      actions: ['Open latest run detail', 'Generate incident memo'],
+    };
+  }
+
+  if (normalized.includes('contract') || normalized.includes('policy') || normalized.includes('rule')) {
+    return {
+      text: `I checked drift and repeat patterns, then prepared contract edits.\n${summarizeContractAssist(context)}`,
+      actions: ['Apply contract suggestions', 'Open verification setup'],
+    };
+  }
+
+  if (normalized.includes('alert') || normalized.includes('notify')) {
+    return {
+      text: `I analyzed your trend volatility and drafted alert logic.\n${summarizeAlertPlan(context)}`,
+      charts: [baseCharts[1]],
+      actions: ['Create alert', 'Preview alert test'],
+    };
+  }
+
+  return {
+    text: `I ran a full control-room overview using current telemetry.\n${summarizePortfolioOverview(context)}`,
+    charts: baseCharts,
+    actions: ['Save as briefing note', 'Create dashboard from this'],
+  };
+}
+
+function seedTracyMessages(flow: ClawTraceFlowDefinition, context: TracyContext, loading: boolean): TracyMessage[] {
   if (loading) {
     return [
       {
         id: 'tracy-loading-1',
         role: 'assistant',
-        text: `Hey, I’m Tracy. I’m syncing telemetry for ${flow.title} now and will surface quick insights in a moment.`,
+        text: `Hey, I’m Tracy. I’m syncing data for ${flow.title} and preparing your first briefing.`,
       },
     ];
   }
 
-  const failures = traceRows.filter((row) => row.status === 'failure').length;
-  const success = traceRows.filter((row) => row.status === 'success').length;
-  const totalCost = traceRows.reduce((sum, row) => sum + row.estimatedCostUsd, 0);
+  const firstResponse = buildTracyResponse('overview', context);
 
   return [
     {
       id: 'tracy-seed-1',
       role: 'assistant',
-      text: `Hey, I’m Tracy. I’m watching ${flow.title} for you in ${rangeLabel} mode (${rangeSubtitle.toLowerCase()}).`,
+      text: `I’m Tracy. I act as your investigation companion in this drawer: evidence Q&A, incident artifacts, contract assist, and fast navigation to the right run.`,
     },
     {
       id: 'tracy-seed-2',
-      role: 'system',
-      text: `${formatNumber(traceRows.length)} runs loaded · ${success} success · ${failures} failure · ${formatCurrency(totalCost)} estimated spend.`,
-    },
-    {
-      id: 'tracy-seed-3',
       role: 'assistant',
-      text: 'Ask one of the prompts below and I will break it down like a teammate, not a log parser.',
+      text: firstResponse.text,
+      charts: firstResponse.charts,
+      actions: firstResponse.actions,
     },
   ];
 }
 
-function answerTracyPrompt(promptId: TracyPrompt['id'], traceRows: TraceRow[]): string {
-  if (promptId === 'failures') return summarizeFailures(traceRows);
-  if (promptId === 'cost') return summarizeCostLeaks(traceRows);
-  return summarizeNextStep(traceRows);
+function TracyInlineChart({ chart }: { chart: TracyInlineChartSpec }) {
+  const chartRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = chartRef.current;
+    if (!node) {
+      return;
+    }
+
+    let canceled = false;
+    let chartInstance: { setOption: (option: unknown, notMerge?: boolean) => void; resize: () => void; dispose: () => void } | null = null;
+
+    const onResize = () => chartInstance?.resize();
+
+    const maxValue = Math.max(...chart.values, 0);
+    const yAxisMax = getNiceYAxisMax(maxValue);
+    const isCost = chart.mode === 'currency';
+    const lineColor = isCost ? '#9d4f46' : '#835130';
+
+    const option = {
+      animation: false,
+      grid: { left: 8, right: 8, top: 8, bottom: 8 },
+      xAxis: { type: 'category', data: chart.categories, show: false, boundaryGap: false },
+      yAxis: { type: 'value', show: false, min: 0, max: yAxisMax },
+      series: [
+        {
+          type: 'line',
+          data: chart.values,
+          smooth: 0.35,
+          symbol: 'none',
+          lineStyle: { color: lineColor, width: 2.2 },
+          areaStyle: {
+            color: {
+              type: 'linear',
+              x: 0,
+              y: 0,
+              x2: 0,
+              y2: 1,
+              colorStops: [
+                { offset: 0, color: isCost ? 'rgba(157,79,70,0.22)' : 'rgba(131,81,48,0.20)' },
+                { offset: 1, color: isCost ? 'rgba(157,79,70,0.03)' : 'rgba(131,81,48,0.03)' },
+              ],
+            },
+          },
+        },
+      ],
+    };
+
+    void (async () => {
+      const echarts = await import('echarts');
+      if (canceled || !node) return;
+      chartInstance = echarts.init(node);
+      chartInstance.setOption(option, true);
+      window.addEventListener('resize', onResize);
+    })();
+
+    return () => {
+      canceled = true;
+      window.removeEventListener('resize', onResize);
+      chartInstance?.dispose();
+    };
+  }, [chart.categories, chart.mode, chart.values]);
+
+  const lastValue = chart.values.length ? chart.values[chart.values.length - 1] : 0;
+  const maxValue = chart.values.length ? Math.max(...chart.values) : 0;
+  return (
+    <figure className={styles.tracyInlineChart}>
+      <figcaption className={styles.tracyInlineTitle}>
+        <span>{chart.title}</span>
+        <span className={styles.tracyInlineMeta}>
+          Peak {chart.mode === 'currency' ? formatCurrency(maxValue) : formatNumber(maxValue)} · Latest{' '}
+          {chart.mode === 'currency' ? formatCurrency(lastValue) : formatNumber(lastValue)}
+        </span>
+      </figcaption>
+      <div className={styles.tracyInlineCanvas} ref={chartRef} aria-label={chart.title} />
+    </figure>
+  );
 }
 
-function TracyPanel({ flow, traceRows, rangeLabel, rangeSubtitle, loading }: TracyPanelProps) {
+function TracyPanel({
+  flow,
+  traceRows,
+  rangeLabel,
+  rangeSubtitle,
+  loading,
+  trendLabels,
+  trendRuns,
+  trendCost,
+  modelsUsed,
+}: TracyPanelProps) {
   const [expanded, setExpanded] = useState(true);
+  const [draft, setDraft] = useState('');
+  const [attachments, setAttachments] = useState<AttachedFile[]>([]);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
   const prompts = useMemo(() => getTracyPrompts(flow.id), [flow.id]);
-  const seededMessages = useMemo(
-    () => seedTracyMessages(flow, traceRows, rangeLabel, rangeSubtitle, loading),
-    [flow, loading, rangeLabel, rangeSubtitle, traceRows],
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const speechRef = useRef<BrowserSpeechRecognition | null>(null);
+
+  const context = useMemo<TracyContext>(
+    () => ({
+      traceRows,
+      rangeLabel,
+      rangeSubtitle,
+      trendLabels,
+      trendRuns,
+      trendCost,
+      modelsUsed,
+    }),
+    [modelsUsed, rangeLabel, rangeSubtitle, traceRows, trendCost, trendLabels, trendRuns],
   );
+
+  const seededMessages = useMemo(() => seedTracyMessages(flow, context, loading), [context, flow, loading]);
   const [messages, setMessages] = useState<TracyMessage[]>(seededMessages);
 
   useEffect(() => {
     setMessages(seededMessages);
   }, [seededMessages]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const SpeechCtor = (window as unknown as { SpeechRecognition?: new () => BrowserSpeechRecognition; webkitSpeechRecognition?: new () => BrowserSpeechRecognition }).SpeechRecognition
+      ?? (window as unknown as { webkitSpeechRecognition?: new () => BrowserSpeechRecognition }).webkitSpeechRecognition;
+    if (!SpeechCtor) return;
+    setVoiceSupported(true);
+    const recognition = new SpeechCtor();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+    recognition.onresult = (event) => {
+      let transcript = '';
+      for (let index = 0; index < event.results.length; index += 1) {
+        transcript += event.results[index][0]?.transcript ?? '';
+      }
+      if (!transcript.trim().length) return;
+      setDraft((current) => {
+        const spacer = current.trim().length ? ' ' : '';
+        return `${current}${spacer}${transcript.trim()}`;
+      });
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    speechRef.current = recognition;
+    return () => {
+      recognition.stop();
+      speechRef.current = null;
+    };
+  }, []);
+
+  const pushAssistantMessage = (query: string) => {
+    const assistantPayload = buildTracyResponse(query, context);
+    setMessages((current) => [
+      ...current,
+      {
+        id: `tracy-assistant-${current.length + 1}`,
+        role: 'assistant',
+        text: assistantPayload.text,
+        charts: assistantPayload.charts,
+        actions: assistantPayload.actions,
+      },
+    ]);
+  };
+
   const onPrompt = (prompt: TracyPrompt) => {
-    const response = answerTracyPrompt(prompt.id, traceRows);
     setMessages((current) => [
       ...current,
       {
@@ -597,12 +855,71 @@ function TracyPanel({ flow, traceRows, rangeLabel, rangeSubtitle, loading }: Tra
         role: 'user',
         text: prompt.label,
       },
+    ]);
+    pushAssistantMessage(prompt.label);
+  };
+
+  const onVoiceToggle = () => {
+    if (!speechRef.current) return;
+    if (isListening) {
+      speechRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+    speechRef.current.start();
+    setIsListening(true);
+  };
+
+  const onPickFiles = () => {
+    fileInputRef.current?.click();
+  };
+
+  const onFilesSelected = (event: ChangeEvent<HTMLInputElement>) => {
+    const list = Array.from(event.currentTarget.files ?? []);
+    if (!list.length) return;
+    setAttachments((current) => [
+      ...current,
+      ...list.map((file, index) => ({
+        id: `${Date.now()}-${index}-${file.name}`,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+      })),
+    ]);
+    event.currentTarget.value = '';
+  };
+
+  const removeAttachment = (id: string) => {
+    setAttachments((current) => current.filter((file) => file.id !== id));
+  };
+
+  const onSend = () => {
+    const text = draft.trim();
+    const attachmentNames = attachments.map((file) => file.name);
+    if (!text && !attachmentNames.length) return;
+
+    const userText = text.length ? text : `Attached ${attachmentNames.length} file${attachmentNames.length > 1 ? 's' : ''}.`;
+    setMessages((current) => [
+      ...current,
       {
-        id: `tracy-assistant-${current.length + 1}`,
-        role: 'assistant',
-        text: response,
+        id: `tracy-user-${current.length + 1}`,
+        role: 'user',
+        text: userText,
+        attachments: attachmentNames,
       },
     ]);
+
+    const responseQuery = `${userText} ${attachmentNames.join(' ')}`.trim();
+    setDraft('');
+    setAttachments([]);
+    pushAssistantMessage(responseQuery);
+  };
+
+  const onComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      onSend();
+    }
   };
 
   return (
@@ -610,7 +927,7 @@ function TracyPanel({ flow, traceRows, rangeLabel, rangeSubtitle, loading }: Tra
       <header className={styles.tracyHeader}>
         <div>
           <p className={styles.tracyName}>Tracy</p>
-          <p className={styles.tracySubtitle}>Human-like copilot for this page</p>
+          <p className={styles.tracySubtitle}>Investigation companion for this control room</p>
         </div>
         <button
           type="button"
@@ -628,14 +945,42 @@ function TracyPanel({ flow, traceRows, rangeLabel, rangeSubtitle, loading }: Tra
           <div className={styles.tracyTranscript}>
             {messages.map((message) => (
               <article key={message.id} className={`${styles.tracyMessage} ${tracyRoleClass(message.role)}`}>
-                <p className={styles.tracyMessageRole}>{message.role}</p>
+                <p className={styles.tracySender}>{message.role === 'assistant' ? 'Tracy' : 'You'}</p>
                 <p className={styles.tracyMessageText}>{message.text}</p>
+
+                {message.attachments?.length ? (
+                  <div className={styles.tracyAttachmentRow}>
+                    {message.attachments.map((name) => (
+                      <span key={name} className={styles.tracyAttachmentChip}>
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.charts?.length ? (
+                  <div className={styles.tracyChartRow}>
+                    {message.charts.map((chart) => (
+                      <TracyInlineChart key={`${message.id}-${chart.id}`} chart={chart} />
+                    ))}
+                  </div>
+                ) : null}
+
+                {message.actions?.length ? (
+                  <div className={styles.tracyActionRow}>
+                    {message.actions.map((action) => (
+                      <span key={`${message.id}-${action}`} className={styles.tracyActionChip}>
+                        {action}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </article>
             ))}
           </div>
 
           <footer className={styles.tracyComposer}>
-            <p className={styles.tracyPromptLabel}>Sample questions</p>
+            <p className={styles.tracyPromptLabel}>Suggested flows</p>
             <div className={styles.tracyPromptList}>
               {prompts.map((prompt) => (
                 <button key={prompt.id} type="button" className={styles.tracyPromptButton} onClick={() => onPrompt(prompt)}>
@@ -643,11 +988,61 @@ function TracyPanel({ flow, traceRows, rangeLabel, rangeSubtitle, loading }: Tra
                 </button>
               ))}
             </div>
+
+            {attachments.length ? (
+              <div className={styles.tracyAttachmentRow}>
+                {attachments.map((file) => (
+                  <span key={file.id} className={styles.tracyAttachmentChip}>
+                    {file.name} ({Math.max(1, Math.round(file.size / 1024))} KB)
+                    <button
+                      type="button"
+                      className={styles.tracyAttachmentRemove}
+                      onClick={() => removeAttachment(file.id)}
+                      aria-label={`Remove ${file.name}`}
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : null}
+
+            <div className={styles.tracyComposerRow}>
+              <button type="button" className={styles.tracyIconButton} onClick={onPickFiles} aria-label="Attach files">
+                📎
+              </button>
+              <button
+                type="button"
+                className={`${styles.tracyIconButton} ${isListening ? styles.tracyVoiceActive : ''}`}
+                onClick={onVoiceToggle}
+                aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
+                disabled={!voiceSupported}
+              >
+                🎤
+              </button>
+              <textarea
+                className={styles.tracyTextArea}
+                value={draft}
+                onChange={(event) => setDraft(event.currentTarget.value)}
+                onKeyDown={onComposerKeyDown}
+                placeholder="Ask Tracy to analyze runs, draft an incident brief, create an alert, or revise contract rules..."
+                rows={1}
+              />
+              <button type="button" className={styles.tracySendButton} onClick={onSend}>
+                Send
+              </button>
+            </div>
+
+            <input ref={fileInputRef} type="file" multiple onChange={onFilesSelected} className={styles.tracyHiddenInput} />
+
+            <p className={styles.tracyComposerHint}>
+              Tracy follows the design brief: evidence Q&A, incident artifacts, contract assist, and navigation to the right run.
+            </p>
           </footer>
         </>
       ) : (
         <div className={styles.tracyCollapsedBody}>
-          <p className={styles.tracyCollapsedText}>Tracy is standing by with run insights.</p>
+          <p className={styles.tracyCollapsedText}>Tracy is ready when you want a quick investigation.</p>
         </div>
       )}
     </aside>
@@ -972,6 +1367,10 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
               rangeLabel={resolvedRange.label}
               rangeSubtitle={resolvedRange.subtitle}
               loading={loadingSnapshot}
+              trendLabels={trendLabels}
+              trendRuns={trendRuns}
+              trendCost={trendCost}
+              modelsUsed={[]}
             />
           </aside>
         </section>
@@ -1205,6 +1604,10 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             rangeLabel={resolvedRange.label}
             rangeSubtitle={resolvedRange.subtitle}
             loading={false}
+            trendLabels={trendLabels}
+            trendRuns={trendRuns}
+            trendCost={trendCost}
+            modelsUsed={metrics.modelsUsed}
           />
         </aside>
       </section>
