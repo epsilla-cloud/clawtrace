@@ -1,7 +1,8 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { FlowLeftNav } from '../flow/FlowLeftNav';
 import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
 import type { OpenClawDiscoverySnapshot } from '../../../lib/openclaw-discovery';
@@ -409,11 +410,6 @@ type TracyInlineChartSpec = {
   visual: 'line' | 'bar' | 'pie';
 };
 
-type TracyMessageLink = {
-  label: string;
-  href: string;
-};
-
 type TracyMessage = {
   id: string;
   role: TracyMessageRole;
@@ -421,7 +417,6 @@ type TracyMessage = {
   attachments?: string[];
   charts?: TracyInlineChartSpec[];
   actions?: string[];
-  links?: TracyMessageLink[];
 };
 
 type TracyPanelProps = {
@@ -583,7 +578,7 @@ function summarizePortfolioOverview(context: TracyContext): string {
   ].join('\n');
 }
 
-function summarizeCostPriority(context: TracyContext): string {
+function summarizeCostPriority(context: TracyContext, hottestTraceHref?: string): string {
   const rows = context.traceRows;
   if (!rows.length) {
     return 'No run data yet, so I cannot rank cost actions.';
@@ -603,7 +598,7 @@ function summarizeCostPriority(context: TracyContext): string {
     `${first.name} is driving most of your spend: ${formatCurrency(first.costUsd)} (${firstShare}% of total ${context.rangeLabel} cost).`,
     `${second.name !== 'n/a' ? `${second.name} is next at ${formatCurrency(second.costUsd)}.` : 'No clear second cost cluster yet.'}`,
     `${first.name} ran ${first.runs} times in this range, peaking at ${peakFrequency} run${peakFrequency === 1 ? '' : 's'}${peakFrequencyDays.length ? ` on ${peakFrequencyDays.join(', ')}` : ''}.`,
-    `Hottest trace: ${highestRun.traceName} · ${formatCurrency(highestRun.estimatedCostUsd)} · ${formatNumber(highestRun.inputTokens + highestRun.outputTokens)} tokens.`,
+    `Hottest trace: [${highestRun.traceName}](${hottestTraceHref ?? '#'}) · ${formatCurrency(highestRun.estimatedCostUsd)} · ${formatNumber(highestRun.inputTokens + highestRun.outputTokens)} tokens.`,
   ].join('\n');
 }
 
@@ -652,33 +647,24 @@ function buildTracyResponse(query: string, context: TracyContext): Omit<TracyMes
   const breakdown = getWorkflowCostBreakdown(context);
   const topWorkflow = breakdown[0]?.name ?? 'Top workflow';
   const hottestRun = [...context.traceRows].sort((a, b) => b.estimatedCostUsd - a.estimatedCostUsd)[0];
-  const costLinks = hottestRun
-    ? [
-        {
-          label: `Open hottest trace ${hottestRun.traceId.slice(0, 8)}`,
-          href: buildTraceDetailHref(hottestRun),
-        },
-      ]
-    : undefined;
+  const hottestTraceHref = hottestRun ? buildTraceDetailHref(hottestRun) : undefined;
 
   if (normalized.includes('cost') || normalized.includes('spend') || normalized.includes('budget')) {
     return {
-      text: summarizeCostPriority(context),
+      text: summarizeCostPriority(context, hottestTraceHref),
       charts: [buildCostSharePieChart(context), buildFrequencyBarChart(context, topWorkflow)],
       actions: [
         'Switch this flow to a smaller model for routine steps.',
         'Reduce run frequency where output timing does not impact business goals.',
       ],
-      links: costLinks,
     };
   }
 
   if (normalized.includes('frequen') || normalized.includes('often') || normalized.includes('too many')) {
     return {
-      text: summarizeCostPriority(context),
+      text: summarizeCostPriority(context, hottestTraceHref),
       charts: [buildFrequencyBarChart(context, topWorkflow)],
       actions: ['Reduce run frequency for low-impact windows.', 'Set a max daily run cap for this flow.'],
-      links: costLinks,
     };
   }
 
@@ -730,7 +716,6 @@ function seedTracyMessages(flow: ClawTraceFlowDefinition, context: TracyContext,
       text: firstResponse.text,
       charts: firstResponse.charts,
       actions: firstResponse.actions,
-      links: firstResponse.links,
     },
   ];
 }
@@ -738,16 +723,71 @@ function seedTracyMessages(flow: ClawTraceFlowDefinition, context: TracyContext,
 function TracyAvatar({ compact = false }: { compact?: boolean }) {
   return (
     <span className={compact ? styles.tracyAvatarBubble : styles.tracyAvatarHeader} aria-hidden="true">
-      <svg className={styles.tracyAvatarGraphic} viewBox="0 0 64 64">
-        <circle cx="32" cy="32" r="31" fill="#f5e6db" />
-        <ellipse cx="32" cy="49" rx="16" ry="11" fill="#bf7e62" />
-        <circle cx="32" cy="24" r="12" fill="#f2c6a3" />
-        <path d="M20 23c0-8 5-13 12-13s12 5 12 13v3H20v-3Z" fill="#6d4b39" />
-        <circle cx="27" cy="25" r="1.4" fill="#4a2f1f" />
-        <circle cx="37" cy="25" r="1.4" fill="#4a2f1f" />
-        <path d="M28 30c1.1 1.2 2.4 1.8 4 1.8s2.9-.6 4-1.8" fill="none" stroke="#9a5b43" strokeWidth="1.4" strokeLinecap="round" />
-      </svg>
+      <Image
+        src="/tracy-avatar.jpg"
+        alt=""
+        width={compact ? 24 : 28}
+        height={compact ? 24 : 28}
+        className={styles.tracyAvatarImage}
+      />
     </span>
+  );
+}
+
+function renderTextLineWithLinks(line: string) {
+  const nodes: Array<string | ReactNode> = [];
+  const linkPattern = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let lastIndex = 0;
+  let match: RegExpExecArray | null = linkPattern.exec(line);
+
+  while (match) {
+    const [raw, label, href] = match;
+    const index = match.index;
+    if (index > lastIndex) {
+      nodes.push(line.slice(lastIndex, index));
+    }
+    if (href.startsWith('/')) {
+      nodes.push(
+        <Link key={`${href}-${index}`} href={href} className={styles.tracyInlineLink}>
+          {label}
+        </Link>,
+      );
+    } else {
+      nodes.push(
+        <a
+          key={`${href}-${index}`}
+          href={href}
+          className={styles.tracyInlineLink}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {label}
+        </a>,
+      );
+    }
+    lastIndex = index + raw.length;
+    match = linkPattern.exec(line);
+  }
+
+  if (lastIndex < line.length) {
+    nodes.push(line.slice(lastIndex));
+  }
+
+  return nodes;
+}
+
+function TracyMessageText({ text }: { text: string }) {
+  const lines = text.split('\n');
+
+  return (
+    <p className={styles.tracyMessageText}>
+      {lines.map((line, index) => (
+        <Fragment key={`${line}-${index}`}>
+          {renderTextLineWithLinks(line)}
+          {index < lines.length - 1 ? <br /> : null}
+        </Fragment>
+      ))}
+    </p>
   );
 }
 
@@ -970,7 +1010,6 @@ function TracyPanel({
         text: assistantPayload.text,
         charts: assistantPayload.charts,
         actions: assistantPayload.actions,
-        links: assistantPayload.links,
       },
     ]);
   };
@@ -1071,17 +1110,7 @@ function TracyPanel({
                 ) : null}
                 <article className={`${styles.tracyMessage} ${tracyRoleClass(message.role)}`}>
                   <p className={styles.tracySender}>{message.role === 'assistant' ? 'Tracy' : 'You'}</p>
-                  <p className={styles.tracyMessageText}>{message.text}</p>
-
-                  {message.links?.length ? (
-                    <div className={styles.tracyLinkList}>
-                      {message.links.map((linkItem) => (
-                        <Link key={`${message.id}-${linkItem.href}`} href={linkItem.href} className={styles.tracyTraceLink}>
-                          {linkItem.label}
-                        </Link>
-                      ))}
-                    </div>
-                  ) : null}
+                  <TracyMessageText text={message.text} />
 
                   {message.attachments?.length ? (
                     <div className={styles.tracyAttachmentRow}>
@@ -1170,7 +1199,7 @@ function TracyPanel({
                   value={draft}
                   onChange={(event) => setDraft(event.currentTarget.value)}
                   onKeyDown={onComposerKeyDown}
-                  placeholder="Ask Tracy about cost or reliability"
+                  placeholder="Ask Tracy about my agents ..."
                 />
               </div>
               <button type="button" className={styles.tracySendButton} onClick={onSend}>
