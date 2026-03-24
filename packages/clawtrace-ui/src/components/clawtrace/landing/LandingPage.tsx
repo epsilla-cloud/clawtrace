@@ -5,6 +5,7 @@ import { Cormorant_Garamond } from 'next/font/google';
 import { FormEvent, useEffect, useState } from 'react';
 import idcLogo from '../../../../idc.png';
 import nvidiaLogo from '../../../../nvidia.png';
+import overviewImage from '../../../../overview.png';
 import tracingGraphImage from '../../../../tracing_graph.png';
 import tracingPathImage from '../../../../tracing_path.png';
 import tracingTimelineImage from '../../../../tracing_timeline.png';
@@ -41,6 +42,11 @@ const IMPROVEMENT_BLOCKS = [
 ];
 
 const PREVIEW_SLIDES = [
+  {
+    key: 'overview',
+    image: overviewImage,
+    alt: 'ClawTrace overview dashboard',
+  },
   {
     key: 'tracing-path',
     image: tracingPathImage,
