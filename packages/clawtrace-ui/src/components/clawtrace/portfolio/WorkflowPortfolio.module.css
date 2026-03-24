@@ -336,36 +336,6 @@
   gap: 8px;
 }
 
-.tracyPromptLabel {
-  margin: 0;
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-}
-
-.tracyPromptList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tracyPromptButton {
-  min-height: 30px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
-  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
-  color: var(--ct-soft-text);
-  font-size: var(--ct-text-body-sm);
-  padding: 5px 10px;
-  cursor: pointer;
-}
-
-.tracyPromptButton:hover {
-  border-color: color-mix(in srgb, var(--ct-accent) 42%, white);
-  color: var(--ct-text);
-}
-
 .tracyComposerRow {
   display: grid;
   grid-template-columns: auto auto minmax(0, 1fr) auto;
@@ -380,12 +350,25 @@
   border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
   background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
   cursor: pointer;
-  font-size: 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #6f6257;
 }
 
 .tracyIconButton:disabled {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+.tracyIconSvg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .tracyVoiceActive {
@@ -404,6 +387,8 @@
   font-size: var(--ct-text-body-sm);
   color: var(--ct-soft-text);
   font-family: inherit;
+  line-height: 1.25;
+  overflow: hidden;
 }
 
 .tracySendButton {

@@ -418,11 +418,6 @@ type TracyMessage = {
   actions?: string[];
 };
 
-type TracyPrompt = {
-  id: 'cost' | 'frequency' | 'overview' | 'incident' | 'contract';
-  label: string;
-};
-
 type TracyPanelProps = {
   flow: ClawTraceFlowDefinition;
   traceRows: TraceRow[];
@@ -465,24 +460,6 @@ type BrowserSpeechRecognition = {
 
 function tracyRoleClass(role: TracyMessageRole): string {
   return role === 'assistant' ? styles.tracyAssistant : styles.tracyUser;
-}
-
-function getTracyPrompts(flowId: ClawTraceFlowDefinition['id']): TracyPrompt[] {
-  if (flowId === 'f3-control-room') {
-    return [
-      { id: 'cost', label: 'Why are my costs so high in the last seven days?' },
-      { id: 'frequency', label: 'Which flow is running too frequently?' },
-      { id: 'overview', label: 'Give me a high-level control room summary' },
-      { id: 'incident', label: 'Write an incident brief for the latest risk' },
-      { id: 'contract', label: 'How should we tighten the agent contract?' },
-    ];
-  }
-
-  return [
-    { id: 'cost', label: 'Why are my costs so high in the last seven days?' },
-    { id: 'overview', label: 'Give me a quick health summary' },
-    { id: 'contract', label: 'What should we improve next?' },
-  ];
 }
 
 function createTracyCharts(context: TracyContext): TracyInlineChartSpec[] {
@@ -899,7 +876,6 @@ function TracyPanel({
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
-  const prompts = useMemo(() => getTracyPrompts(flow.id), [flow.id]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const speechRef = useRef<BrowserSpeechRecognition | null>(null);
 
@@ -965,18 +941,6 @@ function TracyPanel({
         actions: assistantPayload.actions,
       },
     ]);
-  };
-
-  const onPrompt = (prompt: TracyPrompt) => {
-    setMessages((current) => [
-      ...current,
-      {
-        id: `tracy-user-${current.length + 1}`,
-        role: 'user',
-        text: prompt.label,
-      },
-    ]);
-    pushAssistantMessage(prompt.label);
   };
 
   const onVoiceToggle = () => {
@@ -1114,15 +1078,6 @@ function TracyPanel({
           </div>
 
           <footer className={styles.tracyComposer}>
-            <p className={styles.tracyPromptLabel}>Suggested flows</p>
-            <div className={styles.tracyPromptList}>
-              {prompts.map((prompt) => (
-                <button key={prompt.id} type="button" className={styles.tracyPromptButton} onClick={() => onPrompt(prompt)}>
-                  {prompt.label}
-                </button>
-              ))}
-            </div>
-
             {attachments.length ? (
               <div className={styles.tracyAttachmentRow}>
                 {attachments.map((file) => (
@@ -1143,7 +1098,9 @@ function TracyPanel({
 
             <div className={styles.tracyComposerRow}>
               <button type="button" className={styles.tracyIconButton} onClick={onPickFiles} aria-label="Attach files">
-                📎
+                <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.tracyIconSvg}>
+                  <path d="M21.44 11.05l-8.49 8.49a6 6 0 1 1-8.49-8.49l8.49-8.49a4 4 0 0 1 5.66 5.66l-8.5 8.5a2 2 0 1 1-2.82-2.83l7.78-7.78" />
+                </svg>
               </button>
               <button
                 type="button"
@@ -1152,14 +1109,19 @@ function TracyPanel({
                 aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
                 disabled={!voiceSupported}
               >
-                🎤
+                <svg viewBox="0 0 24 24" aria-hidden="true" className={styles.tracyIconSvg}>
+                  <path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z" />
+                  <path d="M19 11a7 7 0 0 1-14 0" />
+                  <path d="M12 18v3" />
+                  <path d="M9 21h6" />
+                </svg>
               </button>
               <textarea
                 className={styles.tracyTextArea}
                 value={draft}
                 onChange={(event) => setDraft(event.currentTarget.value)}
                 onKeyDown={onComposerKeyDown}
-                placeholder="Ask Tracy to analyze runs, draft an incident brief, create an alert, or revise contract rules..."
+                placeholder="Ask Tracy about cost or reliability..."
                 rows={1}
               />
               <button type="button" className={styles.tracySendButton} onClick={onSend}>
