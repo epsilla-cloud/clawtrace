@@ -345,8 +345,80 @@
   min-height: 360px;
   border: 0;
   border-radius: 0;
-  background: transparent;
+  background: linear-gradient(180deg, #fff 0%, color-mix(in srgb, var(--ct-panel-subtle) 44%, white) 100%);
   overflow: hidden;
+}
+
+.timelineView {
+  min-height: 0;
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.timelineTopRow {
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  padding: 9px 12px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--ct-panel-subtle) 68%, white) 0%,
+    color-mix(in srgb, var(--ct-panel-subtle) 52%, white) 100%
+  );
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.timelineSummary {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--ct-muted);
+}
+
+.timelineLegend {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.timelineLegendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
+  background: #fff;
+  color: var(--ct-soft-text);
+  padding: 0 8px;
+  font-size: 11px;
+  line-height: 1;
+}
+
+.timelineLegendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.timelineLegendSession {
+  background: #667085;
+}
+
+.timelineLegendModel {
+  background: #b26a45;
+}
+
+.timelineLegendTool {
+  background: #6f9569;
+}
+
+.timelineLegendSubagent {
+  background: #7663ad;
 }
 
 .efficiencyLayout {

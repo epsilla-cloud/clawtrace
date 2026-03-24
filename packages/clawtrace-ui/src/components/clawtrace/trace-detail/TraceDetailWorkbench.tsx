@@ -1041,6 +1041,24 @@ function StepTimelineView({
   onSelectSpan: (spanId: string) => void;
 }) {
   const chartRef = useRef<HTMLDivElement | null>(null);
+  const timelineRows = detail.waterfall.rows.slice(0, 160);
+
+  const timelineSummary = useMemo(() => {
+    const summary = {
+      total: timelineRows.length,
+      session: 0,
+      llm: 0,
+      tool: 0,
+      subagent: 0,
+    };
+    for (const row of timelineRows) {
+      if (row.kind === 'session') summary.session += 1;
+      if (row.kind === 'llm_call') summary.llm += 1;
+      if (row.kind === 'tool_call') summary.tool += 1;
+      if (row.kind === 'subagent') summary.subagent += 1;
+    }
+    return summary;
+  }, [timelineRows]);
 
   useEffect(() => {
     const dom = chartRef.current;
@@ -1057,7 +1075,7 @@ function StepTimelineView({
 
       chartInstance = echarts.init(dom);
 
-      const rows = detail.waterfall.rows.slice(0, 140);
+      const rows = timelineRows;
       const categories = rows.map((row, index) => {
         const prefix = row.kind === 'llm_call'
           ? 'M'
@@ -1066,7 +1084,12 @@ function StepTimelineView({
             : row.kind === 'subagent'
               ? 'S'
               : 'C';
-        return `${prefix}${index + 1} · ${row.label}`;
+        const compactLabel = row.label
+          .replace(/^session · /, '')
+          .replace(/^model step · /, '')
+          .replace(/^tool action · /, '')
+          .replace(/^subagent · /, '');
+        return `${prefix}${index + 1} · ${compactLabel}`;
       });
 
       const offsetSeries = rows.map((row) => ({
@@ -1082,31 +1105,36 @@ function StepTimelineView({
       );
       const fullEndMax = Math.max(...rows.map((row) => row.startOffsetMs + row.durationMs), 1);
       const maxValue = nonSessionEndMax > 0 ? Math.max(nonSessionEndMax * 1.06, 1) : fullEndMax;
+      const initialWindow = Math.max(12, Math.min(24, rows.length));
 
       const durationSeries = rows.map((row) => {
         const remaining = Math.max(1, maxValue - row.startOffsetMs);
         const clipped = row.durationMs > remaining;
+        const kindColor =
+          row.kind === 'llm_call'
+            ? '#b26a45'
+            : row.kind === 'tool_call'
+              ? '#6f9569'
+              : row.kind === 'subagent'
+                ? '#7663ad'
+                : '#667085';
         return {
           value: clipped ? remaining : row.durationMs,
-        spanId: row.spanId,
-        label: row.label,
-        kind: row.kind,
-        tokens: row.totalTokens,
-        clipped,
-        actualDurationMs: row.durationMs,
-        itemStyle: {
-          color:
-            row.kind === 'llm_call'
-              ? '#a8603f'
-              : row.kind === 'tool_call'
-                ? '#4d7c45'
-                : row.kind === 'subagent'
-                  ? '#6a58a6'
-                  : '#5f6b7a',
-          borderColor: selectedSpanId === row.spanId ? '#2e2115' : 'rgba(255,255,255,0.75)',
-          borderWidth: selectedSpanId === row.spanId ? 2 : 1,
-          opacity: selectedSpanId && selectedSpanId !== row.spanId ? 0.66 : 0.95,
-        },
+          spanId: row.spanId,
+          label: row.label,
+          kind: row.kind,
+          tokens: row.totalTokens,
+          clipped,
+          actualDurationMs: row.durationMs,
+          itemStyle: {
+            color: kindColor,
+            borderRadius: [0, 7, 7, 0],
+            borderColor: selectedSpanId === row.spanId ? '#2e2115' : 'rgba(255,255,255,0.72)',
+            borderWidth: selectedSpanId === row.spanId ? 2 : 1,
+            opacity: selectedSpanId && selectedSpanId !== row.spanId ? 0.56 : 0.94,
+            shadowBlur: selectedSpanId === row.spanId ? 10 : 0,
+            shadowColor: selectedSpanId === row.spanId ? 'rgba(46,33,21,0.22)' : 'transparent',
+          },
         };
       });
 
@@ -1114,10 +1142,10 @@ function StepTimelineView({
         {
           animation: false,
           grid: {
-            top: 24,
-            left: 54,
-            right: 22,
-            bottom: 42,
+            top: 12,
+            left: 186,
+            right: rows.length > 18 ? 36 : 18,
+            bottom: 36,
             containLabel: false,
           },
           tooltip: {
@@ -1125,24 +1153,47 @@ function StepTimelineView({
             formatter: (params: { data?: { label?: string; kind?: string; value?: number; tokens?: number; clipped?: boolean; actualDurationMs?: number } }) => {
               const item = params.data;
               if (!item) return '';
+              const kindText =
+                item.kind === 'llm_call'
+                  ? 'Model step'
+                  : item.kind === 'tool_call'
+                    ? 'Tool action'
+                    : item.kind === 'subagent'
+                      ? 'Subagent handoff'
+                      : 'Session';
               return [
-                `${item.label ?? 'step'}`,
-                `${item.kind ?? 'step'} · ${formatDuration(item.actualDurationMs ?? item.value ?? 0)}${item.clipped ? ' (clipped in chart for readability)' : ''}`,
+                `<strong>${item.label ?? 'step'}</strong>`,
+                `${kindText} · ${formatDuration(item.actualDurationMs ?? item.value ?? 0)}${item.clipped ? ' (clipped for readability)' : ''}`,
                 `${formatNumber(item.tokens ?? 0)} tokens`,
               ].join('<br/>');
+            },
+            backgroundColor: '#2b2522',
+            borderWidth: 0,
+            textStyle: {
+              color: '#f7efe9',
+              fontSize: 12,
             },
           },
           xAxis: {
             type: 'value',
             min: 0,
             max: maxValue,
+            axisLine: {
+              lineStyle: {
+                color: '#d7c7bb',
+              },
+            },
+            axisTick: {
+              show: false,
+            },
             axisLabel: {
-              color: '#7e6e62',
+              color: '#7b6b60',
+              fontSize: 12,
               formatter: (value: number) => formatDuration(value),
             },
             splitLine: {
               lineStyle: {
-                color: '#eaded3',
+                color: '#eadfd5',
                 type: 'dashed',
               },
             },
@@ -1152,12 +1203,12 @@ function StepTimelineView({
             inverse: true,
             data: categories,
             axisLabel: {
-              color: '#8c7a6b',
+              color: '#7e6f63',
               fontSize: 11,
               interval: 0,
               formatter: (value: string) => {
-                if (value.length <= 34) return value;
-                return `${value.slice(0, 33)}…`;
+                if (value.length <= 28) return value;
+                return `${value.slice(0, 27)}…`;
               },
             },
             axisTick: {
@@ -1165,10 +1216,51 @@ function StepTimelineView({
             },
             axisLine: {
               lineStyle: {
-                color: '#e5d8cc',
+                color: '#e2d4c9',
+              },
+            },
+            splitLine: {
+              show: true,
+              lineStyle: {
+                color: 'rgba(224, 208, 196, 0.35)',
+                type: 'solid',
               },
             },
           },
+          dataZoom: rows.length > 18
+            ? [
+                {
+                  type: 'inside',
+                  yAxisIndex: 0,
+                  startValue: 0,
+                  endValue: initialWindow,
+                  zoomOnMouseWheel: 'shift',
+                  moveOnMouseMove: true,
+                  moveOnMouseWheel: true,
+                },
+                {
+                  type: 'slider',
+                  yAxisIndex: 0,
+                  right: 8,
+                  top: 12,
+                  bottom: 36,
+                  width: 10,
+                  showDetail: false,
+                  brushSelect: false,
+                  fillerColor: 'rgba(164,83,43,0.18)',
+                  backgroundColor: 'rgba(217,201,188,0.32)',
+                  borderColor: 'transparent',
+                  handleSize: 0,
+                  moveHandleSize: 0,
+                  dataBackground: {
+                    lineStyle: { color: 'transparent' },
+                    areaStyle: { color: 'transparent' },
+                  },
+                  startValue: 0,
+                  endValue: initialWindow,
+                },
+              ]
+            : [],
           series: [
             {
               name: 'offset',
@@ -1187,8 +1279,11 @@ function StepTimelineView({
               name: 'duration',
               type: 'bar',
               stack: 'timeline',
-              barWidth: 14,
+              barWidth: 12,
               data: durationSeries,
+              emphasis: {
+                focus: 'series',
+              },
             },
           ],
         },
@@ -1212,13 +1307,41 @@ function StepTimelineView({
       window.removeEventListener('resize', onResize);
       chartInstance?.dispose();
     };
-  }, [detail.waterfall.rows, onSelectSpan, selectedSpanId]);
+  }, [onSelectSpan, selectedSpanId, timelineRows]);
 
   if (!detail.waterfall.rows.length) {
     return <div className={styles.viewEmpty}>No timed steps captured for this run.</div>;
   }
 
-  return <div ref={chartRef} className={styles.timelineCanvas} aria-label="Step timeline" />;
+  return (
+    <section className={styles.timelineView}>
+      <header className={styles.timelineTopRow}>
+        <p className={styles.timelineSummary}>
+          {timelineSummary.total} steps · {timelineSummary.session} session · {timelineSummary.llm} model · {timelineSummary.tool} tool
+          {timelineSummary.subagent ? ` · ${timelineSummary.subagent} subagent` : ''}
+        </p>
+        <div className={styles.timelineLegend}>
+          <span className={styles.timelineLegendItem}>
+            <span className={`${styles.timelineLegendDot} ${styles.timelineLegendSession}`} />
+            Session
+          </span>
+          <span className={styles.timelineLegendItem}>
+            <span className={`${styles.timelineLegendDot} ${styles.timelineLegendModel}`} />
+            Model
+          </span>
+          <span className={styles.timelineLegendItem}>
+            <span className={`${styles.timelineLegendDot} ${styles.timelineLegendTool}`} />
+            Tool
+          </span>
+          <span className={styles.timelineLegendItem}>
+            <span className={`${styles.timelineLegendDot} ${styles.timelineLegendSubagent}`} />
+            Subagent
+          </span>
+        </div>
+      </header>
+      <div ref={chartRef} className={styles.timelineCanvas} aria-label="Step timeline" />
+    </section>
+  );
 }
 
 function RunEfficiencyView({
