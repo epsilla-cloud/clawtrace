@@ -7,7 +7,7 @@
 
 .summaryBar {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 10px;
   padding: 0;
 }
@@ -103,14 +103,14 @@
   min-height: 0;
   padding: 18px 20px;
   display: grid;
-  gap: 14px;
+  gap: 8px;
 }
 
 .pageTopRow {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 10px;
 }
 
 .pageTitle {
@@ -131,17 +131,18 @@
 }
 
 .rangeLabel {
-  font-size: var(--ct-text-meta);
+  font-size: 13px;
+  font-weight: 560;
   color: var(--ct-muted);
 }
 
 .rangeSelect {
-  height: 36px;
+  height: 38px;
   border-radius: var(--ct-control-radius);
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   background: #fff;
-  padding: 0 10px;
-  font-size: var(--ct-text-body-sm);
+  padding: 0 36px 0 12px;
+  font-size: 14px;
   color: var(--ct-soft-text);
 }
 
@@ -152,12 +153,12 @@
 }
 
 .dateInput {
-  height: 36px;
+  height: 38px;
   border-radius: var(--ct-control-radius);
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   background: #fff;
-  padding: 0 10px;
-  font-size: var(--ct-text-body-sm);
+  padding: 0 12px;
+  font-size: 14px;
   color: var(--ct-soft-text);
 }
 
@@ -185,7 +186,7 @@
 .trendHeader {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 16px;
   padding: 0 2px;
 }
@@ -206,40 +207,13 @@
 
 .trendPlot {
   width: 100%;
-  height: 220px;
+  height: 224px;
   padding: 0;
 }
 
 .trendCanvas {
   width: 100%;
   height: 100%;
-}
-
-.trendStats {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.trendStat {
-  min-width: 92px;
-  border-radius: 11px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  background: color-mix(in srgb, var(--ct-panel-subtle) 76%, white);
-  padding: 6px 8px;
-  display: grid;
-  gap: 1px;
-}
-
-.trendStatLabel {
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
-}
-
-.trendStatValue {
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-soft-text);
-  font-weight: 620;
 }
 
 .tableSection {

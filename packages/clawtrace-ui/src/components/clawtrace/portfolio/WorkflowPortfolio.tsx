@@ -208,7 +208,6 @@ type TrendChartProps = {
   categories: string[];
   values: number[];
   valueMode: 'number' | 'currency';
-  formatValue: (value: number) => string;
 };
 
 function getNiceYAxisMax(value: number): number {
@@ -225,10 +224,9 @@ function getNiceYAxisMax(value: number): number {
   return 10 * power;
 }
 
-function TrendChart({ title, subtitle, categories, values, valueMode, formatValue }: TrendChartProps) {
+function TrendChart({ title, subtitle, categories, values, valueMode }: TrendChartProps) {
   const chartRef = useRef<HTMLDivElement | null>(null);
   const maxValue = Math.max(...values, 0);
-  const latest = values.length ? values[values.length - 1] : 0;
   const yAxisMax = getNiceYAxisMax(maxValue);
   const isCost = valueMode === 'currency';
   const lineColor = isCost ? '#9d4f46' : '#835130';
@@ -388,16 +386,6 @@ function TrendChart({ title, subtitle, categories, values, valueMode, formatValu
         <div>
           <h2 className={styles.trendTitle}>{title}</h2>
           <p className={styles.trendSubtitle}>{subtitle}</p>
-        </div>
-        <div className={styles.trendStats}>
-          <div className={styles.trendStat}>
-            <span className={styles.trendStatLabel}>Peak</span>
-            <span className={styles.trendStatValue}>{formatValue(maxValue)}</span>
-          </div>
-          <div className={styles.trendStat}>
-            <span className={styles.trendStatLabel}>Latest</span>
-            <span className={styles.trendStatValue}>{formatValue(latest)}</span>
-          </div>
         </div>
       </header>
 
@@ -634,10 +622,6 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
               <span className={styles.summaryLabel}>Est. Cost ({resolvedRange.label})</span>
               <span className={styles.summaryValue}>{formatCurrency(costInRange)}</span>
             </div>
-            <div className={`${styles.summaryMetric} ${styles.metricTonePositive}`}>
-              <span className={styles.summaryLabel}>Active Runs</span>
-              <span className={styles.summaryValue}>{formatNumber(metrics.activeTrajectories)}</span>
-            </div>
             <div className={`${styles.summaryMetric} ${styles.metricToneSuccess}`}>
               <span className={styles.summaryLabel}>Success Rate (7d)</span>
               <span className={styles.summaryValue}>{portfolioSuccessRate}%</span>
@@ -651,7 +635,6 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
               categories={trendLabels}
               values={trendRuns}
               valueMode="number"
-              formatValue={(value) => formatNumber(value)}
             />
             <TrendChart
               title="Token cost over time"
@@ -659,7 +642,6 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
               categories={trendLabels}
               values={trendCost}
               valueMode="currency"
-              formatValue={(value) => formatCurrency(value)}
             />
           </section>
 
