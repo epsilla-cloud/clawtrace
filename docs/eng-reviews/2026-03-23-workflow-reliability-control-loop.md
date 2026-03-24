@@ -22,13 +22,13 @@ Phase 0 is reduced to one complete vertical slice:
 - one chat-guided onboarding flow
 - one shared storage interface with local and cloud adapters
 
-This review explicitly does not treat the broader observability suite in [CEO Product Spec](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/CEO_PRODUCT_SPEC.md) as Phase 0 engineering scope.
+This review explicitly does not treat the broader observability suite in [CEO Product Spec](docs/CEO_PRODUCT_SPEC.md) as Phase 0 engineering scope.
 
 ## What Already Exists
 
 - OpenClaw plugin hooks and exported diagnostics already provide the right integration seam for runtime capture and control points.
-- The approved wedge design in [Workflow Reliability Wedge Design](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/WORKFLOW_RELIABILITY_WEDGE_DESIGN.md) already narrows the product to one workflow and one operator pain loop.
-- The CEO plan in [2026-03-22-workflow-reliability-control-loop.md](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/ceo-plans/2026-03-22-workflow-reliability-control-loop.md) already locks the product shape, trust posture, rollout model, and major architectural constraints.
+- The approved wedge design in [Workflow Reliability Wedge Design](docs/WORKFLOW_RELIABILITY_WEDGE_DESIGN.md) already narrows the product to one workflow and one operator pain loop.
+- The CEO plan in [2026-03-22-workflow-reliability-control-loop.md](docs/ceo-plans/2026-03-22-workflow-reliability-control-loop.md) already locks the product shape, trust posture, rollout model, and major architectural constraints.
 - `TODOS.md` already captures the main deferred product-level expansion: progressive autonomy / approval modes.
 
 ## Locked Decisions
@@ -246,7 +246,7 @@ Coverage summary:
 - no runtime/framework-specific test stack exists yet in the repo, so this review is framework-agnostic
 
 QA artifact written during review:
-- [/Users/songrenchu/.gstack/projects/epsilla-enterprise-clawtrace/songrenchu-main-eng-review-test-plan-20260323-140422.md](/Users/songrenchu/.gstack/projects/epsilla-enterprise-clawtrace/songrenchu-main-eng-review-test-plan-20260323-140422.md)
+- internal review test-plan artifact (generated locally during review; not tracked in this repository)
 
 ## Failure Modes
 

@@ -15,4 +15,4 @@ npm run typecheck
 
 - Uses the exact token layer from `docs/design-specs/clawtrace.tokens.css`.
 - Uses the exact React prop interfaces from `docs/design-specs/clawtrace.interfaces.ts`.
-- Designed to port into AgentStudio after standalone launch.
+- Designed for standalone ClawTrace launch with portable integration hooks.

@@ -313,7 +313,7 @@ export function OnboardingGuidedConversation({
         <header className={styles.topBar}>
           <div className={styles.topBarLeft}>
             <p className={styles.connectionLine}>OpenClaw import: {loadingSnapshot ? 'Loading' : 'Unavailable'}</p>
-            <p className={styles.pathLine}>/Users/songrenchu/.openclaw</p>
+            <p className={styles.pathLine}>~/.openclaw</p>
           </div>
         </header>
         <section className={styles.layout}>

@@ -178,7 +178,7 @@ Phase 1 must include:
 
 ### Design system
 - ClawTrace now has a repo-level design source of truth in `DESIGN.md`.
-- The product inherits the AgentStudio `Atelier Operator` shell and interaction language as its base.
+- The product inherits the in-repo `Atelier Operator` shell and interaction language as its base.
 - ClawTrace extends that base with workflow-reliability-specific components rather than creating a separate visual family.
 
 ### Shell and hierarchy

@@ -113,7 +113,7 @@ ClawTrace should productize the practical cost-management loop OpenClaw operator
 3. apply guided controls (background routing, context loading policy, model routing, file hygiene, guardrails, caching)
 4. verify impact through week-over-week cost-per-success and avoidable-spend reduction
 
-Reference plan: [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
+Reference plan: [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
 
 ## 4.1 Why Chat-First (First-Principles Analysis)
 

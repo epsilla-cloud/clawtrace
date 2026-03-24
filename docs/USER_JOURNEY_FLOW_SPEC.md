@@ -263,7 +263,7 @@ stateDiagram-v2
 
 Cost control is not a separate app section. It overlays the same journey and surfaces.
 
-Reference detail: [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
+Reference detail: [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
 
 | Cost Step | User Question | Primary Surface | Exit Condition |
 |---|---|---|---|

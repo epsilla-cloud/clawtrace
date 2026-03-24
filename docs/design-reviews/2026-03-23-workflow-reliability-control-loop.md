@@ -9,15 +9,16 @@ Repo: epsilla-enterprise/clawtrace
 ## System Audit
 - `DESIGN.md` did not exist at the start of review.
 - UI scope was real and non-trivial: workspace shell, workflow portfolio, selected workflow cockpit, onboarding chat, investigation drawer, incident artifacts, trust-state surfaces, and mobile triage.
-- Existing design leverage was stronger than first assumed because AgentStudio already has a reusable `Atelier` app shell and `Operator` theme family.
-- ClawTrace should inherit AgentStudio visual language rather than invent a parallel design system.
+- Existing design leverage was stronger than first assumed because ClawTrace already has reusable `Atelier` shell and `Operator` theme assets in-repo.
+- ClawTrace should extend this in-repo visual language rather than invent a parallel design system.
 
 ## What Already Exists
 These existing assets should anchor ClawTrace design work:
-- AgentStudio `Atelier` app-shell primitives in `/Users/songrenchu/ClawWork/Projects/AgentStudio/AgentStudio/frontend/src/components/apps/atelier/AtelierApps.tsx`
-- AgentStudio shell/theme tokens in `/Users/songrenchu/ClawWork/Projects/AgentStudio/AgentStudio/frontend/src/components/apps/atelier/AtelierApps.module.css`
-- Re-export surface in `/Users/songrenchu/ClawWork/Projects/AgentStudio/AgentStudio/frontend/src/components/apps/atelier/index.ts`
-- App routes in `/Users/songrenchu/ClawWork/Projects/AgentStudio/AgentStudio/frontend/src/app/apps/`
+- `packages/clawtrace-ui/src/lib/clawtrace.tokens.css`
+- `packages/clawtrace-ui/src/components/clawtrace/ClawTraceStandalone.tsx`
+- `packages/clawtrace-ui/src/components/clawtrace/ClawTraceStandalone.module.css`
+- `packages/clawtrace-ui/src/components/clawtrace/portfolio/WorkflowPortfolio.tsx`
+- `packages/clawtrace-ui/src/components/clawtrace/onboarding/OnboardingGuidedConversation.tsx`
 
 Most relevant reusable patterns:
 - `AtelierAppRail`
@@ -97,14 +98,14 @@ Fixes locked:
 ## Decisions Added to the Plan
 | # | Decision | Choice | Why |
 |---|----------|--------|-----|
-| 1 | App shell | Workspace shell | Fits future AgentStudio integration and multi-workflow monitoring without making chat the home. |
+| 1 | App shell | Workspace shell | Fits multi-workflow monitoring without making chat the home. |
 | 2 | Multi-workflow depth | Portfolio + one deep selected workflow | Preserves a clear cockpit center of gravity. |
 | 3 | First connected experience | Warm-up inside onboarding chat | Turns loading into trust-building evidence. |
 | 4 | Uncertainty tone | Calm operational uncertainty | Keeps the product authoritative instead of alarmist. |
 | 5 | Onboarding emotional role | Guided systems audit | Makes setup feel evidence-led, not generic assistant-led. |
 | 6 | Daily return mood | Calm by default | Supports operational trust and reduces dashboard fatigue. |
 | 7 | Visual direction | Editorial operations room | Avoids generic AI dashboard slop. |
-| 8 | Design system base | Atelier Operator + ClawTrace evidence layer | Keeps future AgentStudio integration clean. |
+| 8 | Design system base | Atelier Operator + ClawTrace evidence layer | Keeps the in-repo design system coherent as surfaces expand. |
 | 9 | Mobile strategy | Triage-first mobile workspace | Optimizes for action and clarity on small screens. |
 | 10 | Post-onboarding chat | Collapsible investigation drawer | Keeps the product agentic without surrendering the home screen to chat. |
 | 11 | Cost in onboarding | Show imported spend baseline in F0-F2 | Makes value immediate for users who care where token spend goes. |
@@ -114,7 +115,7 @@ Fixes locked:
 ## NOT in Scope
 - Equal-depth rich cockpit blocks for every workflow on the overview page. Reason: it would blur the MVP focus and overload the workspace.
 - Chat-first daily home. Reason: the product is a control surface first, not a conversational shell.
-- A separate ClawTrace-only theme family. Reason: ClawTrace needs to plug back into AgentStudio cleanly.
+- A separate ClawTrace-only theme family. Reason: it would fragment the in-repo design system.
 - Dense analyst-terminal default presentation. Reason: it would sacrifice readability for constant intensity.
 - High-alert styling for every uncertain state. Reason: uncertainty is frequent and should be operationally legible, not panic-inducing.
 - Responsive behavior that simply stacks the desktop columns on mobile. Reason: mobile needs triage, not shrunken desktop.
@@ -127,7 +128,7 @@ This review created a new root design source of truth:
 
 That file now defines:
 - the ClawTrace design thesis
-- its relationship to AgentStudio
+- its relationship to the in-repo design system
 - shell hierarchy
 - chat role
 - visual direction

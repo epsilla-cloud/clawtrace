@@ -76,7 +76,7 @@ If any answer is missing, state `unknown` and show why.
 
 ## 5) User Journey Overlay: Cost Audit and Cost Control
 
-This overlay runs inside existing flows `F0-F11` from [USER_JOURNEY_FLOW_SPEC](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/USER_JOURNEY_FLOW_SPEC.md).
+This overlay runs inside existing flows `F0-F11` from [USER_JOURNEY_FLOW_SPEC](docs/USER_JOURNEY_FLOW_SPEC.md).
 
 | Cost Flow | Primary User Intent | Core Product Output | Maps to Existing Flow |
 |---|---|---|---|

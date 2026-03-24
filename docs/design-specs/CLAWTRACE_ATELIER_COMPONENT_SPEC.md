@@ -7,7 +7,7 @@ Generated on 2026-03-23
 ## Purpose
 This document turns the reviewed design direction into an implementation-ready UI contract for ClawTrace.
 
-Use it when building ClawTrace as an AgentStudio app surface.
+Use it when building ClawTrace as a standalone app surface in this repository.
 
 It answers four things:
 1. Which `Atelier` primitives we inherit directly
@@ -30,7 +30,7 @@ In scope:
 - screen composition
 - state treatment
 - accessibility and responsive rules
-- recommended AgentStudio file structure
+- recommended package file structure
 
 Out of scope:
 - final React implementation
@@ -40,24 +40,23 @@ Out of scope:
 
 ## Upstream Design System Inputs
 Base system:
-- `frontend/src/components/apps/atelier/AtelierApps.tsx`
-- `frontend/src/components/apps/atelier/AtelierApps.module.css`
-- `frontend/src/components/apps/atelier/index.ts`
-- `frontend/src/app/apps/chats/page.tsx`
-- `frontend/src/app/apps/workspaces/page.tsx`
+- `packages/clawtrace-ui/src/lib/clawtrace.tokens.css`
+- `packages/clawtrace-ui/src/components/clawtrace/ClawTraceStandalone.tsx`
+- `packages/clawtrace-ui/src/components/clawtrace/ClawTraceStandalone.module.css`
+- `packages/clawtrace-ui/src/components/clawtrace/portfolio/WorkflowPortfolio.tsx`
+- `packages/clawtrace-ui/src/components/clawtrace/onboarding/OnboardingGuidedConversation.tsx`
 
 Most relevant inherited primitives:
-- `AtelierAppRail`
-- `AtelierChatSidebar` interaction rhythm
-- `AtelierCustomerPanel` detail-panel rhythm
-- `AtelierChatComposer` drawer/composer behavior
-- `operator` theme tokens from `AtelierApps.module.css`
+- workspace rail and panel rhythm from `ClawTraceStandalone`
+- portfolio list behavior from `WorkflowPortfolio`
+- onboarding chat layout from `OnboardingGuidedConversation`
+- `operator` theme token aliases from `clawtrace.tokens.css`
 
-## Implementation Target in AgentStudio
-Recommended file structure when this is moved into AgentStudio:
+## Implementation Target in ClawTrace Repo
+Recommended file structure in this repository:
 
 ```text
-frontend/src/components/apps/clawtrace/
+packages/clawtrace-ui/src/components/clawtrace/
   ClawTraceApp.tsx
   ClawTrace.module.css
   ClawTraceWorkflowPortfolio.tsx
@@ -74,7 +73,7 @@ frontend/src/components/apps/clawtrace/
   ClawTraceControlDecisionAudit.tsx
   index.ts
 
-frontend/src/app/apps/clawtrace/
+packages/clawtrace-ui/src/app/
   page.tsx
 ```
 
@@ -624,9 +623,9 @@ A full prop/interface contract for all planned ClawTrace components is available
 - mobile triage route behavior
 - accessibility pass
 
-## Hand-back to AgentStudio
-When this spec is implemented in ClawTrace first and later moved into AgentStudio:
+## Package Integration Notes
+When this spec is implemented across `packages/clawtrace-ui`:
 - preserve token names where possible
 - keep new ClawTrace components in a dedicated app folder
-- upstream shared improvements to Atelier primitives separately from ClawTrace-specific features
+- upstream shared improvements to common Atelier primitives separately from ClawTrace-specific features
 - avoid baking workflow-specific semantics into generic Atelier components unless they are truly reusable across apps

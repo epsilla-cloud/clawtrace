@@ -1,4 +1,5 @@
 import { promises as fs } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 export type DiscoveryMessageRole = 'assistant' | 'system' | 'user';
@@ -199,7 +200,7 @@ type TraceAccumulator = {
   lastObservedMs: number;
 };
 
-const HOME_DIR = process.env.HOME ?? '/Users/songrenchu';
+const HOME_DIR = process.env.HOME ?? os.homedir() ?? '';
 const DEFAULT_OPENCLAW_PATH = path.join(HOME_DIR, '.openclaw');
 const DEFAULT_WORKSPACE_PATH = path.join(HOME_DIR, 'ClawWork');
 const DEFAULT_COST_PER_1K_TOKENS_USD = 0.004;

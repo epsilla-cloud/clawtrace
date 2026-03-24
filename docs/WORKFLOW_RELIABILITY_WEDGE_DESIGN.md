@@ -152,7 +152,7 @@ Cost scope (must be first-class in the same flow):
   - add budget guardrails per step/workflow
   - recommend script promotion for deterministic high-cost steps
 - keep this integrated into onboarding and control-room views, not as a separate "finance" page
-- implement using the explicit overlay spec in [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](/Users/songrenchu/ClawWork/Projects/clawtrace/docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
+- implement using the explicit overlay spec in [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
 
 Why this is better than a normal observability launch:
 - it solves the founder's daily workflow pain immediately
