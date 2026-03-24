@@ -345,7 +345,7 @@
   min-height: 360px;
   border: 0;
   border-radius: 0;
-  background: linear-gradient(180deg, #fff 0%, color-mix(in srgb, var(--ct-panel-subtle) 44%, white) 100%);
+  background: #fff;
   overflow: hidden;
 }
 
@@ -359,11 +359,7 @@
 .timelineTopRow {
   border-bottom: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   padding: 9px 12px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--ct-panel-subtle) 68%, white) 0%,
-    color-mix(in srgb, var(--ct-panel-subtle) 52%, white) 100%
-  );
+  background: #fff;
   display: flex;
   align-items: center;
   justify-content: space-between;

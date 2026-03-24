@@ -1279,7 +1279,8 @@ function StepTimelineView({
               name: 'duration',
               type: 'bar',
               stack: 'timeline',
-              barWidth: 12,
+              barWidth: '56%',
+              barCategoryGap: '58%',
               data: durationSeries,
               emphasis: {
                 focus: 'series',
