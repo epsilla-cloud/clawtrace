@@ -1,16 +1,20 @@
 .page {
+  height: 100dvh;
   min-height: 100vh;
   min-height: 100dvh;
   background: var(--ct-page-bg);
   color: var(--ct-text);
+  overflow: hidden;
 }
 
 .shell {
+  height: 100dvh;
   min-height: 100dvh;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) minmax(320px, 380px);
   align-items: stretch;
   transition: grid-template-columns 180ms ease;
+  overflow: hidden;
 }
 
 .shellTracyOpen {
@@ -30,11 +34,13 @@
 
 .content {
   min-height: 0;
+  height: 100%;
   padding: 18px 20px;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
   align-content: start;
   gap: 12px;
+  overflow: hidden;
 }
 
 .topRow {
