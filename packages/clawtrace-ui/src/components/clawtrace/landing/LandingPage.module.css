@@ -225,13 +225,22 @@
 }
 
 .backerTag {
-  border-radius: 999px;
+  height: 42px;
+  border-radius: 12px;
   border: 1px solid color-mix(in srgb, var(--ct-border) 70%, white);
   background: #fff;
-  color: var(--ct-soft-text);
-  padding: 4px 10px;
-  font-size: var(--ct-text-meta);
-  font-weight: 600;
+  padding: 8px 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backerLogo {
+  height: 100%;
+  width: auto;
+  max-width: 148px;
+  object-fit: contain;
+  display: block;
 }
 
 .improvementSection {

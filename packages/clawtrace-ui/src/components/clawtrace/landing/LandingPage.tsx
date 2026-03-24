@@ -1,11 +1,18 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
+import idcLogo from '../../../../idc.png';
+import nvidiaLogo from '../../../../nvidia.png';
+import yCombinatorLogo from '../../../../ycombinator.png';
 import styles from './LandingPage.module.css';
 
 type WaitlistState = 'idle' | 'loading' | 'success' | 'error';
 
-const BACKERS = ['YC', 'NVIDIA Inception', 'IDC Innovation'];
+const BACKERS = [
+  { name: 'Y Combinator', logo: yCombinatorLogo },
+  { name: 'NVIDIA Inception', logo: nvidiaLogo },
+  { name: 'IDC Innovation', logo: idcLogo },
+];
 
 const IMPROVEMENT_BLOCKS = [
   {
@@ -134,9 +141,15 @@ export function LandingPage() {
         <p className={styles.backersLabel}>Backed by</p>
         <div className={styles.backersList}>
           {BACKERS.map((backer) => (
-            <span key={backer} className={styles.backerTag}>
-              {backer}
-            </span>
+            <div key={backer.name} className={styles.backerTag}>
+              <img
+                src={backer.logo.src}
+                alt={backer.name}
+                width={backer.logo.width}
+                height={backer.logo.height}
+                className={styles.backerLogo}
+              />
+            </div>
           ))}
         </div>
       </section>
