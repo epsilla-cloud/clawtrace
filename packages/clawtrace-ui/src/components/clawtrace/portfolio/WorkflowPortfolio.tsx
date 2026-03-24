@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlowLeftNav } from '../flow/FlowLeftNav';
 import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
-import type { OpenClawDiscoverySnapshot, WorkflowDiscovery } from '../../../lib/openclaw-discovery';
+import type { OpenClawDiscoverySnapshot } from '../../../lib/openclaw-discovery';
 import styles from './WorkflowPortfolio.module.css';
 
 type WorkflowPortfolioProps = {
@@ -21,24 +21,6 @@ type ResolvedTimeRange = {
   dayCount: number;
   label: string;
   subtitle: string;
-};
-
-const TRUST_LABEL: Record<WorkflowDiscovery['trustState'], string> = {
-  healthy: 'Healthy',
-  at_risk: 'At Risk',
-  drifting: 'Drifting',
-  blocked: 'Blocked',
-  awaiting_confirmation: 'Awaiting Confirmation',
-  partially_verified: 'Partially Verified',
-};
-
-const TRUST_CLASS: Record<WorkflowDiscovery['trustState'], string> = {
-  healthy: styles.stateHealthy,
-  at_risk: styles.stateAtRisk,
-  drifting: styles.stateDrifting,
-  blocked: styles.stateBlocked,
-  awaiting_confirmation: styles.stateAwaiting,
-  partially_verified: styles.statePartial,
 };
 
 function formatNumber(value: number): string {
@@ -396,14 +378,81 @@ function TrendChart({ title, subtitle, categories, values, valueMode }: TrendCha
   );
 }
 
-function formatAgentMetrics(agent: WorkflowDiscovery): string {
-  return `${agent.runStats7d.success}/${agent.runStats7d.total} success · ${formatNumber(agent.tokenStats7d.total)} tokens · ${formatCurrency(agent.costStats7d.totalUsd)}`;
+type TraceStatus = 'success' | 'failure' | 'running' | 'unknown';
+type TraceStatusFilter = 'all' | TraceStatus;
+type TraceSortKey = 'trace' | 'agent' | 'workflow' | 'startedAt' | 'status' | 'inputTokens' | 'outputTokens' | 'cost';
+type SortDirection = 'asc' | 'desc';
+
+type TraceRow = {
+  key: string;
+  traceId: string;
+  traceName: string;
+  sessionKey: string;
+  agentName: string;
+  workflowId: string;
+  workflowName: string;
+  startedAtMs: number;
+  status: TraceStatus;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+};
+
+function getAgentLabelFromSessionKey(sessionKey: string): string {
+  const normalized = sessionKey.toLowerCase();
+  if (normalized.includes(':telegram:')) return 'Telegram Agent';
+  if (normalized.includes(':cron:')) return 'Cron Agent';
+  if (normalized.includes(':subagent:')) return 'Subagent';
+  if (normalized === 'agent:main:main') return 'Main Agent';
+  if (normalized.startsWith('agent:main:')) return 'Main Agent';
+  return 'External Agent';
 }
+
+function formatTraceName(traceId: string, signals: string[]): string {
+  const shortTraceId = traceId.split(':')[0].slice(0, 8);
+  if (!signals.length) {
+    return `trace-${shortTraceId}`;
+  }
+  return `${signals[0].replace(/_/g, ' ')} · ${shortTraceId}`;
+}
+
+function normalizeTraceStatus(status: string | undefined): TraceStatus {
+  if (status === 'success' || status === 'failure' || status === 'running') {
+    return status;
+  }
+  return 'unknown';
+}
+
+function defaultSortDirection(sortKey: TraceSortKey): SortDirection {
+  if (sortKey === 'startedAt' || sortKey === 'inputTokens' || sortKey === 'outputTokens' || sortKey === 'cost') {
+    return 'desc';
+  }
+  return 'asc';
+}
+
+const TRACE_STATUS_LABEL: Record<TraceStatus, string> = {
+  success: 'Success',
+  failure: 'Failure',
+  running: 'Running',
+  unknown: 'Unknown',
+};
+
+const TRACE_STATUS_CLASS: Record<TraceStatus, string> = {
+  success: styles.traceStatusSuccess,
+  failure: styles.traceStatusFailure,
+  running: styles.traceStatusRunning,
+  unknown: styles.traceStatusUnknown,
+};
 
 export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowPortfolioProps) {
   const [snapshot, setSnapshot] = useState<OpenClawDiscoverySnapshot | null>(initialSnapshot ?? null);
   const [loadingSnapshot, setLoadingSnapshot] = useState<boolean>(!initialSnapshot);
-  const [query, setQuery] = useState('');
+  const [traceQuery, setTraceQuery] = useState('');
+  const [agentFilter, setAgentFilter] = useState<string>('all');
+  const [workflowFilter, setWorkflowFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<TraceStatusFilter>('all');
+  const [sortKey, setSortKey] = useState<TraceSortKey>('startedAt');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const todayIso = useMemo(() => toIsoDate(Date.now()), []);
   const [timeRange, setTimeRange] = useState<TimeRangeKey>('7d');
   const [customStartDate, setCustomStartDate] = useState<string>(() => {
@@ -477,20 +526,129 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
   const totalRuns = agents.reduce((sum, agent) => sum + agent.runStats7d.total, 0);
   const portfolioSuccessRate = totalRuns > 0 ? Math.round((totalSuccessfulRuns / totalRuns) * 100) : 0;
 
-  const visibleAgents = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    if (!needle.length) {
-      return agents;
+  const traceRows = useMemo<TraceRow[]>(() => {
+    if (!snapshot) {
+      return [];
     }
 
-    return agents.filter((agent) => {
-      return (
-        agent.name.toLowerCase().includes(needle) ||
-        agent.failureThemes.join(' ').toLowerCase().includes(needle) ||
-        agent.inferredGoals.join(' ').toLowerCase().includes(needle)
-      );
+    return snapshot.workflows.flatMap((workflow) =>
+      workflow.trajectories
+        .filter(
+          (trajectory) =>
+            trajectory.startedAtMs >= resolvedRange.startMs && trajectory.startedAtMs < resolvedRange.endExclusiveMs
+        )
+        .map((trajectory) => {
+          const status = normalizeTraceStatus(trajectory.resultStatus);
+          return {
+            key: `${workflow.id}:${trajectory.traceId}:${trajectory.startedAtMs}`,
+            traceId: trajectory.traceId,
+            traceName: formatTraceName(trajectory.traceId, trajectory.signals),
+            sessionKey: trajectory.sessionKey,
+            agentName: getAgentLabelFromSessionKey(trajectory.sessionKey),
+            workflowId: workflow.id,
+            workflowName: workflow.name,
+            startedAtMs: trajectory.startedAtMs,
+            status,
+            inputTokens: Math.max(0, trajectory.inputTokens),
+            outputTokens: Math.max(0, trajectory.outputTokens),
+            estimatedCostUsd: trajectory.estimatedCostUsd,
+          };
+        }),
+    );
+  }, [snapshot, resolvedRange]);
+
+  const agentOptions = useMemo(
+    () => ['all', ...Array.from(new Set(traceRows.map((row) => row.agentName))).sort()],
+    [traceRows],
+  );
+  const workflowOptions = useMemo(
+    () => ['all', ...Array.from(new Set(traceRows.map((row) => row.workflowName))).sort()],
+    [traceRows],
+  );
+
+  const filteredTraceRows = useMemo(() => {
+    const needle = traceQuery.trim().toLowerCase();
+
+    return traceRows.filter((row) => {
+      if (agentFilter !== 'all' && row.agentName !== agentFilter) {
+        return false;
+      }
+      if (workflowFilter !== 'all' && row.workflowName !== workflowFilter) {
+        return false;
+      }
+      if (statusFilter !== 'all' && row.status !== statusFilter) {
+        return false;
+      }
+      if (!needle) {
+        return true;
+      }
+
+      const haystack = `${row.traceName} ${row.traceId} ${row.sessionKey} ${row.agentName} ${row.workflowName} ${row.status}`.toLowerCase();
+      return haystack.includes(needle);
     });
-  }, [query, agents]);
+  }, [traceRows, traceQuery, agentFilter, workflowFilter, statusFilter]);
+
+  const sortedTraceRows = useMemo(() => {
+    const items = [...filteredTraceRows];
+    const statusOrder: Record<TraceStatus, number> = {
+      failure: 0,
+      running: 1,
+      unknown: 2,
+      success: 3,
+    };
+
+    items.sort((a, b) => {
+      let result = 0;
+      switch (sortKey) {
+        case 'trace':
+          result = a.traceName.localeCompare(b.traceName);
+          break;
+        case 'agent':
+          result = a.agentName.localeCompare(b.agentName);
+          break;
+        case 'workflow':
+          result = a.workflowName.localeCompare(b.workflowName);
+          break;
+        case 'startedAt':
+          result = a.startedAtMs - b.startedAtMs;
+          break;
+        case 'status':
+          result = statusOrder[a.status] - statusOrder[b.status];
+          break;
+        case 'inputTokens':
+          result = a.inputTokens - b.inputTokens;
+          break;
+        case 'outputTokens':
+          result = a.outputTokens - b.outputTokens;
+          break;
+        case 'cost':
+          result = a.estimatedCostUsd - b.estimatedCostUsd;
+          break;
+        default:
+          result = 0;
+      }
+
+      return sortDirection === 'asc' ? result : -result;
+    });
+
+    return items;
+  }, [filteredTraceRows, sortKey, sortDirection]);
+
+  function handleSort(nextSortKey: TraceSortKey) {
+    if (sortKey === nextSortKey) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+    setSortKey(nextSortKey);
+    setSortDirection(defaultSortDirection(nextSortKey));
+  }
+
+  function sortIndicator(nextSortKey: TraceSortKey): string {
+    if (sortKey !== nextSortKey) {
+      return '';
+    }
+    return sortDirection === 'asc' ? ' ↑' : ' ↓';
+  }
 
   if (!snapshot || !metrics) {
     return (
@@ -649,43 +807,114 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             <div className={styles.tableToolbar}>
               <input
                 className={styles.filterInput}
-                value={query}
-                onChange={(event) => setQuery(event.currentTarget.value)}
-                placeholder="Filter agents"
-                aria-label="Filter agents"
+                value={traceQuery}
+                onChange={(event) => setTraceQuery(event.currentTarget.value)}
+                placeholder="Filter by trace id/name"
+                aria-label="Filter traces"
               />
+              <select
+                className={styles.filterSelect}
+                value={agentFilter}
+                onChange={(event) => setAgentFilter(event.currentTarget.value)}
+                aria-label="Filter by agent"
+              >
+                {agentOptions.map((agent) => (
+                  <option key={agent} value={agent}>
+                    {agent === 'all' ? 'All agents' : agent}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={styles.filterSelect}
+                value={workflowFilter}
+                onChange={(event) => setWorkflowFilter(event.currentTarget.value)}
+                aria-label="Filter by workflow"
+              >
+                {workflowOptions.map((workflowName) => (
+                  <option key={workflowName} value={workflowName}>
+                    {workflowName === 'all' ? 'All workflows' : workflowName}
+                  </option>
+                ))}
+              </select>
+              <select
+                className={styles.filterSelect}
+                value={statusFilter}
+                onChange={(event) => setStatusFilter(event.currentTarget.value as TraceStatusFilter)}
+                aria-label="Filter by status"
+              >
+                <option value="all">All statuses</option>
+                <option value="success">Success</option>
+                <option value="failure">Failure</option>
+                <option value="running">Running</option>
+                <option value="unknown">Unknown</option>
+              </select>
             </div>
 
-            {visibleAgents.length ? (
+            {sortedTraceRows.length ? (
               <div className={styles.tableWrap}>
                 <table className={styles.agentTable}>
                   <thead>
                     <tr>
-                      <th>Agent name</th>
-                      <th>Last run</th>
-                      <th>High-level metrics</th>
-                      <th>Tags</th>
+                      <th>
+                        <button type="button" className={styles.sortButton} onClick={() => handleSort('trace')}>
+                          {`Trace${sortIndicator('trace')}`}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortButton} onClick={() => handleSort('agent')}>
+                          {`Agent${sortIndicator('agent')}`}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortButton} onClick={() => handleSort('workflow')}>
+                          {`Workflow${sortIndicator('workflow')}`}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortButton} onClick={() => handleSort('startedAt')}>
+                          {`Started${sortIndicator('startedAt')}`}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortButton} onClick={() => handleSort('status')}>
+                          {`Status${sortIndicator('status')}`}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortButton} onClick={() => handleSort('inputTokens')}>
+                          {`Input Tokens${sortIndicator('inputTokens')}`}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortButton} onClick={() => handleSort('outputTokens')}>
+                          {`Output Tokens${sortIndicator('outputTokens')}`}
+                        </button>
+                      </th>
+                      <th>
+                        <button type="button" className={styles.sortButton} onClick={() => handleSort('cost')}>
+                          {`Est. Cost${sortIndicator('cost')}`}
+                        </button>
+                      </th>
                       <th>Details</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleAgents.map((agent) => (
-                      <tr key={agent.id}>
-                        <td className={styles.agentNameCell}>{agent.name}</td>
-                        <td>{agent.latestRun ? formatDate(agent.latestRun.atMs) : 'n/a'}</td>
-                        <td>{formatAgentMetrics(agent)}</td>
+                    {sortedTraceRows.map((row) => (
+                      <tr key={row.key}>
+                        <td className={styles.agentNameCell}>{row.traceName}</td>
+                        <td>{row.agentName}</td>
+                        <td>{row.workflowName}</td>
+                        <td>{formatDate(row.startedAtMs)}</td>
                         <td>
-                          <div className={styles.tagRow}>
-                            <span className={`${styles.statusPill} ${TRUST_CLASS[agent.trustState]}`}>{TRUST_LABEL[agent.trustState]}</span>
-                            {agent.failureThemes.slice(0, 2).map((theme) => (
-                              <span key={`${agent.id}-${theme}`} className={styles.tag}>
-                                {theme.replace(/_/g, ' ')}
-                              </span>
-                            ))}
-                          </div>
+                          <span className={`${styles.statusPill} ${TRACE_STATUS_CLASS[row.status]}`}>
+                            {TRACE_STATUS_LABEL[row.status]}
+                          </span>
                         </td>
+                        <td>{formatNumber(row.inputTokens)}</td>
+                        <td>{formatNumber(row.outputTokens)}</td>
+                        <td>{formatCurrency(row.estimatedCostUsd)}</td>
                         <td>
-                          <Link href={`/control-room/${encodeURIComponent(agent.id)}`} className={styles.detailsLink}>
+                          <Link href={`/control-room/${encodeURIComponent(row.workflowId)}`} className={styles.detailsLink}>
                             View
                           </Link>
                         </td>
@@ -696,7 +925,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
               </div>
             ) : (
               <article className={styles.emptyCard}>
-                <p className={styles.emptyTitle}>No agents match this filter.</p>
+                <p className={styles.emptyTitle}>No traces match this filter.</p>
                 <p className={styles.emptyBody}>Try a different search term or clear the filter.</p>
               </article>
             )}

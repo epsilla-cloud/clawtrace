@@ -29,12 +29,15 @@ export type WorkflowTrajectory = {
   durationMs: number;
   llmCalls: number;
   toolCalls: number;
+  inputTokens: number;
+  outputTokens: number;
   totalTokens: number;
   models: string[];
   signals: string[];
   mutatingBoundaries: string[];
   costModel: string | null;
   estimatedCostUsd: number;
+  resultStatus: 'success' | 'failure' | 'running' | 'unknown';
   status: 'running' | 'completed';
 };
 
@@ -718,6 +721,8 @@ function buildTrajectoriesFromTraceGroup(
   type LlmWindow = {
     startMs: number;
     endMs: number;
+    inputTokens: number;
+    outputTokens: number;
     totalTokens: number;
     model: string | null;
     hasClosed: boolean;
@@ -743,11 +748,15 @@ function buildTrajectoriesFromTraceGroup(
     const inferred = signalsFromTraceSpan(span);
     const endMs = toNumber(span.endMs);
     const spanTokens = extractSpanTotalTokens(span);
+    const spanInputTokens = Math.max(0, toNumber(span.tokensIn));
+    const spanOutputTokens = Math.max(0, toNumber(span.tokensOut));
 
     if (!existing) {
       llmWindows.set(startMs, {
         startMs,
         endMs: endMs > 0 ? endMs : startMs,
+        inputTokens: spanInputTokens,
+        outputTokens: spanOutputTokens,
         totalTokens: spanTokens,
         model: span.model ?? null,
         hasClosed: endMs > 0,
@@ -759,6 +768,8 @@ function buildTrajectoriesFromTraceGroup(
     }
 
     existing.endMs = Math.max(existing.endMs, endMs > 0 ? endMs : startMs);
+    existing.inputTokens = Math.max(existing.inputTokens, spanInputTokens);
+    existing.outputTokens = Math.max(existing.outputTokens, spanOutputTokens);
     existing.totalTokens = Math.max(existing.totalTokens, spanTokens);
     if (!existing.model && span.model) {
       existing.model = span.model;
@@ -827,12 +838,15 @@ function buildTrajectoriesFromTraceGroup(
       durationMs: Math.max(0, windowEndMs - window.startMs),
       llmCalls: 1,
       toolCalls: toolSpansForWindow.length,
+      inputTokens: window.inputTokens,
+      outputTokens: window.outputTokens,
       totalTokens: window.totalTokens,
       models: window.model ? [window.model] : [],
       signals: Array.from(allSignals).sort(),
       mutatingBoundaries: Array.from(allMutatingBoundaries).sort(),
       costModel,
       estimatedCostUsd,
+      resultStatus: window.hasClosed ? 'unknown' : 'running',
       status: window.hasClosed ? 'completed' : 'running',
     });
   }
@@ -1032,8 +1046,43 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
     const failureThemes = detectFailureThemes(runs7d);
     const mutatingBoundaries = detectMutatingBoundaries(`${job.payload?.message ?? ''} ${latestRun?.summary ?? ''}`);
 
+    const recentRunsSorted = [...runs7d].sort((a, b) => toNumber(a.runAtMs) - toNumber(b.runAtMs));
     const trajectoriesForWorkflow = trajectories
       .filter((trajectory) => trajectory.sessionKey.includes(`:cron:${job.id}`))
+      .map((trajectory) => {
+        const closestRun = recentRunsSorted.reduce<CronRun | null>((best, run) => {
+          const runAtMs = toNumber(run.runAtMs);
+          if (!runAtMs) {
+            return best;
+          }
+          if (!best) {
+            return run;
+          }
+          const bestDiff = Math.abs(toNumber(best.runAtMs) - trajectory.startedAtMs);
+          const candidateDiff = Math.abs(runAtMs - trajectory.startedAtMs);
+          return candidateDiff < bestDiff ? run : best;
+        }, null);
+
+        const closestRunAtMs = toNumber(closestRun?.runAtMs);
+        const closestDiffMs = closestRunAtMs ? Math.abs(closestRunAtMs - trajectory.startedAtMs) : Number.POSITIVE_INFINITY;
+        const runStatus = closestRun?.status ?? null;
+        const withinMatchWindow = closestDiffMs <= 30 * 60 * 1000;
+        const resultStatus: WorkflowTrajectory['resultStatus'] =
+          trajectory.status === 'running'
+            ? 'running'
+            : withinMatchWindow
+              ? runStatus === 'error'
+                ? 'failure'
+                : runStatus === 'ok'
+                  ? 'success'
+                  : 'unknown'
+              : 'unknown';
+
+        return {
+          ...trajectory,
+          resultStatus,
+        };
+      })
       .sort((a, b) => b.startedAtMs - a.startedAtMs);
     for (const trajectory of trajectoriesForWorkflow) {
       assignedTrajectoryKeys.add(`${trajectory.sessionKey}::${trajectory.traceId}`);
@@ -1121,7 +1170,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
             summary: compactText(latestRun.summary ?? latestRun.error ?? 'No summary'),
           }
         : null,
-      trajectories: trajectoriesForWorkflow.slice(0, 12),
+      trajectories: trajectoriesForWorkflow,
       recommendations,
       mutatingBoundaries,
     });
@@ -1172,7 +1221,11 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
     const tokenTotal = recentTrajectories.reduce((sum, trajectory) => sum + trajectory.totalTokens, 0);
     const totalCostUsd = roundUsd(recentTrajectories.reduce((sum, trajectory) => sum + trajectory.estimatedCostUsd, 0));
     const mutatingBoundaries = unique(recentTrajectories.flatMap((trajectory) => trajectory.mutatingBoundaries));
-    const latestTrajectory = recentTrajectories[0];
+    const recentTrajectoriesWithOutcome = recentTrajectories.map((trajectory) => ({
+      ...trajectory,
+      resultStatus: trajectory.status === 'running' ? ('running' as const) : ('success' as const),
+    }));
+    const latestTrajectory = recentTrajectoriesWithOutcome[0];
     const inferredCompleted = recentTrajectories.filter((trajectory) => trajectory.status === 'completed').length;
     const inferredRunning = recentTrajectories.filter((trajectory) => trajectory.status === 'running').length;
     const inferredTotal = recentTrajectories.length;
@@ -1228,7 +1281,7 @@ export async function loadOpenClawDiscoverySnapshot(): Promise<OpenClawDiscovery
             : 'Inferred from non-cron trajectory telemetry.',
         ),
       },
-      trajectories: recentTrajectories.slice(0, 12),
+      trajectories: recentTrajectoriesWithOutcome,
       recommendations,
       mutatingBoundaries,
     });
