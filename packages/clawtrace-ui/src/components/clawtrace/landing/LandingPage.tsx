@@ -30,7 +30,7 @@ const IMPROVEMENT_BLOCKS = [
   {
     step: '02',
     title: 'Cheaper',
-    lead: 'Know exactly why cost spiked this week.',
+    lead: 'Know exactly why cost spiked.',
     body: 'See spend by agent run and step so you can cut cost without guessing.',
   },
   {
