@@ -27,7 +27,7 @@ Primary objective: move users from "agent feels like a black box" to "I can diag
 | F0 Entry + Connect | First install or first login | Onboarding chat | "Can ClawTrace see my workflows?" | OpenClaw connection verified and workflows discovered | F1 |
 | F1 Guided Audit Warmup | Connected, no baseline yet | Onboarding chat + warmup cards | "What did you infer from my existing runs?" | Baseline contract + first trust map confirmed | F2 |
 | F2 First Value Handoff | Onboarding complete | Workflow cockpit | "What should I do first?" | User lands on selected workflow with primary next action | F3 |
-| F3 Daily Control Room | Returning user or scheduled run | Portfolio + selected cockpit | "Are we healthy and within budget today?" | User either stays in monitor mode or escalates to investigation | F4/F5 |
+| F3 Daily Overview | Returning user or scheduled run | Portfolio + selected cockpit | "Are we healthy and within budget today?" | User either stays in monitor mode or escalates to investigation | F4/F5 |
 | F4 Live Run Monitoring | Active workflow execution | Run story timeline + trust band | "What is happening right now?" | Run reaches success, partial, defer, or block | F3/F5/F7 |
 | F5 Incident Triage | Trust degradation, alert, or manual open | Investigation drawer + incident memo | "Why did this fail and what changed?" | Root cause hypothesis and next action selected | F6 |
 | F6 Action + Intervention | User accepts recommendation | Primary action card + control hook | "What is the safest next step?" | Action executed or deferred with explicit reason | F7 |
@@ -117,7 +117,7 @@ Land user directly into "what to do now" for one workflow.
 ### Exit criteria
 - user can take one meaningful action in under 60 seconds
 
-## F3 Daily Control Room
+## F3 Daily Overview
 
 ### Goal
 Support calm daily operations with fast triage.

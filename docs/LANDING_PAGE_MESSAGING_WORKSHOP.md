@@ -1,6 +1,6 @@
 # ClawTrace Landing Page Messaging Workshop
 
-Last updated: 2026-03-24  
+Last updated: 2026-03-25  
 Status: Implemented in `packages/clawtrace-ui`
 
 ## 0) Final Selection
@@ -17,19 +17,19 @@ Hero:
 - **Make your OpenClaw agents better, cheaper, and faster.**
 
 Subhead:
-- **See what failed, where spend leaked, and what to fix first.**
+- **See what failed, where spend leaked, and how to improve.**
 
 Section: Better
 - Less babysitting, fewer repeated mistakes.
-- More reliable output from the workflows you already run daily.
+- More reliable output from the agents you already run daily.
 
 Section: Cheaper
-- Know exactly why cost spiked this week.
-- Fix the biggest leak first instead of guessing.
+- Know exactly why cost spiked.
+- Cut cost without guessing.
 
 Section: Faster
-- Get from “something is wrong” to “here’s the fix” quickly.
-- Spend less time debugging and more time shipping.
+- Stop agents from looping back and forth, and get to the right fix faster.
+- Use cheaper models when possible and script repeatable steps so runs stay stable.
 
 CTA:
 - **Join Waitlist** (email capture)
