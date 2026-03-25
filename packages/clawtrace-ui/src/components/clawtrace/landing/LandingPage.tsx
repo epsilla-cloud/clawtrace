@@ -36,8 +36,8 @@ const IMPROVEMENT_BLOCKS = [
   {
     step: '03',
     title: 'Faster',
-    lead: 'Get from "something is wrong" to "here is the fix" quickly.',
-    body: 'Run one control loop that prioritizes the next action and cuts time lost in manual debugging.',
+    lead: 'Stop agents from looping back and forth, and get to the right fix faster.',
+    body: 'Use cheaper models when possible and script repeatable steps so runs stay stable.',
   },
 ];
 
