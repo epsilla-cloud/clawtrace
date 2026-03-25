@@ -3,7 +3,9 @@ import { LandingPage } from '../components/clawtrace/landing/LandingPage';
 import { siteConfig } from '../lib/site';
 
 export const metadata: Metadata = {
-  title: 'Make your OpenClaw agents better, cheaper, and faster',
+  title: {
+    absolute: 'ClawTrace | Make your OpenClaw agents better, cheaper, and faster',
+  },
   description: 'See what failed, where spend leaked, and what to fix first with ClawTrace observability.',
   alternates: {
     canonical: '/',
