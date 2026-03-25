@@ -4,7 +4,7 @@ import { siteConfig } from '../lib/site';
 
 export const metadata: Metadata = {
   title: {
-    absolute: 'ClawTrace | Make your OpenClaw agents better, cheaper, and faster',
+    absolute: 'Make your OpenClaw agents better, cheaper, and faster | ClawTrace',
   },
   description: 'See what failed, where spend leaked, and what to fix first with ClawTrace observability.',
   alternates: {
