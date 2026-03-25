@@ -1,6 +1,6 @@
 # ClawTrace User Journey Flow Spec
 
-Last updated: 2026-03-24
+Last updated: 2026-03-25
 Owner: Product + Design + Engineering
 Status: Draft v1 (implementation-ready journey map)
 
@@ -18,6 +18,7 @@ Primary objective: move users from "agent feels like a black box" to "I can diag
 4. Known vs unknown evidence must always be explicit.
 5. Incidents should become reusable assets (regression tests, alerts, runbooks), not one-off fire drills.
 6. Cost must be explainable in the same flow as reliability, not in a separate dashboard context.
+7. The product should progress from observe -> recommend -> safe self-improve, never jumping straight to blind autonomy.
 
 ## 3) System Flows At A Glance
 
@@ -35,6 +36,7 @@ Primary objective: move users from "agent feels like a black box" to "I can diag
 | F9 Drift + Time Machine | Behavior regression over time | State diff + version timeline | "What changed in config/memory/skills/plugins?" | Drift source identified, rollback or contract update applied | F3/F5 |
 | F10 Conversational Automation | User asks in chat | Investigation drawer chat | "Create dashboard/alert/report from this" | Saved dashboard/alert/runbook artifact created | F3 |
 | F11 Feedback Capture | User review or override | Inline feedback controls | "Was this useful/correct?" | Feedback persisted and linked to run/action | F8/F3 |
+| F12 Closed-Loop Improvement | Repeated issue or scheduled optimization cycle | ClawTrace recommendation API + OpenClaw skill action path | "Can the agent improve itself safely?" | Change applied with snapshot + verification, or rolled back with evidence | F3/F7/F9 |
 
 ## 3.1) Navigation Information Architecture (Expandable Left Rail)
 
@@ -256,6 +258,32 @@ Use user signal to improve reliability recommendations.
 
 ### Exit criteria
 - feedback linked to run, action, and recommendation
+
+## F12 Closed-Loop Improvement (2026-03-25 update)
+
+### Goal
+Convert passive observability into safe, auditable agent improvement.
+
+### Core steps
+1. ClawTrace analyzes recent trajectories and state changes.
+2. ClawTrace produces recommendations through an API consumable by an OpenClaw skill.
+3. OpenClaw requests recommendation(s) and proposes an action:
+- resolve config/memory/skills conflict
+- downshift model tier for low-intelligence routines
+- scriptify deterministic repeated steps
+4. Before mutation, capture state snapshot and rollback pointer.
+5. Apply with explicit operator confirmation policy (Phase 1: recommendation-first).
+6. Verify quality and cost impact.
+7. Keep or rollback, then persist the result into evolution history.
+
+### Exit criteria
+- every accepted change has `before/after` evidence on reliability and cost
+- every failed change has rollback evidence and root-cause notes
+
+### Required safety constraints
+1. Local OpenClaw runs should be constrained to explicit workspace allowlist paths.
+2. Mutations without a pre-change snapshot are blocked.
+3. Recommendations must include confidence + expected tradeoff notes.
 
 ## 5) Transition Map
 

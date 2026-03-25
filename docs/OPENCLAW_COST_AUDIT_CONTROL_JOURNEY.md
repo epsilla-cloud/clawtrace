@@ -1,6 +1,6 @@
 # OpenClaw Cost Audit and Cost Control Journey (ClawTrace)
 
-Last updated: 2026-03-24  
+Last updated: 2026-03-25  
 Owner: Product + Engineering  
 Status: Draft v1 (scope-ready for Phase 1)
 
@@ -40,6 +40,9 @@ Prompt/context caching increases the benefit of every upstream optimization when
 
 8. Teams that win treat agents as infrastructure.
 They run cost audits, enforce controls, and continuously improve routing and workload shape.
+
+9. Loop-back behavior and over-agentic deterministic tasks are expensive.
+When the same routine can be scripted, keeping it fully agentic often adds avoidable retries, latency, and spend.
 
 ## 3) ClawTrace Cost Taxonomy (OpenClaw)
 
@@ -118,6 +121,14 @@ ClawTrace should offer these as guided controls, not hidden config trivia:
 - mark stable context for cache eligibility
 - flag cache-break patterns (frequent edits to stable instructions)
 
+7. Loop-Back and Oscillation Control
+- detect repeated back-and-forth trajectories with low marginal value
+- recommend stop conditions, tighter retries, or step-level script handoff
+
+8. Determinism Scriptification Control
+- identify steps that repeatedly succeed via fixed patterns
+- recommend converting those steps to scripts while keeping agent orchestration where useful
+
 ## 7) Core UX Requirements
 
 1. Cost in onboarding
@@ -167,3 +178,14 @@ ClawTrace should offer these as guided controls, not hidden config trivia:
 2. Provider-perfect billed reconciliation across all model providers
 3. Organization-wide chargeback allocation
 4. Fully autonomous cost optimization loops
+
+## 11) Closed-Loop Delivery Path (2026-03-25 update)
+
+To reduce manual babysitting, cost controls must be deliverable through an API path the OpenClaw runtime can consume.
+
+Required path:
+1. ClawTrace computes cost/reliability recommendations from run + state history.
+2. Recommendation payload is exposed via ClawTrace endpoint(s).
+3. OpenClaw skill retrieves recommendation(s) and proposes/apply actions under policy.
+4. ClawTrace records `before -> action -> after` and verifies quality + cost deltas.
+5. If regression is detected, rollback recommendation is produced with evidence.

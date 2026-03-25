@@ -1,6 +1,6 @@
 # ClawTrace CEO Product Spec
 
-Last updated: 2026-03-24
+Last updated: 2026-03-25
 Owner: CEO (with Product + Engineering)
 Status: Draft v3 (market-informed plan)
 
@@ -29,6 +29,31 @@ Cloud Trace scope now explicitly includes spend attribution as a co-equal surfac
 - users must see cost-per-success, not only raw total spend
 - users must receive cost-aware next-best-actions that preserve reliability
 - this must be embedded in onboarding and control-room flows, not shipped as a disconnected finance page
+
+### Scope Update Addendum (2026-03-25): From Static Trace UI to Closed-Loop Improvement
+
+Current product status is now explicit:
+- today's integrated trace UI is mostly a static local proof point (OpenClaw logs converted to JSON and rendered)
+- backend analytics, recommendation generation, and closed-loop action flow are still being productized
+
+Phase-1 scope update from implementation sync:
+1. Keep the OpenClaw wedge, and productize the local demo into a live loop:
+   - runtime ingest
+   - analysis and insights
+   - recommendation delivery
+2. Add a ClawTrace recommendation API that can be consumed by an OpenClaw skill.
+3. Support recommendation classes that directly map to operator pain:
+   - detect conflicts across config/memory/skills
+   - reduce model tier where intelligence demand is low (for example routine background tasks)
+   - scriptify deterministic repeated paths instead of over-agentizing everything
+4. Keep this recommendation-first, with explicit safety controls and rollback.
+5. Treat agent self-evolution as an auditable process with:
+   - automatic state snapshot before mutation
+   - rollback pointer if changes regress quality/cost
+   - versioned A/B evaluation on fixed task sets
+6. Enforce least-privilege runtime boundaries for local OpenClaw deployments:
+   - workspace allowlist path
+   - explicit warning that unrestricted local permissions are high risk
 
 ## 2) Product Principles (First-Principles)
 
@@ -199,6 +224,7 @@ Must-have capabilities:
 - Cost & Performance: per tenant/agent/model/tool budgets
 - Cost Attribution Layer: cost-per-success, retry-loop cost, and explicit `estimated` vs `billed` precision
 - Regression Guard: dataset/eval and pre-release gates
+- Recommendation API Surface: endpoint(s) for OpenClaw skill consumption of ClawTrace insights/actions
 
 ## 5) Business Spec
 

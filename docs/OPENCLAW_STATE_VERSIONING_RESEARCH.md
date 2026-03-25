@@ -1,6 +1,6 @@
 # OpenClaw State Versioning Research
 
-Last updated: 2026-03-22
+Last updated: 2026-03-25
 Owner: Product Strategy
 Status: Draft v1
 
@@ -161,6 +161,27 @@ Guardrails:
 - Require confirmation for config/plugin rollback
 - Prefer replay/eval before production restore
 
+## 5.1) Productization Addendum (2026-03-25): Snapshot + Rollback + A/B Loop
+
+Implementation sync clarified the near-term requirement: ClawTrace should treat OpenClaw self-edits as controlled state mutations, not opaque side effects.
+
+Phase-1 additions:
+1. Pre-mutation snapshot hook
+- before any agent-driven config/memory/skill mutation, capture a snapshot + metadata pointer
+- mutation without snapshot should be blocked
+
+2. Rollback pointer and reason trail
+- store what changed, why it changed, and who/what initiated it (human vs agent)
+- link rollback candidate directly from the changed run and its recommendation
+
+3. Version-aware A/B evaluation
+- support fixed-task comparison across state versions
+- compare reliability + cost deltas before promoting a new state as default
+
+4. Evolution ledger
+- preserve a chronological history of recommendations, applied changes, outcomes, and reversions
+- make this inspectable in incident and drift workflows
+
 ## 6) Proposed ClawTrace Data Model Additions
 
 - `state_snapshot_id`
@@ -176,6 +197,12 @@ Guardrails:
 - `model_routing_hash`
 - `tool_policy_hash`
 - `secrets_snapshot_ref` as non-secret metadata only
+- `state_change_reason`
+- `state_change_actor` (`human` or `agent`)
+- `state_change_origin` (`manual`, `recommendation_api`, `automated_policy`)
+- `rollback_snapshot_id`
+- `experiment_id` / `ab_trial_id`
+- `state_promotion_status` (`candidate`, `promoted`, `rolled_back`)
 
 ## 7) Bottom Line
 
