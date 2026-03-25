@@ -12,6 +12,28 @@ export const metadata: Metadata = {
   keywords: [...siteConfig.keywords],
   applicationName: siteConfig.name,
   category: 'technology',
+  icons: {
+    icon: [
+      {
+        url: '/favicon.png',
+        type: 'image/png',
+        sizes: '32x32',
+      },
+      {
+        url: '/favicon.png',
+        type: 'image/png',
+        sizes: '192x192',
+      },
+    ],
+    shortcut: ['/favicon.png'],
+    apple: [
+      {
+        url: '/favicon.png',
+        sizes: '180x180',
+        type: 'image/png',
+      },
+    ],
+  },
   alternates: {
     canonical: '/',
   },

@@ -1,9 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { Cormorant_Garamond } from 'next/font/google';
 import { FormEvent, useEffect, useState } from 'react';
 import idcLogo from '../../../../idc.png';
+import logoImage from '../../../../logo.png';
 import nvidiaLogo from '../../../../nvidia.png';
 import overviewImage from '../../../../overview.png';
 import tracingGraphImage from '../../../../tracing_graph.png';
@@ -63,12 +63,6 @@ const PREVIEW_SLIDES = [
     alt: 'ClawTrace step timeline tracing view',
   },
 ];
-
-const logoFont = Cormorant_Garamond({
-  subsets: ['latin'],
-  weight: ['600', '700'],
-  style: ['normal', 'italic'],
-});
 
 function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -130,9 +124,16 @@ export function LandingPage() {
   return (
     <main className={styles.page}>
       <header className={styles.header}>
-        <a href="/" className={`${styles.brand} ${logoFont.className}`}>
-          <span className={styles.brandClaw}>Claw</span>
-          <span className={styles.brandTrace}>Trace</span>
+        <a href="/" className={styles.brand} aria-label="ClawTrace home">
+          <Image
+            src={logoImage}
+            alt="ClawTrace"
+            width={logoImage.width}
+            height={logoImage.height}
+            className={styles.brandImage}
+            sizes="200px"
+            priority
+          />
         </a>
 
         <nav className={styles.nav}>
