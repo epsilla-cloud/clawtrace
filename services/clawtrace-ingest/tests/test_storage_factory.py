@@ -23,7 +23,7 @@ def test_create_storage_factory_selects_gcs(monkeypatch: pytest.MonkeyPatch):
     settings = Settings(
         storage_provider=StorageProvider.GCS,
         raw_bucket="gcs-raw",
-        raw_prefix="raw-events",
+        raw_prefix="raw/v1",
     )
 
     storage = storage_module.create_raw_event_storage(settings)
@@ -46,7 +46,7 @@ def test_create_storage_factory_selects_azure(monkeypatch: pytest.MonkeyPatch):
         storage_provider=StorageProvider.AZURE_BLOB,
         azure_container="trace-raw",
         azure_account_url="https://acct.blob.core.windows.net",
-        raw_prefix="raw-events",
+        raw_prefix="raw/v1",
     )
 
     storage = storage_module.create_raw_event_storage(settings)
@@ -69,7 +69,7 @@ def test_create_storage_factory_selects_aws(monkeypatch: pytest.MonkeyPatch):
     settings = Settings(
         storage_provider=StorageProvider.AWS_S3,
         raw_bucket="trace-raw",
-        raw_prefix="raw-events",
+        raw_prefix="raw/v1",
         aws_region="us-east-1",
         aws_endpoint_url="",
     )
@@ -85,7 +85,7 @@ def test_create_storage_factory_rejects_missing_bucket_for_gcs():
         storage_provider=StorageProvider.GCS,
         raw_bucket="",
         gcs_bucket="",
-        raw_prefix="raw-events",
+        raw_prefix="raw/v1",
     )
 
     with pytest.raises(ValueError, match="CLAWTRACE_INGEST_RAW_BUCKET"):
@@ -98,9 +98,8 @@ def test_create_storage_factory_rejects_missing_container_for_azure():
         azure_container="",
         raw_bucket="",
         gcs_bucket="",
-        raw_prefix="raw-events",
+        raw_prefix="raw/v1",
     )
 
     with pytest.raises(ValueError, match="CLAWTRACE_INGEST_AZURE_CONTAINER"):
         storage_module.create_raw_event_storage(settings)
-

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Protocol
-from uuid import uuid4
 
 import boto3
 from azure.identity import DefaultAzureCredential
@@ -106,19 +105,20 @@ class S3ObjectStorageWriter:
 class DataLakeRawEventStorage(RawEventStorage):
     def __init__(self, writer: ObjectStorageWriter, prefix: str):
         self._writer = writer
-        self._prefix = prefix.strip("/")
+        self._prefix = (prefix or "").strip("/") or "raw/v1"
 
     def write_event(self, event: PersistedEvent) -> str:
-        dt = datetime.now(timezone.utc)
+        dt = datetime.fromtimestamp(event.event.tsMs / 1000, tz=timezone.utc)
         object_key = (
-            f"{self._prefix}/dt={dt.strftime('%Y-%m-%d')}/hr={dt.strftime('%H')}/"
-            f"agent={event.agentId}/event-{dt.strftime('%Y%m%dT%H%M%S')}-{uuid4().hex}.jsonl"
+            f"{self._prefix}/tenant={event.accountId}/agent={event.agentId}/"
+            f"dt={dt.strftime('%Y-%m-%d')}/hr={dt.strftime('%H')}/"
+            f"event-{event.event.eventId}.json"
         )
         payload = event.model_dump_json()
         return self._writer.write_text(
             object_key,
-            payload + "\n",
-            content_type="application/x-ndjson",
+            payload,
+            content_type="application/json",
         )
 
 

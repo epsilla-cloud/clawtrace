@@ -29,7 +29,7 @@ spec:
             - name: CLAWTRACE_INGEST_RAW_BUCKET
               value: "clawtrace-raw"
             - name: CLAWTRACE_INGEST_RAW_PREFIX
-              value: "raw-events"
+              value: "raw/v1"
             # Azure profile (set when STORAGE_PROVIDER=azure_blob)
             - name: CLAWTRACE_INGEST_AZURE_CONTAINER
               value: ""

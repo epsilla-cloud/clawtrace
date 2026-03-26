@@ -76,7 +76,9 @@ curl -X POST http://localhost:8080/v1/traces/events \
 
 - Data-lake-only raw sink (object storage).
 - Cloud-agnostic configuration via `CLAWTRACE_INGEST_STORAGE_PROVIDER`, `CLAWTRACE_INGEST_RAW_BUCKET`, and `CLAWTRACE_INGEST_RAW_PREFIX`.
-- Writes JSONL objects under `RAW_PREFIX/dt=YYYY-MM-DD/hr=HH/agent=<agent-id>/...`.
+- Writes JSON objects under:
+  - `RAW_PREFIX/tenant=<tenantId>/agent=<agentId>/dt=YYYY-MM-DD/hr=HH/event-<eventId>.json`
+  - `tenantId` is derived from authenticated `accountId`.
 
 Supported providers:
 

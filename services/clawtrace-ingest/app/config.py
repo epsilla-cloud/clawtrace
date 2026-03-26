@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     raw_prefix: str = ""
     # Backward-compatible fallback; use raw_bucket/raw_prefix moving forward.
     gcs_bucket: str = "clawtrace-raw"
-    gcs_prefix: str = "raw-events"
+    gcs_prefix: str = "raw/v1"
     azure_container: str = ""
     azure_account_url: str = ""
     azure_connection_string: str = ""
