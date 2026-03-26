@@ -24,8 +24,6 @@ spec:
           env:
             - name: CLAWTRACE_INGEST_AUTH_MODE
               value: "mock_pass"
-            - name: CLAWTRACE_INGEST_RAW_SINK
-              value: "gcs"
             - name: CLAWTRACE_INGEST_GCS_BUCKET
               value: "clawtrace-raw"
             - name: CLAWTRACE_INGEST_GCS_PREFIX

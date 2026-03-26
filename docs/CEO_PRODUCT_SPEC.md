@@ -33,11 +33,11 @@ Cloud Trace scope now explicitly includes spend attribution as a co-equal surfac
 ### Scope Update Addendum (2026-03-25): From Static Trace UI to Closed-Loop Improvement
 
 Current product status is now explicit:
-- today's integrated trace UI is mostly a static local proof point (OpenClaw logs converted to JSON and rendered)
+- today's integrated trace UI is mostly a static proof point (OpenClaw logs converted to JSON and rendered)
 - backend analytics, recommendation generation, and closed-loop action flow are still being productized
 
 Phase-1 scope update from implementation sync:
-1. Keep the OpenClaw wedge, and productize the local demo into a live loop:
+1. Keep the OpenClaw wedge, and productize the current demo into a live hosted loop:
    - runtime ingest
    - analysis and insights
    - recommendation delivery
@@ -54,6 +54,10 @@ Phase-1 scope update from implementation sync:
 6. Enforce least-privilege runtime boundaries for local OpenClaw deployments:
    - workspace allowlist path
    - explicit warning that unrestricted local permissions are high risk
+
+Storage scope decision (2026-03-25):
+- tracing persistence is cloud data lake only (GCS + Iceberg + PuppyGraph)
+- local filesystem storage is not a supported persistence mode for ClawTrace
 
 ## 2) Product Principles (First-Principles)
 

@@ -3,21 +3,17 @@ from __future__ import annotations
 from fastapi import FastAPI, Header, HTTPException, status
 
 from .auth import authenticate
-from .config import RawSink, Settings
+from .config import Settings
 from .models import IngestEventRequest, PersistedEvent
 from .publisher import NoopPublisher, PubSubEventPublisher
 from .service import IngestService
-from .storage import GcsRawEventStorage, LocalRawEventStorage
+from .storage import DataLakeRawEventStorage
 
 
 def create_ingest_service(settings: Settings) -> IngestService:
-    if settings.raw_sink == RawSink.LOCAL:
-        storage = LocalRawEventStorage(settings.local_data_root)
-    elif settings.raw_sink == RawSink.GCS:
-        storage = GcsRawEventStorage(settings.gcs_bucket, settings.gcs_prefix)
-    else:
-        raise ValueError(f"Unsupported raw sink: {settings.raw_sink}")
-
+    if not settings.gcs_bucket.strip():
+        raise ValueError("CLAWTRACE_INGEST_GCS_BUCKET must be set for data-lake ingestion.")
+    storage = DataLakeRawEventStorage(settings.gcs_bucket, settings.gcs_prefix)
     publisher = PubSubEventPublisher(settings.pubsub_topic) if settings.pubsub_topic else NoopPublisher()
 
     return IngestService(
@@ -27,17 +23,20 @@ def create_ingest_service(settings: Settings) -> IngestService:
     )
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    ingest_service: IngestService | None = None,
+) -> FastAPI:
     resolved_settings = settings or Settings()
 
     app = FastAPI(
         title="ClawTrace Ingest API",
         version="0.1.0",
-        description="Ingests OpenClaw hook events into raw storage for Iceberg analytics.",
+        description="Ingests OpenClaw hook events into data-lake raw storage for Iceberg analytics.",
     )
 
     app.state.settings = resolved_settings
-    app.state.ingest_service = create_ingest_service(resolved_settings)
+    app.state.ingest_service = ingest_service or create_ingest_service(resolved_settings)
 
     @app.get("/healthz")
     def healthz() -> dict[str, str]:

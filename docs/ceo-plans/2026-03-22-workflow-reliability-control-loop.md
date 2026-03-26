@@ -106,13 +106,11 @@ Phase 1 must include:
 - Runs bind to a contract version at start for attribution, but mid-run upstream live updates mark the run as `State Changed During Run` and require revalidation at the next risky boundary.
 
 ### Deployment modes
-- ClawTrace should ship SaaS at launch while preserving local-first trust and testing.
-- Control decisions execute locally first; cloud is optional for collaboration, retention, and enterprise operations.
-- Local and SaaS share one semantic/control core.
-- The intended infrastructure difference is storage/compute:
-  - local: local filesystem plus embedded/open graph stack
-  - cloud: Iceberg plus PuppyGraph
-- Above storage, one canonical semantic layer should serve both modes.
+- ClawTrace ships SaaS at launch with one canonical cloud control plane.
+- Runtime telemetry from OpenClaw instances is ingested through the hosted API only.
+- Storage is data-lake-first: GCS + Iceberg catalog + PuppyGraph analytics.
+- Local filesystem storage is out of scope for productized tracing persistence.
+- One canonical semantic/control core serves all tenants and agents.
 
 ### Verification and trust
 - Outcome verification is hard-check first, soft-eval second.

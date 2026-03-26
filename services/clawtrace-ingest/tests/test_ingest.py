@@ -1,13 +1,15 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
 from app.config import AuthMode, Settings
 from app.main import create_app
+from app.publisher import NoopPublisher
+from app.service import IngestService
+from app.storage import RawEventStorage
 
 
 def _payload() -> dict:
@@ -26,12 +28,30 @@ def _payload() -> dict:
     }
 
 
-def test_ingest_accepts_event_with_mock_auth(tmp_path: Path):
+class FakeRawEventStorage(RawEventStorage):
+    def __init__(self):
+        self.rows: list[dict] = []
+
+    def write_event(self, event):
+        payload = event.model_dump(mode="json")
+        self.rows.append(payload)
+        return f"memory://raw/{payload['event']['eventId']}.jsonl"
+
+
+def _client_with_fake_storage(*, auth_mode: AuthMode = AuthMode.MOCK_PASS, static_keys_json: str = "{}"):
+    storage = FakeRawEventStorage()
+    service = IngestService(storage=storage, publisher=NoopPublisher(), schema_version=1)
     settings = Settings(
-        raw_sink="local",
-        local_data_root=tmp_path / "raw",
+        auth_mode=auth_mode,
+        static_keys_json=static_keys_json,
+        gcs_bucket="dummy-bucket-for-tests",
     )
-    client = TestClient(create_app(settings))
+    client = TestClient(create_app(settings, ingest_service=service))
+    return client, storage
+
+
+def test_ingest_accepts_event_with_mock_auth():
+    client, storage = _client_with_fake_storage()
 
     response = client.post("/v1/traces/events", json=_payload())
     assert response.status_code == 200
@@ -41,22 +61,16 @@ def test_ingest_accepts_event_with_mock_auth(tmp_path: Path):
     assert body["duplicate"] is False
     assert body["rawObjectPath"]
 
-    files = list((tmp_path / "raw").rglob("*.jsonl"))
-    assert len(files) == 1
-
-    line = files[0].read_text(encoding="utf-8").strip()
-    parsed = json.loads(line)
+    assert len(storage.rows) == 1
+    parsed = json.loads(json.dumps(storage.rows[0]))
     assert parsed["accountId"] == "mock-account"
 
 
-def test_ingest_rejects_invalid_static_key(tmp_path: Path):
-    settings = Settings(
+def test_ingest_rejects_invalid_static_key():
+    client, _ = _client_with_fake_storage(
         auth_mode=AuthMode.STATIC_KEYS,
         static_keys_json='{"ct_live_good":"acct-1"}',
-        raw_sink="local",
-        local_data_root=tmp_path / "raw",
     )
-    client = TestClient(create_app(settings))
 
     response = client.post(
         "/v1/traces/events",
@@ -66,12 +80,8 @@ def test_ingest_rejects_invalid_static_key(tmp_path: Path):
     assert response.status_code == 401
 
 
-def test_ingest_accepts_repeated_event_without_local_dedup(tmp_path: Path):
-    settings = Settings(
-        raw_sink="local",
-        local_data_root=tmp_path / "raw",
-    )
-    client = TestClient(create_app(settings))
+def test_ingest_accepts_repeated_event_without_local_dedup():
+    client, _ = _client_with_fake_storage()
 
     payload = _payload()
     first = client.post("/v1/traces/events", json=payload)

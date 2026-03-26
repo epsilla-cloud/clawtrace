@@ -1,6 +1,6 @@
 # ClawTrace Ingest Service (FastAPI)
 
-Python ingest API for OpenClaw hook events. This service is designed for VM/Kubernetes deployment and writes raw events to local disk or GCS for downstream Iceberg processing.
+Python ingest API for OpenClaw hook events. This service is designed for VM/Kubernetes deployment and writes raw events directly to the data lake (GCS) for downstream Iceberg processing.
 
 ## Contract
 
@@ -72,13 +72,11 @@ curl -X POST http://localhost:8080/v1/traces/events \
   }'
 ```
 
-## Storage sinks
+## Storage model
 
-- `CLAWTRACE_INGEST_RAW_SINK=local`
-  - Writes JSONL files under `CLAWTRACE_INGEST_LOCAL_DATA_ROOT`.
-- `CLAWTRACE_INGEST_RAW_SINK=gcs`
-  - Requires ADC/service account and `CLAWTRACE_INGEST_GCS_BUCKET`.
-  - Writes JSONL objects under `CLAWTRACE_INGEST_GCS_PREFIX`.
+- Data-lake-only raw sink (GCS).
+- Requires ADC/service account and `CLAWTRACE_INGEST_GCS_BUCKET`.
+- Writes JSONL objects under `CLAWTRACE_INGEST_GCS_PREFIX`.
 
 ## Optional Pub/Sub trigger
 

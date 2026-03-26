@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 from enum import Enum
-from pathlib import Path
 from typing import Dict
 
 from pydantic import Field
@@ -12,11 +11,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class AuthMode(str, Enum):
     MOCK_PASS = "mock_pass"
     STATIC_KEYS = "static_keys"
-
-
-class RawSink(str, Enum):
-    LOCAL = "local"
-    GCS = "gcs"
 
 
 class Settings(BaseSettings):
@@ -33,9 +27,7 @@ class Settings(BaseSettings):
     auth_mode: AuthMode = AuthMode.MOCK_PASS
     static_keys_json: str = "{}"
 
-    raw_sink: RawSink = RawSink.LOCAL
-    local_data_root: Path = Path("./data/raw")
-    gcs_bucket: str = ""
+    gcs_bucket: str = "clawtrace-raw"
     gcs_prefix: str = "raw-events"
 
     pubsub_topic: str = ""
