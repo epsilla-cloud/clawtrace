@@ -13,6 +13,10 @@ class AuthMode(str, Enum):
     STATIC_KEYS = "static_keys"
 
 
+class StorageProvider(str, Enum):
+    GCS = "gcs"
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="CLAWTRACE_INGEST_",
@@ -27,6 +31,10 @@ class Settings(BaseSettings):
     auth_mode: AuthMode = AuthMode.MOCK_PASS
     static_keys_json: str = "{}"
 
+    storage_provider: StorageProvider = StorageProvider.GCS
+    raw_bucket: str = ""
+    raw_prefix: str = ""
+    # Backward-compatible fallback; use raw_bucket/raw_prefix moving forward.
     gcs_bucket: str = "clawtrace-raw"
     gcs_prefix: str = "raw-events"
 
@@ -43,3 +51,11 @@ class Settings(BaseSettings):
         if not isinstance(data, dict):
             raise ValueError("CLAWTRACE_INGEST_STATIC_KEYS_JSON must be a JSON object")
         return {str(k): str(v) for k, v in data.items()}
+
+    @property
+    def object_bucket(self) -> str:
+        return (self.raw_bucket or "").strip() or (self.gcs_bucket or "").strip()
+
+    @property
+    def object_prefix(self) -> str:
+        return (self.raw_prefix or "").strip() or (self.gcs_prefix or "").strip()

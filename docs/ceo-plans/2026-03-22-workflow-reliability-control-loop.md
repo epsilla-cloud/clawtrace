@@ -108,7 +108,7 @@ Phase 1 must include:
 ### Deployment modes
 - ClawTrace ships SaaS at launch with one canonical cloud control plane.
 - Runtime telemetry from OpenClaw instances is ingested through the hosted API only.
-- Storage is data-lake-first: GCS + Iceberg catalog + PuppyGraph analytics.
+- Storage is data-lake-first: object storage + Iceberg catalog + PuppyGraph analytics (GCS is one example profile).
 - Local filesystem storage is out of scope for productized tracing persistence.
 - One canonical semantic/control core serves all tenants and agents.
 

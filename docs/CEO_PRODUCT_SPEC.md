@@ -56,7 +56,7 @@ Phase-1 scope update from implementation sync:
    - explicit warning that unrestricted local permissions are high risk
 
 Storage scope decision (2026-03-25):
-- tracing persistence is cloud data lake only (GCS + Iceberg + PuppyGraph)
+- tracing persistence is cloud data lake only (object storage + Iceberg + PuppyGraph; GCS is a reference profile)
 - local filesystem storage is not a supported persistence mode for ClawTrace
 
 ## 2) Product Principles (First-Principles)

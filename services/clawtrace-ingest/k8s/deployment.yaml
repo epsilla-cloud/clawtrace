@@ -24,9 +24,11 @@ spec:
           env:
             - name: CLAWTRACE_INGEST_AUTH_MODE
               value: "mock_pass"
-            - name: CLAWTRACE_INGEST_GCS_BUCKET
+            - name: CLAWTRACE_INGEST_STORAGE_PROVIDER
+              value: "gcs"
+            - name: CLAWTRACE_INGEST_RAW_BUCKET
               value: "clawtrace-raw"
-            - name: CLAWTRACE_INGEST_GCS_PREFIX
+            - name: CLAWTRACE_INGEST_RAW_PREFIX
               value: "raw-events"
             - name: CLAWTRACE_INGEST_PUBSUB_TOPIC
               value: "projects/your-project/topics/clawtrace-ingest"

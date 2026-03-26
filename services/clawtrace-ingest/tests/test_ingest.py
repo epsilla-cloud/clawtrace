@@ -44,7 +44,7 @@ def _client_with_fake_storage(*, auth_mode: AuthMode = AuthMode.MOCK_PASS, stati
     settings = Settings(
         auth_mode=auth_mode,
         static_keys_json=static_keys_json,
-        gcs_bucket="dummy-bucket-for-tests",
+        raw_bucket="dummy-bucket-for-tests",
     )
     client = TestClient(create_app(settings, ingest_service=service))
     return client, storage

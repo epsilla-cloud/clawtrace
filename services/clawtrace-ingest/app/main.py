@@ -7,13 +7,13 @@ from .config import Settings
 from .models import IngestEventRequest, PersistedEvent
 from .publisher import NoopPublisher, PubSubEventPublisher
 from .service import IngestService
-from .storage import DataLakeRawEventStorage
+from .storage import create_raw_event_storage
 
 
 def create_ingest_service(settings: Settings) -> IngestService:
-    if not settings.gcs_bucket.strip():
-        raise ValueError("CLAWTRACE_INGEST_GCS_BUCKET must be set for data-lake ingestion.")
-    storage = DataLakeRawEventStorage(settings.gcs_bucket, settings.gcs_prefix)
+    if not settings.object_bucket:
+        raise ValueError("CLAWTRACE_INGEST_RAW_BUCKET must be set for data-lake ingestion.")
+    storage = create_raw_event_storage(settings)
     publisher = PubSubEventPublisher(settings.pubsub_topic) if settings.pubsub_topic else NoopPublisher()
 
     return IngestService(

@@ -1,6 +1,6 @@
 # ClawTrace Ingest Service (FastAPI)
 
-Python ingest API for OpenClaw hook events. This service is designed for VM/Kubernetes deployment and writes raw events directly to the data lake (GCS) for downstream Iceberg processing.
+Python ingest API for OpenClaw hook events. This service is designed for VM/Kubernetes deployment and writes raw events directly to object storage for downstream Iceberg processing.
 
 ## Contract
 
@@ -74,13 +74,14 @@ curl -X POST http://localhost:8080/v1/traces/events \
 
 ## Storage model
 
-- Data-lake-only raw sink (GCS).
-- Requires ADC/service account and `CLAWTRACE_INGEST_GCS_BUCKET`.
-- Writes JSONL objects under `CLAWTRACE_INGEST_GCS_PREFIX`.
+- Data-lake-only raw sink (object storage).
+- Cloud-agnostic configuration via `CLAWTRACE_INGEST_STORAGE_PROVIDER`, `CLAWTRACE_INGEST_RAW_BUCKET`, and `CLAWTRACE_INGEST_RAW_PREFIX`.
+- Current backend implementation: `gcs` (Google Cloud Storage via ADC/service account).
+- Writes JSONL objects under `RAW_PREFIX/dt=YYYY-MM-DD/hr=HH/agent=<agent-id>/...`.
 
 ## Optional Pub/Sub trigger
 
-Set `CLAWTRACE_INGEST_PUBSUB_TOPIC=projects/<project>/topics/<topic>` to publish accepted events for downstream Spark/Iceberg pipeline triggers.
+Set `CLAWTRACE_INGEST_PUBSUB_TOPIC=projects/<project>/topics/<topic>` to publish accepted events for downstream Spark/Iceberg pipeline triggers (GCP example profile).
 
 ## Tests
 

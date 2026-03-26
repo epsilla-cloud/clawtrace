@@ -20,7 +20,7 @@ Phase 0 is reduced to one complete vertical slice:
 - one cost-attribution path from workflow to trajectory to step class
 - one workflow cockpit
 - one chat-guided onboarding flow
-- one cloud data-lake storage path (GCS + Iceberg + PuppyGraph)
+- one cloud data-lake storage path (object storage + Iceberg + PuppyGraph, with GCS as one reference profile)
 
 This review explicitly does not treat the broader observability suite in [CEO Product Spec](docs/CEO_PRODUCT_SPEC.md) as Phase 0 engineering scope.
 
@@ -42,7 +42,7 @@ This review explicitly does not treat the broader observability suite in [CEO Pr
 5. Define the workflow contract as a machine-first schema with human-readable projection.
 6. Use one explicit workflow-run state machine with typed sub-status fields.
 7. Keep the hot operational store relational in SaaS with one shared schema (Postgres).
-8. Keep Iceberg + PuppyGraph in the MVP for append-only event capture and rich analysis through a cloud-only data-lake sink (no local filesystem persistence mode).
+8. Keep Iceberg + PuppyGraph in the MVP for append-only event capture and rich analysis through a cloud-only object-storage data-lake sink (no local filesystem persistence mode).
 9. Add run-native cost events in the same pipeline:
    - billed cost when the provider emits it
    - deterministic estimated cost fallback when billed cost is missing
