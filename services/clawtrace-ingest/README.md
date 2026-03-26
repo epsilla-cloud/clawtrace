@@ -76,8 +76,34 @@ curl -X POST http://localhost:8080/v1/traces/events \
 
 - Data-lake-only raw sink (object storage).
 - Cloud-agnostic configuration via `CLAWTRACE_INGEST_STORAGE_PROVIDER`, `CLAWTRACE_INGEST_RAW_BUCKET`, and `CLAWTRACE_INGEST_RAW_PREFIX`.
-- Current backend implementation: `gcs` (Google Cloud Storage via ADC/service account).
 - Writes JSONL objects under `RAW_PREFIX/dt=YYYY-MM-DD/hr=HH/agent=<agent-id>/...`.
+
+Supported providers:
+
+1. `gcs`
+- Required:
+  - `CLAWTRACE_INGEST_STORAGE_PROVIDER=gcs`
+  - `CLAWTRACE_INGEST_RAW_BUCKET=<gcs-bucket>`
+- Auth:
+  - ADC/service account
+
+2. `azure_blob`
+- Required:
+  - `CLAWTRACE_INGEST_STORAGE_PROVIDER=azure_blob`
+  - `CLAWTRACE_INGEST_AZURE_CONTAINER=<container>` (or use `RAW_BUCKET`)
+- Auth (choose one):
+  - Managed identity: set `CLAWTRACE_INGEST_AZURE_ACCOUNT_URL=https://<account>.blob.core.windows.net`
+  - Connection string: set `CLAWTRACE_INGEST_AZURE_CONNECTION_STRING`
+
+3. `aws_s3`
+- Required:
+  - `CLAWTRACE_INGEST_STORAGE_PROVIDER=aws_s3`
+  - `CLAWTRACE_INGEST_RAW_BUCKET=<s3-bucket>`
+- Optional:
+  - `CLAWTRACE_INGEST_AWS_REGION=<region>`
+  - `CLAWTRACE_INGEST_AWS_ENDPOINT_URL=<custom-s3-endpoint>`
+- Auth:
+  - Default AWS SDK credential chain
 
 ## Optional Pub/Sub trigger
 

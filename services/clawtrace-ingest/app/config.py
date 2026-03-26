@@ -15,6 +15,8 @@ class AuthMode(str, Enum):
 
 class StorageProvider(str, Enum):
     GCS = "gcs"
+    AZURE_BLOB = "azure_blob"
+    AWS_S3 = "aws_s3"
 
 
 class Settings(BaseSettings):
@@ -37,6 +39,11 @@ class Settings(BaseSettings):
     # Backward-compatible fallback; use raw_bucket/raw_prefix moving forward.
     gcs_bucket: str = "clawtrace-raw"
     gcs_prefix: str = "raw-events"
+    azure_container: str = ""
+    azure_account_url: str = ""
+    azure_connection_string: str = ""
+    aws_region: str = ""
+    aws_endpoint_url: str = ""
 
     pubsub_topic: str = ""
 

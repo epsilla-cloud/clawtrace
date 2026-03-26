@@ -30,6 +30,18 @@ spec:
               value: "clawtrace-raw"
             - name: CLAWTRACE_INGEST_RAW_PREFIX
               value: "raw-events"
+            # Azure profile (set when STORAGE_PROVIDER=azure_blob)
+            - name: CLAWTRACE_INGEST_AZURE_CONTAINER
+              value: ""
+            - name: CLAWTRACE_INGEST_AZURE_ACCOUNT_URL
+              value: ""
+            - name: CLAWTRACE_INGEST_AZURE_CONNECTION_STRING
+              value: ""
+            # AWS profile (set when STORAGE_PROVIDER=aws_s3)
+            - name: CLAWTRACE_INGEST_AWS_REGION
+              value: ""
+            - name: CLAWTRACE_INGEST_AWS_ENDPOINT_URL
+              value: ""
             - name: CLAWTRACE_INGEST_PUBSUB_TOPIC
               value: "projects/your-project/topics/clawtrace-ingest"
           readinessProbe:
