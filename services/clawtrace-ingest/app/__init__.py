@@ -1,0 +1,1 @@
+"""ClawTrace ingest service package."""

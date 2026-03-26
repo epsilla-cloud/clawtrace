@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: clawtrace-ingest
+  labels:
+    app: clawtrace-ingest
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: clawtrace-ingest
+  template:
+    metadata:
+      labels:
+        app: clawtrace-ingest
+    spec:
+      serviceAccountName: clawtrace-ingest
+      containers:
+        - name: api
+          image: ghcr.io/your-org/clawtrace-ingest:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+          env:
+            - name: CLAWTRACE_INGEST_AUTH_MODE
+              value: "mock_pass"
+            - name: CLAWTRACE_INGEST_RAW_SINK
+              value: "gcs"
+            - name: CLAWTRACE_INGEST_GCS_BUCKET
+              value: "clawtrace-raw"
+            - name: CLAWTRACE_INGEST_GCS_PREFIX
+              value: "raw-events"
+            - name: CLAWTRACE_INGEST_ENABLE_IDEMPOTENCY
+              value: "true"
+            - name: CLAWTRACE_INGEST_IDEMPOTENCY_DB_PATH
+              value: "/var/lib/clawtrace/idempotency.sqlite3"
+            - name: CLAWTRACE_INGEST_PUBSUB_TOPIC
+              value: "projects/your-project/topics/clawtrace-ingest"
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          volumeMounts:
+            - name: clawtrace-state
+              mountPath: /var/lib/clawtrace
+      volumes:
+        - name: clawtrace-state
+          emptyDir: {}
