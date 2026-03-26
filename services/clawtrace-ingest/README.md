@@ -84,11 +84,6 @@ curl -X POST http://localhost:8080/v1/traces/events \
 
 Set `CLAWTRACE_INGEST_PUBSUB_TOPIC=projects/<project>/topics/<topic>` to publish accepted events for downstream Spark/Iceberg pipeline triggers.
 
-## Idempotency
-
-Enabled by default (`CLAWTRACE_INGEST_ENABLE_IDEMPOTENCY=true`).
-Dedup key is `(agent_id, event_id)` backed by SQLite.
-
 ## Tests
 
 ```bash

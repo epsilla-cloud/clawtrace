@@ -30,8 +30,6 @@ def test_ingest_accepts_event_with_mock_auth(tmp_path: Path):
     settings = Settings(
         raw_sink="local",
         local_data_root=tmp_path / "raw",
-        enable_idempotency=True,
-        idempotency_db_path=tmp_path / "idem.sqlite3",
     )
     client = TestClient(create_app(settings))
 
@@ -57,7 +55,6 @@ def test_ingest_rejects_invalid_static_key(tmp_path: Path):
         static_keys_json='{"ct_live_good":"acct-1"}',
         raw_sink="local",
         local_data_root=tmp_path / "raw",
-        enable_idempotency=False,
     )
     client = TestClient(create_app(settings))
 
@@ -69,12 +66,10 @@ def test_ingest_rejects_invalid_static_key(tmp_path: Path):
     assert response.status_code == 401
 
 
-def test_ingest_deduplicates_by_agent_and_event_id(tmp_path: Path):
+def test_ingest_accepts_repeated_event_without_local_dedup(tmp_path: Path):
     settings = Settings(
         raw_sink="local",
         local_data_root=tmp_path / "raw",
-        enable_idempotency=True,
-        idempotency_db_path=tmp_path / "idem.sqlite3",
     )
     client = TestClient(create_app(settings))
 
@@ -86,5 +81,6 @@ def test_ingest_deduplicates_by_agent_and_event_id(tmp_path: Path):
     assert second.status_code == 200
 
     assert first.json()["status"] == "accepted"
-    assert second.json()["status"] == "duplicate"
-    assert second.json()["duplicate"] is True
+    assert second.json()["status"] == "accepted"
+    assert first.json()["duplicate"] is False
+    assert second.json()["duplicate"] is False

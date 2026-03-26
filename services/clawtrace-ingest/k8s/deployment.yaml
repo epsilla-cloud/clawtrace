@@ -30,10 +30,6 @@ spec:
               value: "clawtrace-raw"
             - name: CLAWTRACE_INGEST_GCS_PREFIX
               value: "raw-events"
-            - name: CLAWTRACE_INGEST_ENABLE_IDEMPOTENCY
-              value: "true"
-            - name: CLAWTRACE_INGEST_IDEMPOTENCY_DB_PATH
-              value: "/var/lib/clawtrace/idempotency.sqlite3"
             - name: CLAWTRACE_INGEST_PUBSUB_TOPIC
               value: "projects/your-project/topics/clawtrace-ingest"
           readinessProbe:
@@ -55,9 +51,3 @@ spec:
             limits:
               cpu: "1000m"
               memory: "1Gi"
-          volumeMounts:
-            - name: clawtrace-state
-              mountPath: /var/lib/clawtrace
-      volumes:
-        - name: clawtrace-state
-          emptyDir: {}

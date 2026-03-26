@@ -4,7 +4,6 @@ from fastapi import FastAPI, Header, HTTPException, status
 
 from .auth import authenticate
 from .config import RawSink, Settings
-from .idempotency import IdempotencyStore
 from .models import IngestEventRequest, PersistedEvent
 from .publisher import NoopPublisher, PubSubEventPublisher
 from .service import IngestService
@@ -21,14 +20,9 @@ def create_ingest_service(settings: Settings) -> IngestService:
 
     publisher = PubSubEventPublisher(settings.pubsub_topic) if settings.pubsub_topic else NoopPublisher()
 
-    idempotency = None
-    if settings.enable_idempotency:
-        idempotency = IdempotencyStore(settings.idempotency_db_path)
-
     return IngestService(
         storage=storage,
         publisher=publisher,
-        idempotency=idempotency,
         schema_version=settings.schema_version,
     )
 

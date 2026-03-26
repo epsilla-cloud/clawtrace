@@ -38,9 +38,6 @@ class Settings(BaseSettings):
     gcs_bucket: str = ""
     gcs_prefix: str = "raw-events"
 
-    enable_idempotency: bool = True
-    idempotency_db_path: Path = Path("./data/idempotency.sqlite3")
-
     pubsub_topic: str = ""
 
     schema_version: int = Field(default=1)
