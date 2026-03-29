@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "lib": [
+      "ES2023",
+      "DOM"
+    ],
+    "types": [
+      "node",
+      "vitest/globals"
+    ]
+  },
+  "include": [
+    "index.ts",
+    "src/**/*.ts"
+  ]
+}
