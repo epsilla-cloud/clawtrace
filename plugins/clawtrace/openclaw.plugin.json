@@ -13,7 +13,8 @@
       },
       "endpoint": {
         "type": "string",
-        "description": "ClawTrace ingest endpoint, for example https://ingest.example.com/v1/traces/events."
+        "description": "ClawTrace ingest endpoint, for example https://ingest.clawtrace.ai/v1/traces/events.",
+        "default": "https://ingest.clawtrace.ai/v1/traces/events"
       },
       "apiKey": {
         "type": "string",
@@ -69,7 +70,7 @@
   "uiHints": {
     "endpoint": {
       "label": "Ingest endpoint",
-      "placeholder": "https://ingest.example.com/v1/traces/events"
+      "placeholder": "https://ingest.clawtrace.ai/v1/traces/events"
     },
     "apiKey": {
       "label": "API key",

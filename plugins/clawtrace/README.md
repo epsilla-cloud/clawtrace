@@ -22,7 +22,31 @@ errors.
 openclaw plugins install @clawtrace/openclaw-plugin
 ```
 
-## Configure
+## Configure (interactive)
+
+Run the setup command once after install:
+
+```bash
+openclaw clawtrace setup
+```
+
+It will prompt for:
+
+- ingest endpoint (defaults to `https://ingest.clawtrace.ai/v1/traces/events`)
+- API key (`ct_live_...`) from your ClawTrace SaaS account
+- stable agent UUID for this OpenClaw instance
+
+You can also run non-interactively:
+
+```bash
+openclaw clawtrace setup \
+  --endpoint https://ingest.clawtrace.ai/v1/traces/events \
+  --api-key ct_live_prod_xxx \
+  --agent-id 8f8c8e1d-6a2f-4a7f-b1bd-0e4e6f8a2f19 \
+  --yes
+```
+
+## Configure (manual config file)
 
 Add plugin config to your OpenClaw config:
 
@@ -33,7 +57,7 @@ Add plugin config to your OpenClaw config:
       "clawtrace": {
         "config": {
           "enabled": true,
-          "endpoint": "https://your-ingest-host/v1/traces/events",
+          "endpoint": "https://ingest.clawtrace.ai/v1/traces/events",
           "apiKey": "ct_live_prod_xxx",
           "agentId": "8f8c8e1d-6a2f-4a7f-b1bd-0e4e6f8a2f19",
           "schemaVersion": 1,
@@ -106,4 +130,3 @@ cd plugins/clawtrace
 npm login
 npm publish --access public
 ```
-

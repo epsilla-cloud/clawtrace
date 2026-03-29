@@ -1,4 +1,5 @@
 import { isUuid } from "./id.js";
+import { DEFAULT_INGEST_ENDPOINT } from "./setup.js";
 import type { ClawTracePluginConfig, PluginLogger } from "./types.js";
 
 const DEFAULTS = {
@@ -48,7 +49,7 @@ export const resolvePluginConfig = (
   const cfg = rawPluginConfig ?? {};
   const enabled = asBoolean(cfg.enabled) ?? asBoolean(env.CLAWTRACE_ENABLED) ?? DEFAULTS.enabled;
 
-  const endpoint = asString(cfg.endpoint) ?? asString(env.CLAWTRACE_ENDPOINT) ?? "";
+  const endpoint = asString(cfg.endpoint) ?? asString(env.CLAWTRACE_ENDPOINT) ?? DEFAULT_INGEST_ENDPOINT;
   const apiKey = asString(cfg.apiKey) ?? asString(env.CLAWTRACE_API_KEY) ?? "";
   const agentId = asString(cfg.agentId) ?? asString(env.CLAWTRACE_AGENT_ID) ?? "";
 

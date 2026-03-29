@@ -1,6 +1,7 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 import { resolvePluginConfig } from "./src/config.js";
 import { IngestEventSink } from "./src/event-sink.js";
+import { runSetup } from "./src/setup.js";
 import { HookEventTracker } from "./src/tracker.js";
 
 const plugin = definePluginEntry({
@@ -8,6 +9,38 @@ const plugin = definePluginEntry({
   name: "ClawTrace",
   description: "Stream OpenClaw runtime telemetry into ClawTrace ingest.",
   register(api) {
+    api.registerCli(
+      ({ program }) => {
+        const clawtrace = program.command("clawtrace").description("ClawTrace plugin commands.");
+
+        clawtrace
+          .command("setup")
+          .description("Interactive setup for ClawTrace ingest endpoint, API key, and agent UUID.")
+          .option("--endpoint <url>", "Ingest endpoint URL.")
+          .option("--api-key <key>", "ClawTrace API key (Bearer token).")
+          .option("--agent-id <uuid>", "Stable UUID for this OpenClaw instance.")
+          .option("--yes", "Skip prompts and require values from flags or existing config/env.")
+          .action(async (options) => {
+            await runSetup(api, {
+              endpoint: options.endpoint as string | undefined,
+              apiKey: options.apiKey as string | undefined,
+              agentId: options.agentId as string | undefined,
+              yes: options.yes as boolean | undefined,
+            });
+          });
+      },
+      {
+        commands: ["clawtrace"],
+        descriptors: [
+          {
+            name: "clawtrace setup",
+            description: "Configure ClawTrace ingest settings interactively.",
+            hasSubcommands: false,
+          },
+        ],
+      },
+    );
+
     const config = resolvePluginConfig(api.pluginConfig, process.env, api.logger);
     if (!config.enabled) {
       api.logger.warn?.("[clawtrace] Plugin loaded but disabled (missing or invalid runtime config).");
