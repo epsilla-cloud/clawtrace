@@ -2,6 +2,7 @@
 
 ClawTrace is observability for OpenClaw agents: see failures, cost leaks, and the next action to improve reliability.
 
+
 ## Product Surfaces
 
 - `packages/clawtrace-ui` — Next.js app (landing, overview, tracing detail, Tracy copilot)
