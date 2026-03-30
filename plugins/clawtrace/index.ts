@@ -1,14 +1,14 @@
-import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
+import type { OpenClawPluginApi } from "openclaw/plugin-sdk";
 import { resolvePluginConfig } from "./src/config.js";
 import { IngestEventSink } from "./src/event-sink.js";
 import { runSetup } from "./src/setup.js";
 import { HookEventTracker } from "./src/tracker.js";
 
-const plugin = definePluginEntry({
+const plugin = {
   id: "clawtrace",
   name: "ClawTrace",
   description: "Stream OpenClaw runtime telemetry into ClawTrace ingest.",
-  register(api) {
+  register(api: OpenClawPluginApi) {
     api.registerCli(
       ({ program }) => {
         const clawtrace = program.command("clawtrace").description("ClawTrace plugin commands.");
@@ -87,6 +87,6 @@ const plugin = definePluginEntry({
       tracker.onSubagentEnded(event, ctx);
     });
   },
-});
+};
 
 export default plugin;
