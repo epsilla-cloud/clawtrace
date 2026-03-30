@@ -1,0 +1,109 @@
+{
+  "id": "clawtrace",
+  "name": "ClawTrace",
+  "description": "Streams OpenClaw hook telemetry to the ClawTrace ingest API.",
+  "version": "0.1.1",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "enabled": {
+        "type": "boolean",
+        "default": true
+      },
+      "endpoint": {
+        "type": "string",
+        "description": "ClawTrace ingest endpoint, for example https://ingest.clawtrace.ai/v1/traces/events.",
+        "default": "https://ingest.clawtrace.ai/v1/traces/events"
+      },
+      "observeKey": {
+        "type": "string",
+        "description": "Observe Key copied from the ClawTrace portal."
+      },
+      "schemaVersion": {
+        "type": "integer",
+        "minimum": 1,
+        "default": 1
+      },
+      "requestTimeoutMs": {
+        "type": "integer",
+        "minimum": 500,
+        "maximum": 60000,
+        "default": 5000
+      },
+      "maxRetries": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 10,
+        "default": 2
+      },
+      "retryBackoffMs": {
+        "type": "integer",
+        "minimum": 50,
+        "maximum": 10000,
+        "default": 250
+      },
+      "maxQueueSize": {
+        "type": "integer",
+        "minimum": 10,
+        "maximum": 100000,
+        "default": 2000
+      },
+      "emitErrorEvents": {
+        "type": "boolean",
+        "default": true
+      },
+      "includePrompts": {
+        "type": "boolean",
+        "default": true
+      },
+      "includeToolResults": {
+        "type": "boolean",
+        "default": true
+      }
+    }
+  },
+  "uiHints": {
+    "endpoint": {
+      "label": "Ingest endpoint",
+      "placeholder": "https://ingest.clawtrace.ai/v1/traces/events"
+    },
+    "observeKey": {
+      "label": "Observe Key",
+      "placeholder": "Paste Observe Key",
+      "sensitive": true
+    },
+    "schemaVersion": {
+      "label": "Schema version",
+      "advanced": true
+    },
+    "requestTimeoutMs": {
+      "label": "Request timeout (ms)",
+      "advanced": true
+    },
+    "maxRetries": {
+      "label": "Max retries",
+      "advanced": true
+    },
+    "retryBackoffMs": {
+      "label": "Retry backoff (ms)",
+      "advanced": true
+    },
+    "maxQueueSize": {
+      "label": "Max queue size",
+      "advanced": true
+    },
+    "emitErrorEvents": {
+      "label": "Emit explicit error events",
+      "advanced": true
+    },
+    "includePrompts": {
+      "label": "Include LLM prompts",
+      "advanced": true
+    },
+    "includeToolResults": {
+      "label": "Include tool results",
+      "advanced": true
+    }
+  }
+}

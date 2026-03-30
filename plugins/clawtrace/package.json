@@ -1,0 +1,57 @@
+{
+  "name": "@epsilla/clawtrace",
+  "version": "0.1.1",
+  "description": "ClawTrace plugin for OpenClaw runtime observability and cost tracing",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "tsc --noEmit",
+    "prepublishOnly": "npm run check && npm test"
+  },
+  "files": [
+    "index.ts",
+    "src/config.ts",
+    "src/event-sink.ts",
+    "src/id.ts",
+    "src/observe-key.ts",
+    "src/setup.ts",
+    "src/tracker.ts",
+    "src/types.ts",
+    "openclaw.plugin.json",
+    "README.md"
+  ],
+  "keywords": [
+    "openclaw",
+    "clawtrace",
+    "plugin",
+    "observability",
+    "tracing"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/epsilla-enterprise/clawtrace.git",
+    "directory": "plugins/clawtrace"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "openclaw": ">=2026.1.0"
+  },
+  "devDependencies": {
+    "openclaw": "*",
+    "typescript": "^5.7.0",
+    "vitest": "^3.2.4"
+  },
+  "openclaw": {
+    "extensions": [
+      "./index.ts"
+    ],
+    "release": {
+      "publishToNpm": true
+    }
+  }
+}
