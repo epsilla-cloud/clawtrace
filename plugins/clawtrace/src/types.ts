@@ -39,7 +39,9 @@ export type PluginLogger = {
 export type ClawTracePluginConfig = {
   enabled: boolean;
   endpoint: string;
+  observeKey: string;
   apiKey: string;
+  tenantId: string;
   agentId: string;
   schemaVersion: number;
   requestTimeoutMs: number;

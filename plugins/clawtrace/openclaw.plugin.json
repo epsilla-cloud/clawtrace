@@ -16,13 +16,9 @@
         "description": "ClawTrace ingest endpoint, for example https://ingest.clawtrace.ai/v1/traces/events.",
         "default": "https://ingest.clawtrace.ai/v1/traces/events"
       },
-      "apiKey": {
+      "observeKey": {
         "type": "string",
-        "description": "ClawTrace API key used as Bearer token."
-      },
-      "agentId": {
-        "type": "string",
-        "description": "Stable UUID for this OpenClaw instance."
+        "description": "Observe Key copied from the ClawTrace portal."
       },
       "schemaVersion": {
         "type": "integer",
@@ -72,14 +68,10 @@
       "label": "Ingest endpoint",
       "placeholder": "https://ingest.clawtrace.ai/v1/traces/events"
     },
-    "apiKey": {
-      "label": "API key",
-      "placeholder": "ct_live_prod_xxx",
+    "observeKey": {
+      "label": "Observe Key",
+      "placeholder": "Paste Observe Key",
       "sensitive": true
-    },
-    "agentId": {
-      "label": "Agent ID",
-      "placeholder": "8f8c8e1d-6a2f-4a7f-b1bd-0e4e6f8a2f19"
     },
     "schemaVersion": {
       "label": "Schema version",

@@ -33,16 +33,14 @@ openclaw clawtrace setup
 It will prompt for:
 
 - ingest endpoint (defaults to `https://ingest.clawtrace.ai/v1/traces/events`)
-- API key (`ct_live_...`) from your ClawTrace SaaS account
-- stable agent UUID for this OpenClaw instance
+- Observe Key from your ClawTrace SaaS account
 
 You can also run non-interactively:
 
 ```bash
 openclaw clawtrace setup \
   --endpoint https://ingest.clawtrace.ai/v1/traces/events \
-  --api-key ct_live_prod_xxx \
-  --agent-id 8f8c8e1d-6a2f-4a7f-b1bd-0e4e6f8a2f19 \
+  --observe-key <paste-observe-key> \
   --yes
 ```
 
@@ -58,8 +56,7 @@ Add plugin config to your OpenClaw config:
         "config": {
           "enabled": true,
           "endpoint": "https://ingest.clawtrace.ai/v1/traces/events",
-          "apiKey": "ct_live_prod_xxx",
-          "agentId": "8f8c8e1d-6a2f-4a7f-b1bd-0e4e6f8a2f19",
+          "observeKey": "<paste-observe-key>",
           "schemaVersion": 1,
           "requestTimeoutMs": 5000,
           "maxRetries": 2,
@@ -78,8 +75,7 @@ Add plugin config to your OpenClaw config:
 You can also set env fallbacks:
 
 - `CLAWTRACE_ENDPOINT`
-- `CLAWTRACE_API_KEY`
-- `CLAWTRACE_AGENT_ID`
+- `CLAWTRACE_OBSERVE_KEY`
 - `CLAWTRACE_ENABLED`
 - `CLAWTRACE_SCHEMA_VERSION`
 - `CLAWTRACE_REQUEST_TIMEOUT_MS`

@@ -15,16 +15,14 @@ const plugin = definePluginEntry({
 
         clawtrace
           .command("setup")
-          .description("Interactive setup for ClawTrace ingest endpoint, API key, and agent UUID.")
+          .description("Interactive setup for ClawTrace ingest endpoint and Observe Key.")
           .option("--endpoint <url>", "Ingest endpoint URL.")
-          .option("--api-key <key>", "ClawTrace API key (Bearer token).")
-          .option("--agent-id <uuid>", "Stable UUID for this OpenClaw instance.")
+          .option("--observe-key <key>", "ClawTrace Observe Key from the ClawTrace portal.")
           .option("--yes", "Skip prompts and require values from flags or existing config/env.")
           .action(async (options) => {
             await runSetup(api, {
               endpoint: options.endpoint as string | undefined,
-              apiKey: options.apiKey as string | undefined,
-              agentId: options.agentId as string | undefined,
+              observeKey: options.observeKey as string | undefined,
               yes: options.yes as boolean | undefined,
             });
           });

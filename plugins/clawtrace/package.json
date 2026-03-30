@@ -15,6 +15,7 @@
     "src/config.ts",
     "src/event-sink.ts",
     "src/id.ts",
+    "src/observe-key.ts",
     "src/setup.ts",
     "src/tracker.ts",
     "src/types.ts",

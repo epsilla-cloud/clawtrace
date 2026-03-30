@@ -15,8 +15,10 @@ const createTracker = () => {
     config: {
       enabled: true,
       endpoint: "https://ingest.example.com/v1/traces/events",
+      observeKey: "test-observe-key",
       apiKey: "ct_live_prod_xxx",
-      agentId: "8f8c8e1d-6a2f-4a7f-b1bd-0e4e6f8a2f19",
+      tenantId: "6e6d1cc9-2118-4d59-86b0-21f2a5f8cc99",
+      agentId: "11111111-2222-4333-8444-555555555555",
       schemaVersion: 1,
       requestTimeoutMs: 5000,
       maxRetries: 2,

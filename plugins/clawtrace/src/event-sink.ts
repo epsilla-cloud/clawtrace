@@ -77,6 +77,8 @@ export class IngestEventSink {
             "content-type": "application/json",
             authorization: `Bearer ${this.config.apiKey}`,
             "x-clawtrace-event-id": envelope.event.eventId,
+            "x-clawtrace-tenant-id": this.config.tenantId,
+            "x-clawtrace-agent-id": this.config.agentId,
           },
           body: JSON.stringify(envelope),
           signal: controller.signal,

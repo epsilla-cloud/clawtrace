@@ -1,4 +1,5 @@
 import { isUuid } from "./id.js";
+import { decodeObserveKey } from "./observe-key.js";
 import { DEFAULT_INGEST_ENDPOINT } from "./setup.js";
 import type { ClawTracePluginConfig, PluginLogger } from "./types.js";
 
@@ -50,8 +51,18 @@ export const resolvePluginConfig = (
   const enabled = asBoolean(cfg.enabled) ?? asBoolean(env.CLAWTRACE_ENABLED) ?? DEFAULTS.enabled;
 
   const endpoint = asString(cfg.endpoint) ?? asString(env.CLAWTRACE_ENDPOINT) ?? DEFAULT_INGEST_ENDPOINT;
-  const apiKey = asString(cfg.apiKey) ?? asString(env.CLAWTRACE_API_KEY) ?? "";
-  const agentId = asString(cfg.agentId) ?? asString(env.CLAWTRACE_AGENT_ID) ?? "";
+  const observeKey = asString(cfg.observeKey) ?? asString(env.CLAWTRACE_OBSERVE_KEY) ?? "";
+  const decodedObserve = observeKey ? (() => {
+    try {
+      return decodeObserveKey(observeKey);
+    } catch {
+      return undefined;
+    }
+  })() : undefined;
+
+  const apiKey = decodedObserve?.apiKey ?? asString(cfg.apiKey) ?? asString(env.CLAWTRACE_API_KEY) ?? "";
+  const tenantId = decodedObserve?.tenantId ?? asString(cfg.tenantId) ?? asString(env.CLAWTRACE_TENANT_ID) ?? "";
+  const agentId = decodedObserve?.agentId ?? asString(cfg.agentId) ?? asString(env.CLAWTRACE_AGENT_ID) ?? "";
 
   const schemaVersion = clamp(
     asInt(cfg.schemaVersion) ?? asInt(env.CLAWTRACE_SCHEMA_VERSION) ?? DEFAULTS.schemaVersion,
@@ -84,14 +95,24 @@ export const resolvePluginConfig = (
 
   if (enabled) {
     if (!endpoint) maybeWarn(logger, "[clawtrace] Missing config: endpoint (or env CLAWTRACE_ENDPOINT).");
-    if (!apiKey) maybeWarn(logger, "[clawtrace] Missing config: apiKey (or env CLAWTRACE_API_KEY).");
-    if (!agentId) maybeWarn(logger, "[clawtrace] Missing config: agentId (or env CLAWTRACE_AGENT_ID).");
+    if (!observeKey && !(apiKey && tenantId && agentId)) {
+      maybeWarn(logger, "[clawtrace] Missing config: observeKey (or env CLAWTRACE_OBSERVE_KEY).");
+    }
+    if (!apiKey) maybeWarn(logger, "[clawtrace] Missing resolved auth key for ingest.");
+    if (!tenantId) maybeWarn(logger, "[clawtrace] Missing resolved tenant UUID.");
+    if (!agentId) maybeWarn(logger, "[clawtrace] Missing resolved agent UUID.");
+    if (tenantId && !isUuid(tenantId)) {
+      maybeWarn(logger, `[clawtrace] tenantId must be UUID. Current value: ${tenantId}`);
+    }
     if (agentId && !isUuid(agentId)) {
       maybeWarn(logger, `[clawtrace] agentId must be UUID. Current value: ${agentId}`);
     }
+    if (observeKey && !decodedObserve) {
+      maybeWarn(logger, "[clawtrace] Observe key is invalid.");
+    }
   }
 
-  const finalizedEnabled = enabled && Boolean(endpoint && apiKey && agentId && isUuid(agentId));
+  const finalizedEnabled = enabled && Boolean(endpoint && apiKey && tenantId && isUuid(tenantId) && agentId && isUuid(agentId));
   if (enabled && !finalizedEnabled) {
     maybeWarn(logger, "[clawtrace] Plugin disabled at runtime due to incomplete or invalid config.");
   }
@@ -99,7 +120,9 @@ export const resolvePluginConfig = (
   return {
     enabled: finalizedEnabled,
     endpoint,
+    observeKey,
     apiKey,
+    tenantId,
     agentId,
     schemaVersion,
     requestTimeoutMs,
