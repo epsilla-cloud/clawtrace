@@ -1,5 +1,5 @@
 {
-  "name": "@clawtrace/openclaw-plugin",
+  "name": "@epsilla/openclaw-plugin",
   "version": "0.1.0",
   "description": "ClawTrace plugin for OpenClaw runtime observability and cost tracing",
   "type": "module",
@@ -32,7 +32,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/epsilla-enterprise/clawtrace.git",
+    "url": "git+https://github.com/epsilla-enterprise/clawtrace.git",
     "directory": "plugins/clawtrace"
   },
   "publishConfig": {
