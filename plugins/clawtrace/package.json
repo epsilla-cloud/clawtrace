@@ -1,5 +1,5 @@
 {
-  "name": "@epsilla/openclaw-plugin-clawtrace",
+  "name": "@epsilla/clawtrace",
   "version": "0.1.0",
   "description": "ClawTrace plugin for OpenClaw runtime observability and cost tracing",
   "type": "module",
