@@ -19,7 +19,7 @@ errors.
 ## Install
 
 ```bash
-openclaw plugins install @epsilla/openclaw-plugin
+openclaw plugins install @epsilla/openclaw-plugin-clawtrace
 ```
 
 ## Configure (interactive)
