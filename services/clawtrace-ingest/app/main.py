@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import FastAPI, Header, HTTPException, status
 
 from .auth import authenticate
-from .config import Settings
+from .config import AuthMode, Settings
 from .models import IngestEventRequest, PersistedEvent
 from .publisher import NoopPublisher, PubSubEventPublisher
 from .service import IngestService
@@ -36,6 +38,39 @@ def create_app(
     app.state.settings = resolved_settings
     app.state.ingest_service = ingest_service or create_ingest_service(resolved_settings)
 
+    def resolve_account_id(settings: Settings, auth_account_id: str, tenant_id_header: str | None) -> str:
+        if not tenant_id_header:
+            return auth_account_id
+
+        try:
+            tenant_uuid = UUID(tenant_id_header)
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={
+                    "error": "invalid_tenant_id",
+                    "message": "x-clawtrace-tenant-id must be a valid UUID.",
+                },
+            ) from exc
+
+        tenant_id = str(tenant_uuid)
+
+        # During early static-key rollout, stored account IDs might be placeholders
+        # (for example "tenant_demo"). Prefer explicit tenant header in those cases.
+        # If account ID is already UUID-shaped and disagrees, reject.
+        if settings.auth_mode == AuthMode.STATIC_KEYS:
+            try:
+                auth_uuid = str(UUID(auth_account_id))
+            except ValueError:
+                return tenant_id
+            if auth_uuid != tenant_id:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Tenant mismatch for API key.",
+                )
+
+        return tenant_id
+
     @app.get("/healthz")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
@@ -44,13 +79,19 @@ def create_app(
     def ingest_event(
         body: IngestEventRequest,
         authorization: str | None = Header(default=None, alias="Authorization"),
+        tenant_id_header: str | None = Header(default=None, alias="x-clawtrace-tenant-id"),
     ):
         auth_context = authenticate(app.state.settings, authorization)
-        persisted = PersistedEvent.from_request(body, auth_context)
+        account_id = resolve_account_id(app.state.settings, auth_context.accountId, tenant_id_header)
+        persisted = PersistedEvent.from_request(
+            body,
+            auth_context,
+            account_id_override=account_id,
+        )
         response = app.state.ingest_service.ingest(body, persisted)
         if response.status == "rejected_schema_version":
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail={
                     "error": "schema_version_mismatch",
                     "expected": app.state.settings.schema_version,

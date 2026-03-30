@@ -66,6 +66,63 @@ def test_ingest_accepts_event_with_mock_auth():
     assert parsed["accountId"] == "mock-account"
 
 
+def test_ingest_uses_tenant_header_when_static_key_maps_placeholder():
+    client, storage = _client_with_fake_storage(
+        auth_mode=AuthMode.STATIC_KEYS,
+        static_keys_json='{"ct_live_good":"tenant_demo"}',
+    )
+    tenant_id = "6e6d1cc9-2118-4d59-86b0-21f2a5f8cc99"
+
+    response = client.post(
+        "/v1/traces/events",
+        json=_payload(),
+        headers={
+            "Authorization": "Bearer ct_live_good",
+            "x-clawtrace-tenant-id": tenant_id,
+        },
+    )
+    assert response.status_code == 200
+    assert len(storage.rows) == 1
+    assert storage.rows[0]["accountId"] == tenant_id
+
+
+def test_ingest_rejects_invalid_tenant_header():
+    client, _ = _client_with_fake_storage(
+        auth_mode=AuthMode.STATIC_KEYS,
+        static_keys_json='{"ct_live_good":"tenant_demo"}',
+    )
+
+    response = client.post(
+        "/v1/traces/events",
+        json=_payload(),
+        headers={
+            "Authorization": "Bearer ct_live_good",
+            "x-clawtrace-tenant-id": "not-a-uuid",
+        },
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"]["error"] == "invalid_tenant_id"
+
+
+def test_ingest_rejects_tenant_mismatch_when_key_maps_uuid():
+    mapped_tenant = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    client, _ = _client_with_fake_storage(
+        auth_mode=AuthMode.STATIC_KEYS,
+        static_keys_json=f'{{"ct_live_good":"{mapped_tenant}"}}',
+    )
+
+    response = client.post(
+        "/v1/traces/events",
+        json=_payload(),
+        headers={
+            "Authorization": "Bearer ct_live_good",
+            "x-clawtrace-tenant-id": "6e6d1cc9-2118-4d59-86b0-21f2a5f8cc99",
+        },
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Tenant mismatch for API key."
+
+
 def test_ingest_rejects_invalid_static_key():
     client, _ = _client_with_fake_storage(
         auth_mode=AuthMode.STATIC_KEYS,

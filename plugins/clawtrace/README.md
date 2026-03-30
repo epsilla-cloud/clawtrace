@@ -32,7 +32,6 @@ openclaw clawtrace setup
 
 It will prompt for:
 
-- ingest endpoint (defaults to `https://ingest.clawtrace.ai/v1/traces/events`)
 - Observe Key from your ClawTrace SaaS account
 
 You can also run non-interactively:
@@ -43,6 +42,10 @@ openclaw clawtrace setup \
   --observe-key <paste-observe-key> \
   --yes
 ```
+
+`setup` now only prompts for Observe Key in interactive mode.  
+For self-hosted ingest endpoints, set `endpoint` in plugin config or
+`CLAWTRACE_ENDPOINT` in environment variables.
 
 ## Configure (manual config file)
 

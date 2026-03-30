@@ -69,10 +69,16 @@ class PersistedEvent(BaseModel):
     event: HookEvent
 
     @classmethod
-    def from_request(cls, request: IngestEventRequest, auth: AuthContext) -> "PersistedEvent":
+    def from_request(
+        cls,
+        request: IngestEventRequest,
+        auth: AuthContext,
+        *,
+        account_id_override: str | None = None,
+    ) -> "PersistedEvent":
         return cls(
             schemaVersion=request.schemaVersion,
-            accountId=auth.accountId,
+            accountId=account_id_override or auth.accountId,
             apiKeyId=auth.apiKeyId,
             agentId=request.agentId,
             receivedAt=datetime.now(timezone.utc),

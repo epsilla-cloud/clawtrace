@@ -2,7 +2,7 @@
   "id": "clawtrace",
   "name": "ClawTrace",
   "description": "Streams OpenClaw hook telemetry to the ClawTrace ingest API.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "configSchema": {
     "type": "object",
     "additionalProperties": false,

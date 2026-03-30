@@ -131,10 +131,6 @@ export const runSetup = async (
 
   if (!options.yes && interactive) {
     api.logger.info?.("[clawtrace] Starting interactive setup.");
-    const promptedEndpoint = await promptValue("ClawTrace ingest endpoint", {
-      defaultValue: endpoint,
-      required: true,
-    });
     const promptedObserveKey = await promptValue("ClawTrace Observe Key", {
       defaultValue: observeKey || undefined,
       required: true,
@@ -143,7 +139,7 @@ export const runSetup = async (
     observeKey = promptedObserveKey;
 
     const nextInput: ClawTraceSetupInput = {
-      endpoint: promptedEndpoint,
+      endpoint,
       observeKey,
     };
     const errors = validateSetupInput(nextInput);
