@@ -1,0 +1,83 @@
+.sidebar {
+  width: 200px;
+  flex-shrink: 0;
+  height: 100vh;
+  background: #f4ebdd;
+  border-right: 1px solid #dacbb4;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.brand {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  border-bottom: 1px solid #e8d9c4;
+}
+
+.brandLink {
+  text-decoration: none;
+}
+
+.brandText {
+  font-size: 15px;
+  font-weight: 680;
+  color: #2e2115;
+  letter-spacing: -0.02em;
+}
+
+.nav {
+  flex: 1;
+  padding: 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+.navItem {
+  height: 36px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 10px;
+  text-decoration: none;
+  color: #5a4534;
+  font-size: 13px;
+  font-weight: 500;
+  transition: background-color 120ms ease, color 120ms ease;
+  border: 1px solid transparent;
+}
+
+.navItem:hover {
+  background: color-mix(in srgb, #dacbb4 30%, white);
+  color: #2e2115;
+}
+
+.navItemActive {
+  background: #fffdf8;
+  color: #2e2115;
+  border-color: #dacbb4;
+  font-weight: 560;
+}
+
+.navIcon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navIcon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.navLabel {
+  flex: 1;
+}

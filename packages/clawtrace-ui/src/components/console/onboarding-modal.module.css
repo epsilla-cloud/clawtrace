@@ -1,0 +1,161 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(46, 33, 21, 0.55);
+  backdrop-filter: blur(4px);
+}
+
+.card {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+  border-radius: 18px;
+  border: 1px solid #dacbb4;
+  background: #fffdf8;
+  box-shadow: 0 24px 64px -16px rgba(46, 33, 21, 0.28);
+  overflow: hidden;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #dacbb4;
+  padding: 14px 20px;
+  background: #fffdf8;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.headerTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2e2115;
+}
+
+.signOutBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #7c6854;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 7px;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.signOutBtn:hover {
+  color: #2e2115;
+  background: #f8f0e4;
+}
+
+.body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Referral banner */
+.referralBanner {
+  border-radius: 12px;
+  border: 1px solid rgba(230, 163, 24, 0.35);
+  background: rgba(230, 163, 24, 0.05);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.referralTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.referralLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 560;
+  color: #2e2115;
+}
+
+.referralPoints {
+  font-size: 18px;
+  font-weight: 680;
+  color: #e6a318;
+  letter-spacing: -0.02em;
+}
+
+.referralDesc {
+  margin: 0;
+  font-size: 12px;
+  color: #7c6854;
+  line-height: 1.5;
+}
+
+.referralLink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  border: 1px solid #dacbb4;
+  background: #f8f0e4;
+  padding: 6px 10px;
+}
+
+.referralLinkText {
+  flex: 1;
+  font-size: 12px;
+  color: #5a4534;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #5a4534;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 6px;
+  padding: 3px 8px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 120ms ease;
+}
+
+.copyBtn:hover {
+  background: #f0e4d4;
+}
+
+.footer {
+  margin: 0;
+  text-align: center;
+  font-size: 11px;
+  color: #a8937e;
+}

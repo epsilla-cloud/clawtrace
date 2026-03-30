@@ -1,0 +1,87 @@
+.page {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+  background:
+    radial-gradient(800px 400px at 50% -80px, color-mix(in srgb, #f5e2d0 42%, white), transparent 75%),
+    linear-gradient(180deg, #f7f0e6 0%, #f1e6d7 100%);
+}
+
+.card {
+  width: 100%;
+  max-width: 380px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, #dacbb4 72%, white);
+  background: #fffdf8;
+  box-shadow: 0 12px 40px -24px rgba(46, 33, 21, 0.22);
+  padding: 32px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.logo {
+  margin-bottom: 20px;
+}
+
+.logoText {
+  font-size: 22px;
+  font-weight: 680;
+  color: #2e2115;
+  letter-spacing: -0.02em;
+}
+
+.title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  color: #2e2115;
+  letter-spacing: -0.02em;
+  text-align: center;
+}
+
+.subtitle {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: #7c6854;
+  text-align: center;
+  line-height: 1.4;
+}
+
+.errorBanner {
+  margin-top: 14px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #f3b7c0;
+  background: #fff1f3;
+  color: #b42318;
+  font-size: 13px;
+  padding: 10px 12px;
+  line-height: 1.4;
+}
+
+.buttons {
+  margin-top: 20px;
+  width: 100%;
+}
+
+.terms {
+  margin: 16px 0 0;
+  font-size: 11px;
+  color: #7c6854;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.link {
+  color: #a4532b;
+  text-decoration: none;
+}
+
+.link:hover {
+  text-decoration: underline;
+}

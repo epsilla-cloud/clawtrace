@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { FormEvent, useEffect, useState } from 'react';
+import { UserButton } from '@/components/auth/user-button';
 import idcLogo from '../../../../idc.png';
 import logoImage from '../../../../logo.png';
 import nvidiaLogo from '../../../../nvidia.png';
@@ -136,17 +137,20 @@ export function LandingPage() {
           />
         </a>
 
-        <nav className={styles.nav}>
-          <a href="#improvement" className={styles.navLink}>
-            Product
-          </a>
-          <a href="#improvement" className={styles.navLink}>
-            How It Works
-          </a>
-          <a href="#waitlist" className={styles.navLink}>
-            Waitlist
-          </a>
-        </nav>
+        <div className={styles.headerRight}>
+          <nav className={styles.nav}>
+            <a href="#improvement" className={styles.navLink}>
+              Product
+            </a>
+            <a href="#improvement" className={styles.navLink}>
+              How It Works
+            </a>
+            <a href="#waitlist" className={styles.navLink}>
+              Waitlist
+            </a>
+          </nav>
+          <UserButton />
+        </div>
       </header>
 
       <section className={styles.hero} id="hero">

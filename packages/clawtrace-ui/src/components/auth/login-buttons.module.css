@@ -1,0 +1,35 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.button {
+  height: 44px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--ct-border, #dacbb4) 76%, white);
+  background: var(--ct-panel-bg, #fffdf8);
+  color: var(--ct-text, #2e2115);
+  text-decoration: none;
+  padding: 0 16px;
+  font-size: 14px;
+  font-weight: 530;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition:
+    border-color 140ms ease,
+    background-color 140ms ease;
+}
+
+.button:hover {
+  border-color: color-mix(in srgb, var(--ct-border, #dacbb4) 90%, #2e2115);
+  background: color-mix(in srgb, var(--ct-panel-subtle, #f8f0e4) 60%, white);
+}
+
+.icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}

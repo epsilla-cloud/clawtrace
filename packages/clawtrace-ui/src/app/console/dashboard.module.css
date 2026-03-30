@@ -1,0 +1,223 @@
+.page {
+  padding: 28px 28px 48px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 900px;
+  width: 100%;
+}
+
+.pageHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 640;
+  color: #2e2115;
+  letter-spacing: -0.02em;
+}
+
+.pageSub {
+  margin: 0;
+  font-size: 13px;
+  color: #7c6854;
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 680px) {
+  .topRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+.card {
+  border-radius: 14px;
+  border: 1px solid #dacbb4;
+  background: #fffdf8;
+  padding: 18px;
+}
+
+.profileRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #dacbb4;
+  flex-shrink: 0;
+}
+
+.avatarFallback {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #f5e2d0;
+  color: #a4532b;
+  font-size: 20px;
+  font-weight: 640;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.profileName {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2e2115;
+}
+
+.profileEmail {
+  margin: 0;
+  font-size: 12px;
+  color: #7c6854;
+}
+
+.providerBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid #dacbb4;
+  background: #f8f0e4;
+  font-size: 10px;
+  font-weight: 560;
+  color: #5a4534;
+  width: fit-content;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 560px) {
+  .statsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.statCard {
+  border-radius: 12px;
+  border: 1px solid #dacbb4;
+  background: #fffdf8;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.statLabel {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 560;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #7c6854;
+}
+
+.statValue {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 650;
+  color: #2e2115;
+  letter-spacing: -0.02em;
+}
+
+/* Tier color overrides */
+.tier_free {
+  color: #7c6854;
+  font-size: 18px;
+}
+
+.tier_starter {
+  color: #5b3db5;
+  font-size: 18px;
+}
+
+.tier_pro {
+  color: #a4532b;
+  font-size: 18px;
+}
+
+.inviteRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inviteCode {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 16px;
+  font-weight: 640;
+  color: #2e2115;
+  letter-spacing: 0.04em;
+}
+
+.inviteLink {
+  font-size: 12px;
+  color: #a4532b;
+  text-decoration: none;
+  font-weight: 520;
+}
+
+.inviteLink:hover {
+  text-decoration: underline;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 620;
+  color: #2e2115;
+}
+
+.sectionSub {
+  margin: 0;
+  font-size: 13px;
+  color: #7c6854;
+}
+
+.proMessage {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #2e2115;
+}

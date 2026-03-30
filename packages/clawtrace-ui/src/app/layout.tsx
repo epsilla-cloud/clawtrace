@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 import { siteConfig } from '../lib/site';
+import { InviteCodeCapture } from '@/components/auth/invite-code-capture';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -75,7 +77,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <Suspense fallback={null}>
+          <InviteCodeCapture />
+        </Suspense>
+        {children}
+      </body>
     </html>
   );
 }
