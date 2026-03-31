@@ -48,10 +48,12 @@
 --   clustering is incrementally maintained — no manual OPTIMIZE needed and
 --   no fixed partition skew with many small tenants.
 --
--- Bloom filters on trace_id, span_id, event_id:
---   These are high-cardinality UUIDs used in point lookups ("fetch trace X",
---   "fetch span Y"). Bloom filters add a ~1 MB per-file index that eliminates
---   file reads with ~99% probability before any data is scanned.
+-- Bloom filters (not applied here — unsupported in Unity Catalog DLT):
+--   If needed, apply post-creation from a SQL Editor notebook:
+--     ALTER TABLE clawtrace.silver.events_all
+--     SET TBLPROPERTIES ('spark.databricks.delta.allowArbitraryProperties.enabled'='true');
+--   Or enable allowArbitraryProperties in the pipeline Spark config and
+--   re-add delta.bloomFilter.<col>.enabled properties to this file.
 --
 -- Auto-optimize / auto-compact:
 --   The pipeline runs every 3 minutes, each writing a small batch of files.
@@ -67,10 +69,6 @@
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
 CLUSTER BY (tenant_id, agent_id, trace_id)
 TBLPROPERTIES (
-  -- Bloom filters for UUID point lookups (default fpp ~1%)
-  'delta.bloomFilter.trace_id.enabled' = 'true',
-  'delta.bloomFilter.span_id.enabled'  = 'true',
-  'delta.bloomFilter.event_id.enabled' = 'true',
   -- Small-file compaction: merge writes and compact after each 3-min batch
   'delta.autoOptimize.optimizeWrite' = 'true',
   'delta.autoOptimize.autoCompact'   = 'true',
