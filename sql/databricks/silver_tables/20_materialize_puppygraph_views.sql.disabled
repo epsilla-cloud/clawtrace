@@ -1,0 +1,79 @@
+-- ClawTrace PuppyGraph view definitions.
+--
+-- STATUS: DISABLED — PuppyGraph does not yet support Delta Lake views as
+-- graph sources. Enable once support is confirmed (expected ~May 2026).
+--
+-- HOW TO ACTIVATE:
+--   1. Confirm PuppyGraph view support is live with the PuppyGraph team.
+--   2. Rename this file to 20_materialize_puppygraph_views.sql (remove .disabled).
+--   3. Delete 20_materialize_puppygraph_tables.sql and its Lakeflow pipeline.
+--   4. Drop the physical materialized view tables (see bootstrap below).
+--   5. Update the PuppyGraph schema JSON: the tableSource.table values for
+--      pg_traces, pg_spans, pg_child_of_edges stay the same — no schema change
+--      needed since view and table names are identical.
+--
+-- One-time cleanup (run in SQL Editor after activating views):
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_traces;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_spans;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_child_of_edges;
+--
+-- WHY THIS IS BETTER THAN THE PHYSICAL TABLE APPROACH:
+--   - No second pipeline to manage or schedule
+--   - No aggregation lag — PuppyGraph always queries live events_all data
+--   - No small-file accumulation in the pg_* tables
+--   - Lower cost — no periodic full-scan compute job
+--
+-- Dependency: clawtrace.silver.events_all (produced by pipeline 10).
+
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE VIEW clawtrace.silver.pg_traces AS
+SELECT
+  tenant_id,
+  agent_id,
+  trace_id,
+  MIN(event_ts_ms)                      AS trace_start_ts_ms,
+  MAX(event_ts_ms)                      AS trace_end_ts_ms,
+  MAX(event_ts_ms) - MIN(event_ts_ms)   AS duration_ms,
+  COUNT(*)                              AS event_count,
+  MIN(event_date)                       AS trace_date
+FROM clawtrace.silver.events_all
+GROUP BY tenant_id, agent_id, trace_id;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE VIEW clawtrace.silver.pg_spans AS
+SELECT
+  tenant_id,
+  agent_id,
+  trace_id,
+  span_id,
+  parent_span_id,
+  MIN(event_ts_ms)                      AS span_start_ts_ms,
+  MAX(event_ts_ms)                      AS span_end_ts_ms,
+  MAX(event_ts_ms) - MIN(event_ts_ms)   AS duration_ms,
+  COALESCE(MAX(model_name), MAX(tool_name), MAX(span_name), 'session') AS actor_label,
+  CASE
+    WHEN MAX(model_name) IS NOT NULL THEN 'model'
+    WHEN MAX(tool_name)  IS NOT NULL THEN 'tool'
+    ELSE 'session'
+  END                                   AS actor_type,
+  MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)) AS input_tokens,
+  MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)) AS output_tokens,
+  MAX(CAST(get_json_object(payload_json, '$.usage.total')  AS BIGINT)) AS total_tokens,
+  MAX(CAST(get_json_object(payload_json, '$.lastAssistant.usage.cost.total') AS DOUBLE)) AS cost_usd,
+  MAX(CASE WHEN event_type = 'error' THEN 1 ELSE 0 END)               AS has_error
+FROM clawtrace.silver.events_all
+GROUP BY tenant_id, agent_id, trace_id, span_id, parent_span_id;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE VIEW clawtrace.silver.pg_child_of_edges AS
+SELECT
+  tenant_id,
+  agent_id,
+  trace_id,
+  span_id,
+  parent_span_id
+FROM clawtrace.silver.events_all
+WHERE parent_span_id IS NOT NULL;
