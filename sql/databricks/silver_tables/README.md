@@ -1,7 +1,7 @@
-# ClawTrace Silver Tables (PuppyGraph-compatible)
+# ClawTrace Silver Tables (PuppyGraph-compatible, incremental)
 
 PuppyGraph currently cannot consume Databricks views in this environment.
-This folder materializes the previous silver view layer into physical Delta tables,
+This folder materializes the previous silver view layer into physical Delta tables
 with the same table names and the same output columns.
 
 ## Tables materialized
@@ -22,6 +22,13 @@ In Databricks SQL Editor, run:
 
 Then set your PuppyGraph schema to use catalog `clawtrace`, database `silver`, and these 8 table names.
 
-## Scheduling
-Recommended: create a Databricks Job with one SQL task executing `10_materialize_silver_tables.sql` every 1-2 minutes.
+## Incremental behavior
+- The script keeps a watermark in `clawtrace.silver.__materialization_state`.
+- Every run reads only bronze rows where `ingest_ts > watermark`.
+- `events_all` is upserted by `event_id`.
+- Downstream graph tables are refreshed only for impacted spans/traces/agents from the new delta.
+- First run backfills from the beginning because watermark defaults to `1970-01-01`.
 
+## Scheduling
+Recommended: create a Databricks Job with one SQL task executing
+`10_materialize_silver_tables.sql` every 1-2 minutes.
