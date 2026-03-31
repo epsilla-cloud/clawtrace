@@ -4,14 +4,14 @@
 --
 -- One-time bootstrap (run outside Lakeflow pipeline in SQL Editor):
 --   CREATE SCHEMA IF NOT EXISTS clawtrace.silver;
---   DROP VIEW IF EXISTS clawtrace.silver.events_all;
---   DROP VIEW IF EXISTS clawtrace.silver.span_rollup;
---   DROP VIEW IF EXISTS clawtrace.silver.pg_spans;
---   DROP VIEW IF EXISTS clawtrace.silver.pg_agents;
---   DROP VIEW IF EXISTS clawtrace.silver.pg_traces;
---   DROP VIEW IF EXISTS clawtrace.silver.pg_trace_span_edges;
---   DROP VIEW IF EXISTS clawtrace.silver.pg_agent_span_edges;
---   DROP VIEW IF EXISTS clawtrace.silver.pg_span_parent_edges;
+--   DROP TABLE IF EXISTS clawtrace.silver.events_all;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.span_rollup;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_spans;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_agents;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_traces;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_trace_span_edges;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_agent_span_edges;
+--   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_span_parent_edges;
 --   DROP TABLE IF EXISTS clawtrace.silver.__materialization_state;
 
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
@@ -89,7 +89,10 @@ SELECT
   raw_path
 FROM src;
 
-CREATE OR REFRESH STREAMING TABLE clawtrace.silver.span_rollup
+-- span_rollup aggregates over the full event history (GROUP BY forces Complete
+-- output mode, which rewrites the table). Using MATERIALIZED VIEW avoids the
+-- DELTA_SOURCE_TABLE_IGNORE_CHANGES error in downstream streaming consumers.
+CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.span_rollup
 AS
 SELECT
   tenant_id,
@@ -111,10 +114,10 @@ SELECT
     WHEN MAX(tool_name)  IS NOT NULL THEN 'tool'
     ELSE 'session'
   END AS actor_type
-FROM STREAM clawtrace.silver.events_all
+FROM clawtrace.silver.events_all
 GROUP BY tenant_id, agent_id, trace_id, span_id, parent_span_id;
 
-CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_spans
+CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_spans
 AS
 SELECT
   tenant_id,
@@ -131,18 +134,19 @@ SELECT
   duration_ms,
   actor_label,
   actor_type
-FROM STREAM clawtrace.silver.span_rollup;
+FROM clawtrace.silver.span_rollup;
 
-CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_agents
+-- pg_agents and pg_traces use GROUP BY, so materialized views are correct here too.
+CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_agents
 AS
 SELECT
   tenant_id,
   agent_id,
   concat(tenant_id, ':', agent_id) AS agent_vertex_id
-FROM STREAM clawtrace.silver.events_all
+FROM clawtrace.silver.events_all
 GROUP BY tenant_id, agent_id;
 
-CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_traces
+CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_traces
 AS
 SELECT
   tenant_id,
@@ -153,33 +157,33 @@ SELECT
   MAX(event_ts_ms) AS trace_end_ts_ms,
   MAX(event_ts_ms) - MIN(event_ts_ms) AS duration_ms,
   COUNT(*) AS event_count
-FROM STREAM clawtrace.silver.events_all
+FROM clawtrace.silver.events_all
 GROUP BY tenant_id, agent_id, trace_id;
 
-CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_trace_span_edges
+CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_trace_span_edges
 AS
 SELECT
   tenant_id,
   agent_id,
   trace_vertex_id,
   span_uid AS span_vertex_id
-FROM STREAM clawtrace.silver.pg_spans;
+FROM clawtrace.silver.pg_spans;
 
-CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_agent_span_edges
+CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_agent_span_edges
 AS
 SELECT
   tenant_id,
   agent_id,
   agent_vertex_id,
   span_uid AS span_vertex_id
-FROM STREAM clawtrace.silver.pg_spans;
+FROM clawtrace.silver.pg_spans;
 
-CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_span_parent_edges
+CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_span_parent_edges
 AS
 SELECT
   tenant_id,
   agent_id,
   parent_span_uid AS parent_span_vertex_id,
   span_uid AS child_span_vertex_id
-FROM STREAM clawtrace.silver.pg_spans
+FROM clawtrace.silver.pg_spans
 WHERE parent_span_uid IS NOT NULL;
