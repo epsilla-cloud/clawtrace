@@ -5,14 +5,38 @@
 -- One-time bootstrap (run outside Lakeflow pipeline in SQL Editor):
 --   CREATE SCHEMA IF NOT EXISTS clawtrace.silver;
 --   DROP TABLE IF EXISTS clawtrace.silver.events_all;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.span_rollup;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_spans;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_agents;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_traces;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_trace_span_edges;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_agent_span_edges;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_span_parent_edges;
 --   DROP TABLE IF EXISTS clawtrace.silver.__materialization_state;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ARCHITECTURE NOTE
+--
+-- events_all is the only table produced by this pipeline.
+-- It is a pure append-only stream from raw ADLS files — cheap, incremental,
+-- and serves as the single source of truth for PuppyGraph.
+--
+-- PuppyGraph derives graph topology (agents, traces, spans, edges) directly
+-- from events_all at query time via its schema mapping. No pre-aggregated
+-- graph tables are needed; PuppyGraph builds and caches them per-query.
+--
+-- Deferred tables (restore when a concrete UI consumer exists):
+--
+--   span_rollup     — per-span duration + actor_type aggregates
+--                     Restore for: cost dashboard, latency P50/P99 charts
+--
+--   pg_spans        — span vertex projection over span_rollup
+--   pg_agents       — agent vertex projection
+--   pg_traces       — trace vertex projection with duration + event_count
+--   pg_trace_span_edges   — trace→span edge table
+--   pg_agent_span_edges   — agent→span edge table
+--   pg_span_parent_edges  — parent→child span edge table
+--
+--                     Restore all pg_* tables for: fleet-level dashboards,
+--                     cross-agent anomaly detection, enterprise multi-tenant
+--                     analytics. At that point also consider switching to
+--                     APPLY CHANGES INTO for incremental aggregation instead
+--                     of full-scan MATERIALIZED VIEW (see cost analysis in
+--                     git history).
+-- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
 AS
@@ -88,102 +112,3 @@ SELECT
   payload_json,
   raw_path
 FROM src;
-
--- span_rollup aggregates over the full event history (GROUP BY forces Complete
--- output mode, which rewrites the table). Using MATERIALIZED VIEW avoids the
--- DELTA_SOURCE_TABLE_IGNORE_CHANGES error in downstream streaming consumers.
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.span_rollup
-AS
-SELECT
-  tenant_id,
-  agent_id,
-  trace_id,
-  span_id,
-  parent_span_id,
-  concat(trace_id, ':', span_id) AS span_uid,
-  CASE
-    WHEN parent_span_id IS NULL THEN NULL
-    ELSE concat(trace_id, ':', parent_span_id)
-  END AS parent_span_uid,
-  MIN(event_ts_ms) AS span_start_ts_ms,
-  MAX(event_ts_ms) AS span_end_ts_ms,
-  MAX(event_ts_ms) - MIN(event_ts_ms) AS duration_ms,
-  COALESCE(MAX(model_name), MAX(tool_name), MAX(span_name), 'span') AS actor_label,
-  CASE
-    WHEN MAX(model_name) IS NOT NULL THEN 'model'
-    WHEN MAX(tool_name)  IS NOT NULL THEN 'tool'
-    ELSE 'session'
-  END AS actor_type
-FROM clawtrace.silver.events_all
-GROUP BY tenant_id, agent_id, trace_id, span_id, parent_span_id;
-
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_spans
-AS
-SELECT
-  tenant_id,
-  agent_id,
-  trace_id,
-  span_id,
-  parent_span_id,
-  span_uid,
-  parent_span_uid,
-  concat(tenant_id, ':', trace_id) AS trace_vertex_id,
-  concat(tenant_id, ':', agent_id) AS agent_vertex_id,
-  span_start_ts_ms,
-  span_end_ts_ms,
-  duration_ms,
-  actor_label,
-  actor_type
-FROM clawtrace.silver.span_rollup;
-
--- pg_agents and pg_traces use GROUP BY, so materialized views are correct here too.
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_agents
-AS
-SELECT
-  tenant_id,
-  agent_id,
-  concat(tenant_id, ':', agent_id) AS agent_vertex_id
-FROM clawtrace.silver.events_all
-GROUP BY tenant_id, agent_id;
-
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_traces
-AS
-SELECT
-  tenant_id,
-  agent_id,
-  trace_id,
-  concat(tenant_id, ':', trace_id) AS trace_vertex_id,
-  MIN(event_ts_ms) AS trace_start_ts_ms,
-  MAX(event_ts_ms) AS trace_end_ts_ms,
-  MAX(event_ts_ms) - MIN(event_ts_ms) AS duration_ms,
-  COUNT(*) AS event_count
-FROM clawtrace.silver.events_all
-GROUP BY tenant_id, agent_id, trace_id;
-
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_trace_span_edges
-AS
-SELECT
-  tenant_id,
-  agent_id,
-  trace_vertex_id,
-  span_uid AS span_vertex_id
-FROM clawtrace.silver.pg_spans;
-
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_agent_span_edges
-AS
-SELECT
-  tenant_id,
-  agent_id,
-  agent_vertex_id,
-  span_uid AS span_vertex_id
-FROM clawtrace.silver.pg_spans;
-
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_span_parent_edges
-AS
-SELECT
-  tenant_id,
-  agent_id,
-  parent_span_uid AS parent_span_vertex_id,
-  span_uid AS child_span_vertex_id
-FROM clawtrace.silver.pg_spans
-WHERE parent_span_uid IS NOT NULL;
