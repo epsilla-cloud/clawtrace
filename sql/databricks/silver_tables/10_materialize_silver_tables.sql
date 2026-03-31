@@ -62,6 +62,15 @@ WITH raw_src AS (
   )
   WHERE event.eventId IS NOT NULL
     AND event.eventType IS NOT NULL
+    -- Drop OpenClaw shadow duplicates: after_tool_call fires twice — once with
+    -- session context (kept) and once from a global hook path with no session
+    -- and no toolCallId (3-5ms later). The duplicate carries no span linkage
+    -- and is identifiable by sessionKey="unknown" + absent toolCallId.
+    AND NOT (
+      event.eventType = 'tool_after_call'
+      AND get_json_object(CAST(to_json(event.payload) AS STRING), '$.sessionKey') = 'unknown'
+      AND get_json_object(CAST(to_json(event.payload) AS STRING), '$.toolCallId') IS NULL
+    )
 ),
 src AS (
   SELECT
