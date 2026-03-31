@@ -140,6 +140,9 @@ export class HookEventTracker {
   private readonly tools = new Map<string, ActiveSpanState>();
   private readonly anonymousToolQueues = new Map<string, string[]>();
   private readonly subagents = new Map<string, ActiveSpanState>();
+  // Populated at before_tool_call; consumed at after_tool_call to recover
+  // session context when OpenClaw omits it from the after hook ctx.
+  private readonly toolCallIdToSessionKey = new Map<string, string>();
   private syntheticToolCallCounter = 0;
 
   private readonly sink: IngestEventSink;
@@ -276,6 +279,7 @@ export class HookEventTracker {
       parentSpanId,
     };
     this.tools.set(toolCallId, span);
+    this.toolCallIdToSessionKey.set(toolCallId, sessionKey);
 
     this.emit({
       eventType: "tool_before_call",
@@ -295,7 +299,14 @@ export class HookEventTracker {
 
   onAfterToolCall(event: AfterToolCallEvent, ctx: ToolContext): void {
     const toolCallId = this.resolveToolCallId(event, ctx, true);
-    const sessionKey = this.sessionKeyFrom({}, ctx);
+    // OpenClaw does not populate session ctx on after_tool_call — recover from
+    // the sessionKey stored when the matching before_tool_call was processed.
+    const ctxSessionKey = this.sessionKeyFrom({}, ctx);
+    const sessionKey =
+      ctxSessionKey === "unknown" && toolCallId
+        ? (this.toolCallIdToSessionKey.get(toolCallId) ?? ctxSessionKey)
+        : ctxSessionKey;
+    if (toolCallId) this.toolCallIdToSessionKey.delete(toolCallId);
     const session = this.ensureSession(sessionKey, {});
     const run = event.runId ? this.runs.get(event.runId) : undefined;
     const span =
@@ -493,7 +504,20 @@ export class HookEventTracker {
     const queue = this.anonymousToolQueues.get(queueKey) ?? [];
     this.anonymousToolQueues.set(queueKey, queue);
 
-    if (consumeAnonymous) return queue.shift();
+    if (consumeAnonymous) {
+      const id = queue.shift();
+      if (id) return id;
+      // Fallback: OpenClaw may omit session context on after_tool_call, causing
+      // a different queue key than was used at before_tool_call. Scan for any
+      // queue matching runId::toolName regardless of session part.
+      const prefix = `${event.runId ?? ctx.runId ?? "run:unknown"}::${event.toolName}::`;
+      for (const [key, q] of this.anonymousToolQueues) {
+        if (key !== queueKey && key.startsWith(prefix) && q.length > 0) {
+          return q.shift();
+        }
+      }
+      return undefined;
+    }
 
     this.syntheticToolCallCounter += 1;
     const generated = `anon-${this.syntheticToolCallCounter}-${this.idFactory()}`;
@@ -542,5 +566,11 @@ export class HookEventTracker {
       }
     }
     for (const queueKey of anonymousQueueKeysToDelete) this.anonymousToolQueues.delete(queueKey);
+
+    const toolCallIdsToDelete: string[] = [];
+    for (const [toolCallId, sk] of this.toolCallIdToSessionKey) {
+      if (sk === sessionKey) toolCallIdsToDelete.push(toolCallId);
+    }
+    for (const id of toolCallIdsToDelete) this.toolCallIdToSessionKey.delete(id);
   }
 }

@@ -140,4 +140,70 @@ describe("HookEventTracker", () => {
     expect(afterCalls[0].event.spanId).toBe(beforeCalls[0].event.spanId);
     expect(afterCalls[1].event.spanId).toBe(beforeCalls[1].event.spanId);
   });
+
+  it("matches anonymous tool calls when after_tool_call ctx has no session (OpenClaw gap)", () => {
+    // Reproduces the production gap: OpenClaw omits sessionKey/sessionId from
+    // the after_tool_call ctx, causing a queue-key mismatch.
+    const { tracker, emitted } = createTracker();
+
+    tracker.onSessionStart({ sessionId: "sess-b" }, { sessionId: "sess-b", sessionKey: "agent:main:telegram:direct:123" });
+
+    // before: ctx has full session
+    tracker.onBeforeToolCall(
+      { toolName: "exec", params: { command: "ls" } },
+      { sessionKey: "agent:main:telegram:direct:123", toolName: "exec" },
+    );
+    tracker.onBeforeToolCall(
+      { toolName: "exec", params: { command: "pwd" } },
+      { sessionKey: "agent:main:telegram:direct:123", toolName: "exec" },
+    );
+
+    // after: ctx has NO session (as seen in production data)
+    tracker.onAfterToolCall(
+      { toolName: "exec", params: { command: "ls" }, result: { stdout: "/" } },
+      { toolName: "exec" },
+    );
+    tracker.onAfterToolCall(
+      { toolName: "exec", params: { command: "pwd" }, result: { stdout: "/home" } },
+      { toolName: "exec" },
+    );
+
+    const beforeCalls = emitted.filter((x) => x.event.eventType === "tool_before_call");
+    const afterCalls = emitted.filter((x) => x.event.eventType === "tool_after_call");
+    expect(beforeCalls).toHaveLength(2);
+    expect(afterCalls).toHaveLength(2);
+    // Spans must match (FIFO order preserved)
+    expect(afterCalls[0].event.spanId).toBe(beforeCalls[0].event.spanId);
+    expect(afterCalls[1].event.spanId).toBe(beforeCalls[1].event.spanId);
+    // sessionKey recovered from before — not "unknown"
+    expect(afterCalls[0].event.payload.sessionKey).toBe("agent:main:telegram:direct:123");
+    expect(afterCalls[1].event.payload.sessionKey).toBe("agent:main:telegram:direct:123");
+  });
+
+  it("does not bleed session recovery across different sessions", () => {
+    // Two sessions make the same anonymous tool call concurrently.
+    // After-calls with no ctx session must each match their own before-call.
+    const { tracker, emitted } = createTracker();
+
+    tracker.onSessionStart({ sessionId: "s1" }, { sessionId: "s1", sessionKey: "agent:main:s1" });
+    tracker.onSessionStart({ sessionId: "s2" }, { sessionId: "s2", sessionKey: "agent:main:s2" });
+
+    tracker.onBeforeToolCall(
+      { toolName: "write", params: { file: "a.txt" } },
+      { sessionKey: "agent:main:s1", toolName: "write" },
+    );
+    tracker.onBeforeToolCall(
+      { toolName: "write", params: { file: "b.txt" } },
+      { sessionKey: "agent:main:s2", toolName: "write" },
+    );
+
+    tracker.onAfterToolCall({ toolName: "write", params: { file: "a.txt" } }, { toolName: "write" });
+    tracker.onAfterToolCall({ toolName: "write", params: { file: "b.txt" } }, { toolName: "write" });
+
+    const afterCalls = emitted.filter((x) => x.event.eventType === "tool_after_call");
+    expect(afterCalls).toHaveLength(2);
+    // Both after-calls should have been matched and have non-unknown session keys
+    expect(afterCalls[0].event.payload.sessionKey).toMatch(/^agent:main:s[12]$/);
+    expect(afterCalls[1].event.payload.sessionKey).toMatch(/^agent:main:s[12]$/);
+  });
 });
