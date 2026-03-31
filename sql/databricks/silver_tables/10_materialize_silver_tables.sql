@@ -48,12 +48,11 @@
 --   clustering is incrementally maintained — no manual OPTIMIZE needed and
 --   no fixed partition skew with many small tenants.
 --
--- Bloom filters (not applied here — unsupported in Unity Catalog DLT):
---   If needed, apply post-creation from a SQL Editor notebook:
---     ALTER TABLE clawtrace.silver.events_all
---     SET TBLPROPERTIES ('spark.databricks.delta.allowArbitraryProperties.enabled'='true');
---   Or enable allowArbitraryProperties in the pipeline Spark config and
---   re-add delta.bloomFilter.<col>.enabled properties to this file.
+-- Bloom filters: not supported via TBLPROPERTIES in Databricks Unity Catalog
+--   DLT pipelines. delta.bloomFilter.* properties are rejected even with
+--   allowArbitraryProperties enabled. Liquid clustering on (tenant_id,
+--   agent_id, trace_id) already handles the primary query patterns and
+--   makes bloom filters largely redundant at current scale.
 --
 -- Auto-optimize / auto-compact:
 --   The pipeline runs every 3 minutes, each writing a small batch of files.
@@ -69,10 +68,6 @@
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
 CLUSTER BY (tenant_id, agent_id, trace_id)
 TBLPROPERTIES (
-  -- Bloom filters for UUID point lookups (requires allowArbitraryProperties enabled in pipeline Spark config)
-  'delta.bloomFilter.trace_id.enabled' = 'true',
-  'delta.bloomFilter.span_id.enabled'  = 'true',
-  'delta.bloomFilter.event_id.enabled' = 'true',
   -- Small-file compaction: merge writes and compact after each 3-min batch
   'delta.autoOptimize.optimizeWrite' = 'true',
   'delta.autoOptimize.autoCompact'   = 'true',
