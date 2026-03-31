@@ -18,6 +18,9 @@ DROP VIEW IF EXISTS clawtrace.silver.pg_trace_span_edges;
 DROP VIEW IF EXISTS clawtrace.silver.pg_agent_span_edges;
 DROP VIEW IF EXISTS clawtrace.silver.pg_span_parent_edges;
 
+-- Legacy object from manual-watermark implementation.
+DROP TABLE IF EXISTS clawtrace.silver.__materialization_state;
+
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
 AS
 WITH src AS (
