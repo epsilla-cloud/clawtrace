@@ -1,25 +1,18 @@
--- ClawTrace silver materialization using pure Lakeflow-managed state.
+-- ClawTrace silver materialization (DLT/Lakeflow SQL compatible).
+-- This file intentionally contains only DLT statements:
+--   CREATE OR REFRESH STREAMING TABLE
 --
--- Behavior:
--- - No manual watermark table.
--- - Lakeflow keeps checkpoint/state for incremental processing.
--- - First run backfills from earliest available raw records.
--- - Later runs process only new raw deltas.
-
-CREATE SCHEMA IF NOT EXISTS clawtrace.silver;
-
--- If legacy objects are views, drop them so streaming-table DDL is deterministic.
-DROP VIEW IF EXISTS clawtrace.silver.events_all;
-DROP VIEW IF EXISTS clawtrace.silver.span_rollup;
-DROP VIEW IF EXISTS clawtrace.silver.pg_spans;
-DROP VIEW IF EXISTS clawtrace.silver.pg_agents;
-DROP VIEW IF EXISTS clawtrace.silver.pg_traces;
-DROP VIEW IF EXISTS clawtrace.silver.pg_trace_span_edges;
-DROP VIEW IF EXISTS clawtrace.silver.pg_agent_span_edges;
-DROP VIEW IF EXISTS clawtrace.silver.pg_span_parent_edges;
-
--- Legacy object from manual-watermark implementation.
-DROP TABLE IF EXISTS clawtrace.silver.__materialization_state;
+-- One-time bootstrap (run outside Lakeflow pipeline in SQL Editor):
+--   CREATE SCHEMA IF NOT EXISTS clawtrace.silver;
+--   DROP VIEW IF EXISTS clawtrace.silver.events_all;
+--   DROP VIEW IF EXISTS clawtrace.silver.span_rollup;
+--   DROP VIEW IF EXISTS clawtrace.silver.pg_spans;
+--   DROP VIEW IF EXISTS clawtrace.silver.pg_agents;
+--   DROP VIEW IF EXISTS clawtrace.silver.pg_traces;
+--   DROP VIEW IF EXISTS clawtrace.silver.pg_trace_span_edges;
+--   DROP VIEW IF EXISTS clawtrace.silver.pg_agent_span_edges;
+--   DROP VIEW IF EXISTS clawtrace.silver.pg_span_parent_edges;
+--   DROP TABLE IF EXISTS clawtrace.silver.__materialization_state;
 
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
 AS

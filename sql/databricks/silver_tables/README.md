@@ -28,5 +28,12 @@ Then set PuppyGraph schema to catalog `clawtrace`, database `silver`, and these 
 - First run backfills from the earliest available raw files under `abfss://.../clawtrace-raw/.../raw/v1/`.
 - Later runs process only new raw-file deltas automatically.
 
+## Important for Lakeflow SQL compatibility
+`10_materialize_silver_tables.sql` is DLT-only by design and contains **only**
+`CREATE OR REFRESH STREAMING TABLE` statements.
+
+If you need cleanup/bootstrap (`CREATE SCHEMA`, `DROP VIEW`, etc.), run those one-time
+commands in Databricks SQL Editor (outside the Lakeflow pipeline).
+
 ## Scheduling
 Recommended: schedule the Lakeflow pipeline every **1-2 minutes**.
