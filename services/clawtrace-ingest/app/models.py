@@ -5,7 +5,7 @@ from enum import Enum
 from typing import Any, Dict, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class EventType(str, Enum):
@@ -32,6 +32,15 @@ class HookEvent(BaseModel):
     parentSpanId: Optional[str] = None
     tsMs: int = Field(ge=0)
     payload: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("payload", mode="before")
+    @classmethod
+    def validate_payload_object(cls, value: Any) -> Dict[str, Any]:
+        if value is None:
+            return {}
+        if not isinstance(value, dict):
+            raise ValueError("event.payload must be a JSON object")
+        return value
 
 
 class IngestEventRequest(BaseModel):

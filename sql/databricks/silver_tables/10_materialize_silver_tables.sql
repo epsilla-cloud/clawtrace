@@ -51,13 +51,7 @@ src AS (
     parent_span_id,
     event_ts_ms,
     raw_path,
-    payload_json,
-    -- unwrap if payload_json was double-encoded as "\"{...}\""
-    regexp_replace(
-      regexp_replace(trim(payload_json), '^"(\\{.*\\})"$', '$1'),
-      '\\\\"',
-      '"'
-    ) AS payload_norm
+    payload_json
   FROM raw_src
 )
 SELECT
@@ -71,27 +65,27 @@ SELECT
   parent_span_id,
   event_ts_ms,
   COALESCE(
-    NULLIF(get_json_object(payload_norm, '$.name'), ''),
-    NULLIF(get_json_object(payload_norm, '$.spanName'), ''),
-    NULLIF(get_json_object(payload_norm, '$.span_name'), '')
+    NULLIF(get_json_object(payload_json, '$.name'), ''),
+    NULLIF(get_json_object(payload_json, '$.spanName'), ''),
+    NULLIF(get_json_object(payload_json, '$.span_name'), '')
   ) AS span_name,
   COALESCE(
-    NULLIF(get_json_object(payload_norm, '$.toolName'), ''),
-    NULLIF(get_json_object(payload_norm, '$.tool_name'), ''),
-    NULLIF(get_json_object(payload_norm, '$.tool'), ''),
-    NULLIF(get_json_object(payload_norm, '$.toolCall.name'), ''),
-    NULLIF(get_json_object(payload_norm, '$.tool_call.name'), ''),
+    NULLIF(get_json_object(payload_json, '$.toolName'), ''),
+    NULLIF(get_json_object(payload_json, '$.tool_name'), ''),
+    NULLIF(get_json_object(payload_json, '$.tool'), ''),
+    NULLIF(get_json_object(payload_json, '$.toolCall.name'), ''),
+    NULLIF(get_json_object(payload_json, '$.tool_call.name'), ''),
     CASE
-      WHEN event_type LIKE 'tool_%' THEN NULLIF(get_json_object(payload_norm, '$.model'), '')
+      WHEN event_type LIKE 'tool_%' THEN NULLIF(get_json_object(payload_json, '$.model'), '')
       ELSE NULL
     END
   ) AS tool_name,
   COALESCE(
-    NULLIF(get_json_object(payload_norm, '$.model'), ''),
-    NULLIF(get_json_object(payload_norm, '$.modelName'), ''),
-    NULLIF(get_json_object(payload_norm, '$.model_name'), '')
+    NULLIF(get_json_object(payload_json, '$.model'), ''),
+    NULLIF(get_json_object(payload_json, '$.modelName'), ''),
+    NULLIF(get_json_object(payload_json, '$.model_name'), '')
   ) AS model_name,
-  payload_norm AS payload_json,
+  payload_json,
   raw_path
 FROM src;
 

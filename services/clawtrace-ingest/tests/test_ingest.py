@@ -151,3 +151,13 @@ def test_ingest_accepts_repeated_event_without_local_dedup():
     assert second.json()["status"] == "accepted"
     assert first.json()["duplicate"] is False
     assert second.json()["duplicate"] is False
+
+
+def test_ingest_rejects_stringified_payload():
+    client, _ = _client_with_fake_storage()
+    payload = _payload()
+    payload["event"]["payload"] = '{"name":"double-encoded"}'
+
+    response = client.post("/v1/traces/events", json=payload)
+    assert response.status_code == 422
+    assert "event.payload must be a JSON object" in response.text
