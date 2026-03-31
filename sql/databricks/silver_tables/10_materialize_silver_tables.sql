@@ -1,7 +1,6 @@
 -- ClawTrace silver materialization (DLT/Lakeflow SQL compatible).
 -- This file intentionally contains only DLT statements:
 --   CREATE OR REFRESH STREAMING TABLE
---   CREATE OR REFRESH MATERIALIZED VIEW
 --
 -- One-time bootstrap (run outside Lakeflow pipeline in SQL Editor):
 --   CREATE SCHEMA IF NOT EXISTS clawtrace.silver;
@@ -96,7 +95,7 @@ SELECT
   raw_path
 FROM src;
 
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.span_rollup
+CREATE OR REFRESH STREAMING TABLE clawtrace.silver.span_rollup
 AS
 SELECT
   tenant_id,
@@ -118,10 +117,10 @@ SELECT
     WHEN MAX(tool_name)  IS NOT NULL THEN 'tool'
     ELSE 'session'
   END AS actor_type
-FROM clawtrace.silver.events_all
+FROM STREAM clawtrace.silver.events_all
 GROUP BY tenant_id, agent_id, trace_id, span_id, parent_span_id;
 
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_spans
+CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_spans
 AS
 SELECT
   tenant_id,
@@ -138,18 +137,18 @@ SELECT
   duration_ms,
   actor_label,
   actor_type
-FROM clawtrace.silver.span_rollup;
+FROM STREAM clawtrace.silver.span_rollup;
 
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_agents
+CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_agents
 AS
 SELECT
   tenant_id,
   agent_id,
   concat(tenant_id, ':', agent_id) AS agent_vertex_id
-FROM clawtrace.silver.events_all
+FROM STREAM clawtrace.silver.events_all
 GROUP BY tenant_id, agent_id;
 
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_traces
+CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_traces
 AS
 SELECT
   tenant_id,
@@ -160,33 +159,33 @@ SELECT
   MAX(event_ts_ms) AS trace_end_ts_ms,
   MAX(event_ts_ms) - MIN(event_ts_ms) AS duration_ms,
   COUNT(*) AS event_count
-FROM clawtrace.silver.events_all
+FROM STREAM clawtrace.silver.events_all
 GROUP BY tenant_id, agent_id, trace_id;
 
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_trace_span_edges
+CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_trace_span_edges
 AS
 SELECT
   tenant_id,
   agent_id,
   trace_vertex_id,
   span_uid AS span_vertex_id
-FROM clawtrace.silver.pg_spans;
+FROM STREAM clawtrace.silver.pg_spans;
 
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_agent_span_edges
+CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_agent_span_edges
 AS
 SELECT
   tenant_id,
   agent_id,
   agent_vertex_id,
   span_uid AS span_vertex_id
-FROM clawtrace.silver.pg_spans;
+FROM STREAM clawtrace.silver.pg_spans;
 
-CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_span_parent_edges
+CREATE OR REFRESH STREAMING TABLE clawtrace.silver.pg_span_parent_edges
 AS
 SELECT
   tenant_id,
   agent_id,
   parent_span_uid AS parent_span_vertex_id,
   span_uid AS child_span_vertex_id
-FROM clawtrace.silver.pg_spans
+FROM STREAM clawtrace.silver.pg_spans
 WHERE parent_span_uid IS NOT NULL;
