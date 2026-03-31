@@ -83,6 +83,9 @@ const plugin = {
     api.on("subagent_spawning", (event, ctx) => {
       tracker.onSubagentSpawning(event, ctx);
     });
+    api.on("subagent_spawned", (event, ctx) => {
+      tracker.onSubagentSpawned(event, ctx);
+    });
     api.on("subagent_ended", (event, ctx) => {
       tracker.onSubagentEnded(event, ctx);
     });

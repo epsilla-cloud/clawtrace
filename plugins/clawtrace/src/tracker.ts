@@ -67,7 +67,7 @@ type ToolContext = {
   toolCallId?: string;
 };
 
-type SubagentSpawningEvent = {
+type SubagentSpawnBase = {
   childSessionKey: string;
   agentId: string;
   label?: string;
@@ -75,6 +75,12 @@ type SubagentSpawningEvent = {
   threadRequested: boolean;
   requester?: { channel?: string; accountId?: string; to?: string; threadId?: string | number };
 };
+
+// Fires BEFORE spawn — can block/cancel. Child session does not exist yet.
+type SubagentSpawningEvent = SubagentSpawnBase;
+
+// Fires AFTER spawn — child session is confirmed. Includes child runId.
+type SubagentSpawnedEvent = SubagentSpawnBase & { runId: string };
 
 type SubagentEndedEvent = {
   targetSessionKey: string;
@@ -359,6 +365,9 @@ export class HookEventTracker {
     if (toolCallId) this.tools.delete(toolCallId);
   }
 
+  // Pre-spawn gate hook — fires before the child session is created.
+  // Only sets up span state so it's ready for onSubagentSpawned / onSubagentEnded.
+  // Does NOT emit: spawn can still be cancelled at this point.
   onSubagentSpawning(event: SubagentSpawningEvent, ctx: SubagentContext): void {
     const requesterSessionKey = ctx.requesterSessionKey ?? "unknown";
     const session = this.ensureSession(requesterSessionKey, {});
@@ -368,6 +377,24 @@ export class HookEventTracker {
       parentSpanId: session.spanId,
     };
     this.subagents.set(event.childSessionKey, span);
+  }
+
+  // Post-spawn confirmation hook — fires after the child session is created.
+  // This is the authoritative "spawn happened" signal; emits subagent_spawn.
+  onSubagentSpawned(event: SubagentSpawnedEvent, ctx: SubagentContext): void {
+    const requesterSessionKey = ctx.requesterSessionKey ?? "unknown";
+    // Span may have been pre-allocated by onSubagentSpawning; create it if not.
+    const existing = this.subagents.get(event.childSessionKey);
+    const span: ActiveSpanState = existing ?? (() => {
+      const session = this.ensureSession(requesterSessionKey, {});
+      const s: ActiveSpanState = {
+        traceId: session.traceId,
+        spanId: this.idFactory(),
+        parentSpanId: session.spanId,
+      };
+      this.subagents.set(event.childSessionKey, s);
+      return s;
+    })();
 
     this.emit({
       eventType: "subagent_spawn",
@@ -375,7 +402,7 @@ export class HookEventTracker {
       spanId: span.spanId,
       parentSpanId: span.parentSpanId,
       payload: pruneUndefined({
-        runId: ctx.runId,
+        runId: event.runId,
         requesterSessionKey,
         childSessionKey: event.childSessionKey,
         subagentId: event.agentId,
@@ -383,7 +410,7 @@ export class HookEventTracker {
         mode: event.mode,
         threadRequested: event.threadRequested,
         requester: event.requester,
-        hook: "subagent_spawning",
+        hook: "subagent_spawned",
       }),
     });
   }

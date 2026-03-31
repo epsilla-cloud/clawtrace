@@ -180,6 +180,43 @@ describe("HookEventTracker", () => {
     expect(afterCalls[1].event.payload.sessionKey).toBe("agent:main:telegram:direct:123");
   });
 
+  it("emits subagent_spawn from subagent_spawned (not subagent_spawning)", () => {
+    const { tracker, emitted } = createTracker();
+
+    tracker.onSessionStart(
+      { sessionId: "parent-sess", sessionKey: "agent:main:main" },
+      { sessionId: "parent-sess", sessionKey: "agent:main:main" },
+    );
+
+    // Pre-spawn gate: should set up state but NOT emit subagent_spawn
+    tracker.onSubagentSpawning(
+      { childSessionKey: "agent:main:subagent:abc", agentId: "sub-agent-1", mode: "run", threadRequested: false },
+      { requesterSessionKey: "agent:main:main", runId: "run-parent" },
+    );
+    const afterSpawning = emitted.filter((x) => x.event.eventType === "subagent_spawn");
+    expect(afterSpawning).toHaveLength(0);
+
+    // Post-spawn confirmation: should emit subagent_spawn with runId
+    tracker.onSubagentSpawned(
+      { childSessionKey: "agent:main:subagent:abc", agentId: "sub-agent-1", mode: "run", threadRequested: false, runId: "run-child-1" },
+      { requesterSessionKey: "agent:main:main", runId: "run-parent" },
+    );
+    const spawnEvents = emitted.filter((x) => x.event.eventType === "subagent_spawn");
+    expect(spawnEvents).toHaveLength(1);
+    expect(spawnEvents[0].event.payload.runId).toBe("run-child-1");
+    expect(spawnEvents[0].event.payload.hook).toBe("subagent_spawned");
+    expect(spawnEvents[0].event.payload.childSessionKey).toBe("agent:main:subagent:abc");
+
+    // subagent_ended should reuse the same span
+    tracker.onSubagentEnded(
+      { targetSessionKey: "agent:main:subagent:abc", targetKind: "subagent", reason: "subagent-complete", outcome: "ok", runId: "run-child-1" },
+      { requesterSessionKey: "agent:main:main" },
+    );
+    const joinEvents = emitted.filter((x) => x.event.eventType === "subagent_join");
+    expect(joinEvents).toHaveLength(1);
+    expect(joinEvents[0].event.spanId).toBe(spawnEvents[0].event.spanId);
+  });
+
   it("does not bleed session recovery across different sessions", () => {
     // Two sessions make the same anonymous tool call concurrently.
     // After-calls with no ctx session must each match their own before-call.
