@@ -25,8 +25,8 @@ Then set PuppyGraph schema to catalog `clawtrace`, database `silver`, and these 
 ## Incremental behavior (managed by Lakeflow)
 - No custom watermark table is used.
 - Lakeflow pipeline checkpoints track processed source progress.
-- First run backfills from the earliest available `clawtrace.bronze.raw_events_ingest` records.
-- Later runs process only new deltas automatically.
+- First run backfills from the earliest available raw files under `abfss://.../clawtrace-raw/.../raw/v1/`.
+- Later runs process only new raw-file deltas automatically.
 
 ## Scheduling
 Recommended: schedule the Lakeflow pipeline every **1-2 minutes**.

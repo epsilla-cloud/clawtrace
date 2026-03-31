@@ -3,8 +3,8 @@
 -- Behavior:
 -- - No manual watermark table.
 -- - Lakeflow keeps checkpoint/state for incremental processing.
--- - First run backfills from earliest available bronze records.
--- - Later runs process only new bronze deltas.
+-- - First run backfills from earliest available raw records.
+-- - Later runs process only new raw deltas.
 
 CREATE SCHEMA IF NOT EXISTS clawtrace.silver;
 
@@ -23,16 +23,40 @@ DROP TABLE IF EXISTS clawtrace.silver.__materialization_state;
 
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
 AS
-WITH src AS (
+WITH raw_src AS (
+  SELECT
+    current_timestamp() AS ingest_ts,
+    NULLIF(regexp_extract(_metadata.file_path, 'tenant=([^/]+)', 1), '') AS tenant_id,
+    agentId AS agent_id,
+    event.eventId AS event_id,
+    event.eventType AS event_type,
+    event.traceId AS trace_id,
+    event.spanId AS span_id,
+    event.parentSpanId AS parent_span_id,
+    CAST(event.tsMs AS BIGINT) AS event_ts_ms,
+    _metadata.file_path AS raw_path,
+    CASE
+      WHEN event.payload IS NULL THEN NULL
+      ELSE CAST(to_json(event.payload) AS STRING)
+    END AS payload_json
+  FROM STREAM read_files(
+    'abfss://clawtrace-raw@clawtracelake01.dfs.core.windows.net/raw/v1/',
+    format => 'json'
+  )
+  WHERE event.eventId IS NOT NULL
+    AND event.eventType IS NOT NULL
+),
+src AS (
   SELECT
     ingest_ts,
+    tenant_id,
     agent_id,
     event_id,
     event_type,
     trace_id,
     span_id,
     parent_span_id,
-    CAST(event_ts_ms AS BIGINT) AS event_ts_ms,
+    event_ts_ms,
     raw_path,
     payload_json,
     -- unwrap if payload_json was double-encoded as "\"{...}\""
@@ -41,13 +65,11 @@ WITH src AS (
       '\\\\"',
       '"'
     ) AS payload_norm
-  FROM STREAM clawtrace.bronze.raw_events_ingest
-  WHERE event_id IS NOT NULL
-    AND event_type IS NOT NULL
+  FROM raw_src
 )
 SELECT
   ingest_ts,
-  regexp_extract(raw_path, 'tenant=([^/]+)', 1) AS tenant_id,
+  tenant_id,
   agent_id,
   event_id,
   event_type,
