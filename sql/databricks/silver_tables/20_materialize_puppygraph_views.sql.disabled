@@ -17,6 +17,15 @@
 --   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_spans;
 --   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_child_of_edges;
 --
+-- PERFORMANCE NOTE:
+-- Views do not support CLUSTER BY or TBLPROPERTIES — they are purely logical
+-- with no physical storage. No optimization directives are needed here.
+-- Query performance is fully inherited from the underlying events_all table,
+-- which already has CLUSTER BY (tenant_id, agent_id, trace_id), autoOptimize,
+-- autoCompact, and scoped dataSkippingStatsColumns. Databricks pushes filters
+-- from the view query down to events_all at execution time, so clustering
+-- on (tenant_id, agent_id, trace_id) and (trace_id, span_id) still applies.
+--
 -- WHY THIS IS BETTER THAN THE PHYSICAL TABLE APPROACH:
 --   - No second pipeline to manage or schedule
 --   - No aggregation lag — PuppyGraph always queries live events_all data
