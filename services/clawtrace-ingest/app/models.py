@@ -38,6 +38,15 @@ class HookEvent(BaseModel):
     def validate_payload_object(cls, value: Any) -> Dict[str, Any]:
         if value is None:
             return {}
+        if isinstance(value, str):
+            import json as _json
+            try:
+                parsed = _json.loads(value)
+            except _json.JSONDecodeError as exc:
+                raise ValueError(f"event.payload string is not valid JSON: {exc}") from exc
+            if not isinstance(parsed, dict):
+                raise ValueError("event.payload must be a JSON object")
+            return parsed
         if not isinstance(value, dict):
             raise ValueError("event.payload must be a JSON object")
         return value

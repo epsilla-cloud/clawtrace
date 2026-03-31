@@ -153,11 +153,30 @@ def test_ingest_accepts_repeated_event_without_local_dedup():
     assert second.json()["duplicate"] is False
 
 
-def test_ingest_rejects_stringified_payload():
-    client, _ = _client_with_fake_storage()
+def test_ingest_parses_stringified_payload():
+    client, storage = _client_with_fake_storage()
     payload = _payload()
     payload["event"]["payload"] = '{"name":"double-encoded"}'
 
     response = client.post("/v1/traces/events", json=payload)
+    assert response.status_code == 200
+    stored_payload = storage.rows[0]["event"]["payload"]
+    assert stored_payload == {"name": "double-encoded"}
+
+
+def test_ingest_rejects_non_object_stringified_payload():
+    client, _ = _client_with_fake_storage()
+    payload = _payload()
+    payload["event"]["payload"] = '["not", "an", "object"]'
+
+    response = client.post("/v1/traces/events", json=payload)
     assert response.status_code == 422
-    assert "event.payload must be a JSON object" in response.text
+
+
+def test_ingest_rejects_invalid_json_string_payload():
+    client, _ = _client_with_fake_storage()
+    payload = _payload()
+    payload["event"]["payload"] = "not-json"
+
+    response = client.post("/v1/traces/events", json=payload)
+    assert response.status_code == 422
