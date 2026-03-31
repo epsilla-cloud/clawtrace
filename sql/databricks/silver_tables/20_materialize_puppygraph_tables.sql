@@ -38,8 +38,35 @@
 -- Edge:   CHILD_OF → pg_child_of_edges (pre-filtered: parent_span_id IS NOT NULL)
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- OPTIMIZATION RATIONALE
+--
+-- pg_traces:
+--   Primary access: vertex lookup by (tenant_id, trace_id) and agent drilldown
+--   by (tenant_id, agent_id). Secondary: analytics sorted by duration_ms /
+--   trace_date. Clustered on (tenant_id, agent_id, trace_id) — covers both.
+--
+-- pg_spans:
+--   Primary access: graph traversal by (trace_id, span_id) — PuppyGraph fetches
+--   all spans within a trace for HAS_SPAN edge resolution. Secondary: actor_type
+--   filter for model/tool analytics, sorted by duration_ms / cost_usd.
+--   Clustered on (trace_id, span_id) — primary PuppyGraph access pattern.
+--   actor_type is low-cardinality (3 values) so clustering on it adds no value.
+--
+-- pg_child_of_edges:
+--   Two access patterns: (trace_id, parent_span_id) to find all children of a
+--   span, and (trace_id, span_id) to find the parent. The child lookup is more
+--   frequent in graph traversal so (trace_id, parent_span_id) takes priority.
+-- ─────────────────────────────────────────────────────────────────────────────
+
 -- One row per trace with aggregated metrics.
 CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_traces
+CLUSTER BY (tenant_id, agent_id, trace_id)
+TBLPROPERTIES (
+  'delta.autoOptimize.optimizeWrite'   = 'true',
+  'delta.autoOptimize.autoCompact'     = 'true',
+  'delta.dataSkippingStatsColumns'     = 'tenant_id,agent_id,trace_id,trace_start_ts_ms,trace_end_ts_ms,duration_ms,trace_date'
+)
 AS
 SELECT
   tenant_id,
@@ -57,6 +84,13 @@ GROUP BY tenant_id, agent_id, trace_id;
 
 -- One row per span with aggregated metrics from paired before/after events.
 CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_spans
+CLUSTER BY (trace_id, span_id)
+TBLPROPERTIES (
+  'delta.autoOptimize.optimizeWrite'   = 'true',
+  'delta.autoOptimize.autoCompact'     = 'true',
+  -- actor_label is a free-text label (tool/model name) — skip stats, never range-filtered
+  'delta.dataSkippingStatsColumns'     = 'tenant_id,agent_id,trace_id,span_id,parent_span_id,actor_type,span_start_ts_ms,duration_ms,cost_usd,has_error'
+)
 AS
 SELECT
   tenant_id,
@@ -88,7 +122,15 @@ GROUP BY tenant_id, agent_id, trace_id, span_id, parent_span_id;
 
 -- CHILD_OF edge source: spans that have a parent.
 -- PuppyGraph has no inline WHERE filter — must be a physical pre-filtered table.
+-- Clustered on (trace_id, parent_span_id): optimises the most frequent graph
+-- traversal — "find all children of span X within trace Y".
 CREATE OR REFRESH MATERIALIZED VIEW clawtrace.silver.pg_child_of_edges
+CLUSTER BY (trace_id, parent_span_id)
+TBLPROPERTIES (
+  'delta.autoOptimize.optimizeWrite'   = 'true',
+  'delta.autoOptimize.autoCompact'     = 'true',
+  'delta.dataSkippingStatsColumns'     = 'tenant_id,agent_id,trace_id,span_id,parent_span_id'
+)
 AS
 SELECT
   tenant_id,
