@@ -37,8 +37,45 @@
 --                     of full-scan MATERIALIZED VIEW (see cost analysis in
 --                     git history).
 -- ─────────────────────────────────────────────────────────────────────────────
+-- QUERY PATTERNS & OPTIMIZATIONS
+--
+-- Primary access hierarchy (broadest → narrowest):
+--   tenant_id  →  agent_id  →  trace_id  →  span_id / event_type
+--
+-- Liquid Clustering on (tenant_id, agent_id, trace_id):
+--   Co-locates all events for a trace in the same data files. Covers every
+--   query level: tenant list, agent drilldown, full trace fetch. Liquid
+--   clustering is incrementally maintained — no manual OPTIMIZE needed and
+--   no fixed partition skew with many small tenants.
+--
+-- Bloom filters on trace_id, span_id, event_id:
+--   These are high-cardinality UUIDs used in point lookups ("fetch trace X",
+--   "fetch span Y"). Bloom filters add a ~1 MB per-file index that eliminates
+--   file reads with ~99% probability before any data is scanned.
+--
+-- Auto-optimize / auto-compact:
+--   The pipeline runs every 3 minutes, each writing a small batch of files.
+--   Without compaction, the table accumulates thousands of tiny files over
+--   time which degrades scan performance. optimizeWrite coalesces writes;
+--   autoCompact merges files in the background after each transaction.
+--
+-- Skipping payload_json in column statistics:
+--   payload_json is a large, unstructured string never used as a filter.
+--   Collecting min/max stats on it wastes checkpoint space and slows commits.
+-- ─────────────────────────────────────────────────────────────────────────────
 
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
+CLUSTER BY (tenant_id, agent_id, trace_id)
+TBLPROPERTIES (
+  -- Bloom filters for UUID point lookups (trace, span, event)
+  'delta.bloomFilter.columns'      = 'trace_id,span_id,event_id',
+  'delta.bloomFilter.fpp'          = '0.01',
+  -- Small-file compaction: merge writes and compact after each 3-min batch
+  'delta.autoOptimize.optimizeWrite' = 'true',
+  'delta.autoOptimize.autoCompact'   = 'true',
+  -- Skip min/max statistics on the large unfiltered payload column
+  'delta.dataSkippingStatsColumns'   = 'tenant_id,agent_id,event_id,event_type,trace_id,span_id,parent_span_id,event_ts_ms,tool_name,model_name,event_date'
+)
 AS
 WITH raw_src AS (
   SELECT
@@ -51,6 +88,8 @@ WITH raw_src AS (
     event.spanId AS span_id,
     event.parentSpanId AS parent_span_id,
     CAST(event.tsMs AS BIGINT) AS event_ts_ms,
+    -- Derived date for time-range pruning (complements clustering)
+    DATE(TIMESTAMP_MILLIS(CAST(event.tsMs AS BIGINT))) AS event_date,
     _metadata.file_path AS raw_path,
     CASE
       WHEN event.payload IS NULL THEN NULL
@@ -83,6 +122,7 @@ src AS (
     span_id,
     parent_span_id,
     event_ts_ms,
+    event_date,
     raw_path,
     payload_json
   FROM raw_src
@@ -97,6 +137,7 @@ SELECT
   span_id,
   parent_span_id,
   event_ts_ms,
+  event_date,
   COALESCE(
     NULLIF(get_json_object(payload_json, '$.name'), ''),
     NULLIF(get_json_object(payload_json, '$.spanName'), ''),
