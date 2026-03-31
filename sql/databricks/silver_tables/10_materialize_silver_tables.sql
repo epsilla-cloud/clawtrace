@@ -69,6 +69,10 @@
 CREATE OR REFRESH STREAMING TABLE clawtrace.silver.events_all
 CLUSTER BY (tenant_id, agent_id, trace_id)
 TBLPROPERTIES (
+  -- Bloom filters for UUID point lookups (requires allowArbitraryProperties enabled in pipeline Spark config)
+  'delta.bloomFilter.trace_id.enabled' = 'true',
+  'delta.bloomFilter.span_id.enabled'  = 'true',
+  'delta.bloomFilter.event_id.enabled' = 'true',
   -- Small-file compaction: merge writes and compact after each 3-min batch
   'delta.autoOptimize.optimizeWrite' = 'true',
   'delta.autoOptimize.autoCompact'   = 'true',
