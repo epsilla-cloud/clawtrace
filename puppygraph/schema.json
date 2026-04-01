@@ -1,7 +1,7 @@
 {
   "catalogs": [
     {
-      "name": "clawtrace_lake",
+      "name": "ct_delta",
       "type": "deltalake",
       "metastore": {
         "type": "unity",
@@ -20,7 +20,7 @@
           "sources": [
             {
               "source": {
-                "catalog": "clawtrace_lake",
+                "catalog": "ct_delta",
                 "schema": "silver",
                 "table": "events_all"
               },
@@ -39,7 +39,7 @@
         "label": "Trace",
         "oneToOne": {
           "tableSource": {
-            "catalog": "clawtrace_lake",
+            "catalog": "ct_delta",
             "schema": "silver",
             "table": "pg_traces"
           },
@@ -64,7 +64,7 @@
         "label": "Span",
         "oneToOne": {
           "tableSource": {
-            "catalog": "clawtrace_lake",
+            "catalog": "ct_delta",
             "schema": "silver",
             "table": "pg_spans"
           },
@@ -98,7 +98,7 @@
         "fromVertex": "Agent",
         "toVertex": "Trace",
         "tableSource": {
-          "catalog": "clawtrace_lake",
+          "catalog": "ct_delta",
           "schema": "silver",
           "table": "events_all"
         },
@@ -126,7 +126,7 @@
         "fromVertex": "Trace",
         "toVertex": "Span",
         "tableSource": {
-          "catalog": "clawtrace_lake",
+          "catalog": "ct_delta",
           "schema": "silver",
           "table": "events_all"
         },
@@ -154,7 +154,7 @@
         "fromVertex": "Span",
         "toVertex": "Span",
         "tableSource": {
-          "catalog": "clawtrace_lake",
+          "catalog": "ct_delta",
           "schema": "silver",
           "table": "pg_child_of_edges"
         },
