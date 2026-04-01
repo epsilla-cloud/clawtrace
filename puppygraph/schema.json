@@ -5,7 +5,7 @@
       "type": "deltalake",
       "metastore": {
         "type": "unity",
-        "host": "https://adb-3778799372012345.12.azuredatabricks.net",
+        "host": "<databricks-workspace-url>",
         "token": "<databricks-pat-token>",
         "databricksCatalogName": "clawtrace"
       }
