@@ -1,0 +1,6 @@
+fastapi==0.118.2
+uvicorn[standard]==0.34.0
+pydantic==2.12.3
+pydantic-settings==2.11.0
+asyncpg==0.30.0
+python-multipart==0.0.20
