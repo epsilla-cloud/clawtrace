@@ -54,8 +54,8 @@
             { "type": "Long",   "field": "trace_start_ts_ms", "alias": "trace_start_ts_ms" },
             { "type": "Long",   "field": "trace_end_ts_ms",   "alias": "trace_end_ts_ms"   },
             { "type": "Long",   "field": "duration_ms",       "alias": "duration_ms"       },
-            { "type": "Int",    "field": "event_count",       "alias": "event_count"       },
-            { "type": "String", "field": "trace_date",        "alias": "trace_date"        }
+            { "type": "Long",   "field": "event_count",       "alias": "event_count"       },
+            { "type": "Date",   "field": "trace_date",        "alias": "trace_date"        }
           ]
         }
       },
@@ -77,9 +77,11 @@
           "attributes": [
             { "type": "String", "field": "tenant_id",        "alias": "tenant_id"        },
             { "type": "String", "field": "agent_id",         "alias": "agent_id"         },
+            { "type": "String", "field": "parent_span_id",   "alias": "parent_span_id"   },
             { "type": "String", "field": "actor_label",      "alias": "actor_label"      },
             { "type": "String", "field": "actor_type",       "alias": "actor_type"       },
             { "type": "Long",   "field": "span_start_ts_ms", "alias": "span_start_ts_ms" },
+            { "type": "Long",   "field": "span_end_ts_ms",   "alias": "span_end_ts_ms"   },
             { "type": "Long",   "field": "duration_ms",      "alias": "duration_ms"      },
             { "type": "Long",   "field": "input_tokens",     "alias": "input_tokens"     },
             { "type": "Long",   "field": "output_tokens",    "alias": "output_tokens"    },
