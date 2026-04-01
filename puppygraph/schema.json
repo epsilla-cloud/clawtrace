@@ -1,0 +1,183 @@
+{
+  "catalogs": [
+    {
+      "name": "clawtrace_lake",
+      "type": "deltalake",
+      "metastore": {
+        "type": "unity",
+        "host": "https://adb-3778799372012345.12.azuredatabricks.net",
+        "token": "<databricks-pat-token>",
+        "databricksCatalogName": "clawtrace"
+      }
+    }
+  ],
+  "graph": {
+    "vertices": [
+
+      {
+        "label": "Agent",
+        "manyToOne": {
+          "sources": [
+            {
+              "source": {
+                "catalog": "clawtrace_lake",
+                "schema": "silver",
+                "table": "events_all"
+              },
+              "id": {
+                "fields": [
+                  { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
+                  { "type": "String", "field": "agent_id",  "alias": "agent_id"  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+
+      {
+        "label": "Trace",
+        "oneToOne": {
+          "tableSource": {
+            "catalog": "clawtrace_lake",
+            "schema": "silver",
+            "table": "pg_traces"
+          },
+          "id": {
+            "fields": [
+              { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
+              { "type": "String", "field": "trace_id",  "alias": "trace_id"  }
+            ]
+          },
+          "attributes": [
+            { "type": "String", "field": "agent_id",          "alias": "agent_id"          },
+            { "type": "Long",   "field": "trace_start_ts_ms", "alias": "trace_start_ts_ms" },
+            { "type": "Long",   "field": "trace_end_ts_ms",   "alias": "trace_end_ts_ms"   },
+            { "type": "Long",   "field": "duration_ms",       "alias": "duration_ms"       },
+            { "type": "Int",    "field": "event_count",       "alias": "event_count"       },
+            { "type": "String", "field": "trace_date",        "alias": "trace_date"        }
+          ]
+        }
+      },
+
+      {
+        "label": "Span",
+        "oneToOne": {
+          "tableSource": {
+            "catalog": "clawtrace_lake",
+            "schema": "silver",
+            "table": "pg_spans"
+          },
+          "id": {
+            "fields": [
+              { "type": "String", "field": "trace_id", "alias": "trace_id" },
+              { "type": "String", "field": "span_id",  "alias": "span_id"  }
+            ]
+          },
+          "attributes": [
+            { "type": "String", "field": "tenant_id",        "alias": "tenant_id"        },
+            { "type": "String", "field": "agent_id",         "alias": "agent_id"         },
+            { "type": "String", "field": "actor_label",      "alias": "actor_label"      },
+            { "type": "String", "field": "actor_type",       "alias": "actor_type"       },
+            { "type": "Long",   "field": "span_start_ts_ms", "alias": "span_start_ts_ms" },
+            { "type": "Long",   "field": "duration_ms",      "alias": "duration_ms"      },
+            { "type": "Long",   "field": "input_tokens",     "alias": "input_tokens"     },
+            { "type": "Long",   "field": "output_tokens",    "alias": "output_tokens"    },
+            { "type": "Long",   "field": "total_tokens",     "alias": "total_tokens"     },
+            { "type": "Double", "field": "cost_usd",         "alias": "cost_usd"         },
+            { "type": "Int",    "field": "has_error",        "alias": "has_error"        }
+          ]
+        }
+      }
+
+    ],
+    "edges": [
+
+      {
+        "label": "OWNS",
+        "fromVertex": "Agent",
+        "toVertex": "Trace",
+        "tableSource": {
+          "catalog": "clawtrace_lake",
+          "schema": "silver",
+          "table": "events_all"
+        },
+        "id": {
+          "fields": [
+            { "type": "String", "field": "event_id", "alias": "event_id" }
+          ]
+        },
+        "fromId": {
+          "fields": [
+            { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
+            { "type": "String", "field": "agent_id",  "alias": "agent_id"  }
+          ]
+        },
+        "toId": {
+          "fields": [
+            { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
+            { "type": "String", "field": "trace_id",  "alias": "trace_id"  }
+          ]
+        }
+      },
+
+      {
+        "label": "HAS_SPAN",
+        "fromVertex": "Trace",
+        "toVertex": "Span",
+        "tableSource": {
+          "catalog": "clawtrace_lake",
+          "schema": "silver",
+          "table": "events_all"
+        },
+        "id": {
+          "fields": [
+            { "type": "String", "field": "event_id", "alias": "event_id" }
+          ]
+        },
+        "fromId": {
+          "fields": [
+            { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
+            { "type": "String", "field": "trace_id",  "alias": "trace_id"  }
+          ]
+        },
+        "toId": {
+          "fields": [
+            { "type": "String", "field": "trace_id", "alias": "trace_id" },
+            { "type": "String", "field": "span_id",  "alias": "span_id"  }
+          ]
+        }
+      },
+
+      {
+        "label": "CHILD_OF",
+        "fromVertex": "Span",
+        "toVertex": "Span",
+        "tableSource": {
+          "catalog": "clawtrace_lake",
+          "schema": "silver",
+          "table": "pg_child_of_edges"
+        },
+        "id": {
+          "fields": [
+            { "type": "String", "field": "trace_id", "alias": "trace_id" },
+            { "type": "String", "field": "span_id",  "alias": "span_id"  }
+          ]
+        },
+        "fromId": {
+          "fields": [
+            { "type": "String", "field": "trace_id", "alias": "trace_id" },
+            { "type": "String", "field": "span_id",  "alias": "span_id"  }
+          ]
+        },
+        "toId": {
+          "fields": [
+            { "type": "String", "field": "trace_id",       "alias": "trace_id"       },
+            { "type": "String", "field": "parent_span_id", "alias": "parent_span_id" }
+          ]
+        }
+      }
+
+    ]
+  }
+}
