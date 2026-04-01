@@ -49,15 +49,15 @@ USING (
            ELSE CAST(to_json(event.payload) AS STRING) END                        AS payload_json
     FROM read_files(
       'abfss://clawtrace-raw@clawtracelake01.dfs.core.windows.net/raw/v1/',
-      format => 'json',
-      -- 10-min lookback buffer handles late-arriving files without full scan
-      modifiedAfter => (
-        SELECT TIMESTAMPADD(MINUTE, -10, last_run_ts)
-        FROM clawtrace.silver._checkpoint
-        WHERE pipeline = 'events'
-      )
+      format => 'json'
     )
-    WHERE event.eventId  IS NOT NULL
+    -- read_files() requires modifiedAfter to be a literal constant (not a
+    -- subquery). Filter on _metadata.file_modification_time in WHERE instead.
+    -- 10-min lookback buffer tolerates late-arriving files.
+    WHERE _metadata.file_modification_time >= TIMESTAMPADD(MINUTE, -10, (
+        SELECT last_run_ts FROM clawtrace.silver._checkpoint WHERE pipeline = 'events'
+      ))
+      AND event.eventId  IS NOT NULL
       AND event.eventType IS NOT NULL
       -- Drop OpenClaw shadow duplicates (see SHADOW DUPLICATE FILTER note above)
       AND NOT (
