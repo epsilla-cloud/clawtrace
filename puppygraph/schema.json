@@ -5,9 +5,12 @@
       "type": "deltalake",
       "metastore": {
         "type": "unity",
-        "host": "<databricks-workspace-url>",
+        "host": "<databricks-workspace-host>",
         "token": "<databricks-pat-token>",
         "databricksCatalogName": "clawtrace"
+      },
+      "storage": {
+        "type": "FromMetaStore"
       }
     }
   ],
