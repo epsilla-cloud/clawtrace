@@ -104,19 +104,19 @@
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "event_id", "alias": "event_id" }
+            { "type": "String", "field": "event_id", "alias": "edge_id" }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
-            { "type": "String", "field": "agent_id",  "alias": "agent_id"  }
+            { "type": "String", "field": "tenant_id", "alias": "from_tenant_id" },
+            { "type": "String", "field": "agent_id",  "alias": "from_agent_id"  }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
-            { "type": "String", "field": "trace_id",  "alias": "trace_id"  }
+            { "type": "String", "field": "tenant_id", "alias": "to_tenant_id" },
+            { "type": "String", "field": "trace_id",  "alias": "to_trace_id"  }
           ]
         }
       },
@@ -132,19 +132,19 @@
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "event_id", "alias": "event_id" }
+            { "type": "String", "field": "event_id", "alias": "edge_id" }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
-            { "type": "String", "field": "trace_id",  "alias": "trace_id"  }
+            { "type": "String", "field": "tenant_id", "alias": "from_tenant_id" },
+            { "type": "String", "field": "trace_id",  "alias": "from_trace_id"  }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "trace_id" },
-            { "type": "String", "field": "span_id",  "alias": "span_id"  }
+            { "type": "String", "field": "trace_id", "alias": "to_trace_id" },
+            { "type": "String", "field": "span_id",  "alias": "to_span_id"  }
           ]
         }
       },
@@ -160,20 +160,20 @@
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "trace_id" },
-            { "type": "String", "field": "span_id",  "alias": "span_id"  }
+            { "type": "String", "field": "trace_id", "alias": "edge_trace_id" },
+            { "type": "String", "field": "span_id",  "alias": "edge_span_id"  }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "trace_id" },
-            { "type": "String", "field": "span_id",  "alias": "span_id"  }
+            { "type": "String", "field": "trace_id", "alias": "from_trace_id" },
+            { "type": "String", "field": "span_id",  "alias": "from_span_id"  }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "trace_id",       "alias": "trace_id"       },
-            { "type": "String", "field": "parent_span_id", "alias": "parent_span_id" }
+            { "type": "String", "field": "trace_id",       "alias": "to_trace_id"       },
+            { "type": "String", "field": "parent_span_id", "alias": "to_parent_span_id" }
           ]
         }
       }
