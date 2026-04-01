@@ -110,8 +110,7 @@ WHERE NOT EXISTS (SELECT 1 FROM clawtrace.silver._checkpoint WHERE pipeline = 'p
 
 -- ── events_all ───────────────────────────────────────────────────────────────
 -- Append-only stream of raw OpenClaw hook events from ADLS.
--- Populated by job 10. Used directly by PuppyGraph for Agent vertex (manyToOne),
--- OWNS edge, and HAS_SPAN edge.
+-- Populated by job 10.
 
 CREATE TABLE IF NOT EXISTS clawtrace.silver.events_all (
   ingest_ts      TIMESTAMP,
@@ -189,10 +188,40 @@ TBLPROPERTIES (
   'delta.dataSkippingStatsColumns'   = 'tenant_id,agent_id,trace_id,span_id,parent_span_id,actor_type,span_start_ts_ms,duration_ms,cost_usd,has_error'
 );
 
+-- ── pg_tenants ────────────────────────────────────────────────────────────────
+-- One row per tenant. Serves as the Tenant vertex (top of the hierarchy) and
+-- as the source for the HAS_AGENT edge (Tenant → Agent).
+-- Single-column UUID key — no composite key needed since tenant_id is globally unique.
+
+CREATE TABLE IF NOT EXISTS clawtrace.silver.pg_tenants (
+  tenant_id STRING NOT NULL
+)
+TBLPROPERTIES (
+  'delta.autoOptimize.optimizeWrite' = 'true',
+  'delta.autoOptimize.autoCompact'   = 'true'
+);
+
+-- ── pg_agents ─────────────────────────────────────────────────────────────────
+-- One row per agent. Serves as the Agent vertex and as the source for the
+-- HAS_AGENT edge (Tenant → Agent) and OWNS edge (Agent → Trace).
+-- Single-column UUID key — agent_id is globally unique.
+
+CREATE TABLE IF NOT EXISTS clawtrace.silver.pg_agents (
+  tenant_id STRING NOT NULL,
+  agent_id  STRING NOT NULL
+)
+CLUSTER BY (tenant_id)
+TBLPROPERTIES (
+  'delta.autoOptimize.optimizeWrite' = 'true',
+  'delta.autoOptimize.autoCompact'   = 'true',
+  'delta.dataSkippingStatsColumns'   = 'tenant_id,agent_id'
+);
+
 -- ── pg_child_of_edges ─────────────────────────────────────────────────────────
 -- Pre-filtered edge table: spans that have a parent (parent_span_id IS NOT NULL).
 -- PuppyGraph has no inline WHERE filter support on edge tableSource — this
 -- pre-filtered physical table is required. Populated by job 20 via MERGE.
+-- Single-column UUID keys — span_id and parent_span_id are globally unique.
 
 CREATE TABLE IF NOT EXISTS clawtrace.silver.pg_child_of_edges (
   tenant_id      STRING NOT NULL,

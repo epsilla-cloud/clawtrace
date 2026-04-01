@@ -38,6 +38,34 @@
 --   WHERE filter support on edge tableSource — physical pre-filtering required.
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- pg_tenants: one row per tenant (Tenant vertex + root of HAS_AGENT edge)
+MERGE INTO clawtrace.silver.pg_tenants AS t
+USING (
+  SELECT DISTINCT tenant_id
+  FROM clawtrace.silver.events_all
+  WHERE ingest_ts > (
+    SELECT last_run_ts FROM clawtrace.silver._checkpoint WHERE pipeline = 'pg_tables'
+  )
+) AS s
+ON t.tenant_id = s.tenant_id
+WHEN NOT MATCHED THEN INSERT *;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+
+-- pg_agents: one row per agent (Agent vertex + source for HAS_AGENT and OWNS edges)
+MERGE INTO clawtrace.silver.pg_agents AS t
+USING (
+  SELECT DISTINCT tenant_id, agent_id
+  FROM clawtrace.silver.events_all
+  WHERE ingest_ts > (
+    SELECT last_run_ts FROM clawtrace.silver._checkpoint WHERE pipeline = 'pg_tables'
+  )
+) AS s
+ON t.tenant_id = s.tenant_id AND t.agent_id = s.agent_id
+WHEN NOT MATCHED THEN INSERT *;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+
 -- pg_traces: one row per trace, carries duration + event_count
 MERGE INTO clawtrace.silver.pg_traces AS t
 USING (

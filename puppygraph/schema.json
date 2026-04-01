@@ -8,9 +8,6 @@
         "host": "<databricks-workspace-host>",
         "token": "<databricks-pat-token>",
         "databricksCatalogName": "clawtrace"
-      },
-      "storage": {
-        "type": "FromMetaStore"
       }
     }
   ],
@@ -18,22 +15,36 @@
     "vertices": [
 
       {
+        "label": "Tenant",
+        "oneToOne": {
+          "tableSource": {
+            "catalog": "ct_delta",
+            "schema": "silver",
+            "table": "pg_tenants"
+          },
+          "id": {
+            "fields": [
+              { "type": "String", "field": "tenant_id", "alias": "tenant_id" }
+            ]
+          }
+        }
+      },
+
+      {
         "label": "Agent",
-        "manyToOne": {
-          "sources": [
-            {
-              "source": {
-                "catalog": "ct_delta",
-                "schema": "silver",
-                "table": "events_all"
-              },
-              "id": {
-                "fields": [
-                  { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
-                  { "type": "String", "field": "agent_id",  "alias": "agent_id"  }
-                ]
-              }
-            }
+        "oneToOne": {
+          "tableSource": {
+            "catalog": "ct_delta",
+            "schema": "silver",
+            "table": "pg_agents"
+          },
+          "id": {
+            "fields": [
+              { "type": "String", "field": "agent_id", "alias": "agent_id" }
+            ]
+          },
+          "attributes": [
+            { "type": "String", "field": "tenant_id", "alias": "tenant_id" }
           ]
         }
       },
@@ -48,11 +59,11 @@
           },
           "id": {
             "fields": [
-              { "type": "String", "field": "tenant_id", "alias": "tenant_id" },
-              { "type": "String", "field": "trace_id",  "alias": "trace_id"  }
+              { "type": "String", "field": "trace_id", "alias": "trace_id" }
             ]
           },
           "attributes": [
+            { "type": "String", "field": "tenant_id",         "alias": "tenant_id"         },
             { "type": "String", "field": "agent_id",          "alias": "agent_id"          },
             { "type": "Long",   "field": "trace_start_ts_ms", "alias": "trace_start_ts_ms" },
             { "type": "Long",   "field": "trace_end_ts_ms",   "alias": "trace_end_ts_ms"   },
@@ -73,13 +84,13 @@
           },
           "id": {
             "fields": [
-              { "type": "String", "field": "trace_id", "alias": "trace_id" },
-              { "type": "String", "field": "span_id",  "alias": "span_id"  }
+              { "type": "String", "field": "span_id", "alias": "span_id" }
             ]
           },
           "attributes": [
             { "type": "String", "field": "tenant_id",        "alias": "tenant_id"        },
             { "type": "String", "field": "agent_id",         "alias": "agent_id"         },
+            { "type": "String", "field": "trace_id",         "alias": "trace_id"         },
             { "type": "String", "field": "parent_span_id",   "alias": "parent_span_id"   },
             { "type": "String", "field": "actor_label",      "alias": "actor_label"      },
             { "type": "String", "field": "actor_type",       "alias": "actor_type"       },
@@ -99,29 +110,53 @@
     "edges": [
 
       {
+        "label": "HAS_AGENT",
+        "fromVertex": "Tenant",
+        "toVertex": "Agent",
+        "tableSource": {
+          "catalog": "ct_delta",
+          "schema": "silver",
+          "table": "pg_agents"
+        },
+        "id": {
+          "fields": [
+            { "type": "String", "field": "agent_id", "alias": "edge_id" }
+          ]
+        },
+        "fromId": {
+          "fields": [
+            { "type": "String", "field": "tenant_id", "alias": "from_tenant_id" }
+          ]
+        },
+        "toId": {
+          "fields": [
+            { "type": "String", "field": "agent_id", "alias": "to_agent_id" }
+          ]
+        }
+      },
+
+      {
         "label": "OWNS",
         "fromVertex": "Agent",
         "toVertex": "Trace",
         "tableSource": {
           "catalog": "ct_delta",
           "schema": "silver",
-          "table": "events_all"
+          "table": "pg_traces"
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "event_id", "alias": "edge_id" }
+            { "type": "String", "field": "trace_id", "alias": "edge_id" }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "tenant_id", "alias": "from_tenant_id" },
-            { "type": "String", "field": "agent_id",  "alias": "from_agent_id"  }
+            { "type": "String", "field": "agent_id", "alias": "from_agent_id" }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "tenant_id", "alias": "to_tenant_id" },
-            { "type": "String", "field": "trace_id",  "alias": "to_trace_id"  }
+            { "type": "String", "field": "trace_id", "alias": "to_trace_id" }
           ]
         }
       },
@@ -133,23 +168,21 @@
         "tableSource": {
           "catalog": "ct_delta",
           "schema": "silver",
-          "table": "events_all"
+          "table": "pg_spans"
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "event_id", "alias": "edge_id" }
+            { "type": "String", "field": "span_id", "alias": "edge_id" }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "tenant_id", "alias": "from_tenant_id" },
-            { "type": "String", "field": "trace_id",  "alias": "from_trace_id"  }
+            { "type": "String", "field": "trace_id", "alias": "from_trace_id" }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "to_trace_id" },
-            { "type": "String", "field": "span_id",  "alias": "to_span_id"  }
+            { "type": "String", "field": "span_id", "alias": "to_span_id" }
           ]
         }
       },
@@ -165,19 +198,16 @@
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "edge_trace_id" },
-            { "type": "String", "field": "span_id",  "alias": "edge_span_id"  }
+            { "type": "String", "field": "span_id", "alias": "edge_id" }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "from_trace_id" },
-            { "type": "String", "field": "span_id",  "alias": "from_span_id"  }
+            { "type": "String", "field": "span_id", "alias": "from_span_id" }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "trace_id",       "alias": "to_trace_id"       },
             { "type": "String", "field": "parent_span_id", "alias": "to_parent_span_id" }
           ]
         }
