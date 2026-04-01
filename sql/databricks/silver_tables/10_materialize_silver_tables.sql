@@ -7,12 +7,27 @@
 -- checkpoint to tolerate late-arriving files without reprocessing everything.
 
 -- ─────────────────────────────────────────────────────────────────────────────
--- QUERY PATTERNS & OPTIMIZATIONS
+-- SHADOW DUPLICATE FILTER (OpenClaw runtime behaviour)
+--
+-- OpenClaw fires after_tool_call twice for certain tools (exec, write,
+-- sessions_spawn): once with full session context (3-5ms first, kept) and
+-- once from a global hook path with no session, no runId, no toolCallId.
+-- The second firing has no span linkage and always lands in sessionKey="unknown".
+-- Fingerprint: event_type='tool_after_call' AND sessionKey='unknown'
+--              AND toolCallId IS NULL.
+-- This is precise — legitimate after_tool_call events always carry a toolCallId
+-- from the plugin's anonymous queue (anon-N-uuid pattern).
+-- ─────────────────────────────────────────────────────────────────────────────
+-- QUERY PATTERNS & OPTIMIZATIONS (defined on the table in 00_bootstrap)
 --
 -- Primary access hierarchy: tenant_id → agent_id → trace_id → span_id
--- CLUSTER BY (tenant_id, agent_id, trace_id): covers all graph traversal levels
--- dataSkippingStatsColumns: excludes payload_json (large, never range-filtered)
--- autoOptimize: prevents small-file accumulation from frequent 3-min runs
+-- CLUSTER BY (tenant_id, agent_id, trace_id): co-locates all events for a
+--   trace in the same files — covers vertex lookups and graph traversals.
+-- dataSkippingStatsColumns: excludes payload_json (large text, never filtered).
+-- event_date: DATE derived from event_ts_ms for time-range pruning.
+-- autoOptimize + autoCompact: prevents small-file accumulation from 3-min runs.
+-- Bloom filters: attempted on trace_id/span_id/event_id in DLT context but
+--   rejected by Unity Catalog. May work on regular Delta tables — see bootstrap.
 -- ─────────────────────────────────────────────────────────────────────────────
 
 MERGE INTO clawtrace.silver.events_all AS t
@@ -44,7 +59,7 @@ USING (
     )
     WHERE event.eventId  IS NOT NULL
       AND event.eventType IS NOT NULL
-      -- Drop OpenClaw shadow duplicates (see architecture note in 00_bootstrap)
+      -- Drop OpenClaw shadow duplicates (see SHADOW DUPLICATE FILTER note above)
       AND NOT (
         event.eventType = 'tool_after_call'
         AND get_json_object(CAST(to_json(event.payload) AS STRING), '$.sessionKey') = 'unknown'

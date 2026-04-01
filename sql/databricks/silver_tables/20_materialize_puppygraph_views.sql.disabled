@@ -6,16 +6,18 @@
 -- HOW TO ACTIVATE:
 --   1. Confirm PuppyGraph view support is live with the PuppyGraph team.
 --   2. Rename this file to 20_materialize_puppygraph_views.sql (remove .disabled).
---   3. Delete 20_materialize_puppygraph_tables.sql and its Lakeflow pipeline.
---   4. Drop the physical materialized view tables (see bootstrap below).
+--   3. Delete the Databricks SQL Job that runs 20_materialize_puppygraph_tables.sql.
+--   4. Drop the physical Delta tables (see cleanup below).
 --   5. Update the PuppyGraph schema JSON: the tableSource.table values for
 --      pg_traces, pg_spans, pg_child_of_edges stay the same — no schema change
 --      needed since view and table names are identical.
 --
 -- One-time cleanup (run in SQL Editor after activating views):
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_traces;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_spans;
---   DROP MATERIALIZED VIEW IF EXISTS clawtrace.silver.pg_child_of_edges;
+--   DROP TABLE IF EXISTS clawtrace.silver.pg_traces;
+--   DROP TABLE IF EXISTS clawtrace.silver.pg_spans;
+--   DROP TABLE IF EXISTS clawtrace.silver.pg_child_of_edges;
+--   -- Also remove the pg_tables row from the checkpoint table:
+--   DELETE FROM clawtrace.silver._checkpoint WHERE pipeline = 'pg_tables';
 --
 -- PERFORMANCE NOTE:
 -- Views do not support CLUSTER BY or TBLPROPERTIES — they are purely logical

@@ -13,6 +13,30 @@
 -- stays identical — only the underlying tables become views.
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- OPTIMIZATION RATIONALE (tables defined in 00_bootstrap)
+--
+-- pg_traces:
+--   CLUSTER BY (tenant_id, agent_id, trace_id) — vertex lookup by trace and
+--   agent drilldown. Analytics sorted by duration_ms / trace_date also benefit.
+--
+-- pg_spans:
+--   CLUSTER BY (trace_id, span_id) — primary PuppyGraph access is HAS_SPAN
+--   traversal: fetch all spans within a trace. actor_type (3 values) excluded
+--   from clustering — no benefit and breaks trace-level co-location.
+--   actor_label excluded from dataSkippingStatsColumns: free-text model/tool
+--   name (e.g. "gemini-3.1-pro-preview"), never used as a range filter.
+--   cost_usd uses MAX() not SUM(): each span wraps exactly one LLM call
+--   (plugin creates a fresh spanId per llm_before_call), so at most one
+--   llm_after_call event contributes cost per span — MAX == SUM.
+--   OpenClaw pre-calculates cost in USD (cacheRead + cacheWrite + input +
+--   output tokens × per-model rates) before emitting the event.
+--
+-- pg_child_of_edges:
+--   CLUSTER BY (trace_id, parent_span_id) — most frequent traversal is
+--   "find all children of span X in trace Y" (filters on parent_span_id).
+--   Pre-filtered to parent_span_id IS NOT NULL: PuppyGraph has no inline
+--   WHERE filter support on edge tableSource — physical pre-filtering required.
+-- ─────────────────────────────────────────────────────────────────────────────
 
 -- pg_traces: one row per trace, carries duration + event_count
 MERGE INTO clawtrace.silver.pg_traces AS t
