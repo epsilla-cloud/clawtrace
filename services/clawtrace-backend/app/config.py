@@ -4,7 +4,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="CLAWTRACE_BACKEND_", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="CLAWTRACE_BACKEND_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     # JWT — must match the JWT_SECRET used by the clawtrace-ui
     jwt_secret: str = "REDACTED"
