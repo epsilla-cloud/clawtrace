@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation';
 import { getUserSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
@@ -10,31 +9,42 @@ import styles from './console.module.css';
 
 export default async function ConsoleLayout({ children }: { children: React.ReactNode }) {
   const session = await getUserSession();
-  if (!session) {
-    redirect('/login?redirect=/console');
+
+  let tier = 'free';
+  let needsPlanSelection = false;
+
+  if (session) {
+    const [user] = await db.select().from(users).where(eq(users.id, session.dbId));
+    tier = user?.tier ?? 'free';
+
+    // Auto-select free plan for users who haven't explicitly chosen one.
+    if (user && !user.plan_selected && user.tier === 'free') {
+      await db.update(users)
+        .set({ plan_selected: true, updated_at: new Date() })
+        .where(eq(users.id, session.dbId));
+    }
+
+    needsPlanSelection = !user?.plan_selected && user?.tier !== 'free';
   }
 
-  const [user] = await db.select().from(users).where(eq(users.id, session.dbId));
-  const tier = user?.tier ?? 'free';
-
-  // Auto-select free plan for users who haven't explicitly chosen one.
-  // Default tier is 'free' so new users should never be blocked — silently
-  // mark plan_selected=true so the onboarding modal doesn't appear.
-  if (user && !user.plan_selected && user.tier === 'free') {
-    await db.update(users)
-      .set({ plan_selected: true, updated_at: new Date() })
-      .where(eq(users.id, session.dbId));
-  }
-
-  const needsPlanSelection = !user?.plan_selected && user?.tier !== 'free';
+  // Pass minimal serialisable session data to the client sidebar
+  const sidebarSession = session
+    ? { name: session.name, avatar: session.avatar }
+    : null;
 
   return (
     <div className={styles.shell}>
-      <ConsoleSidebar />
+      <ConsoleSidebar session={sidebarSession} />
       <div className={styles.main}>
-        <ConsoleTopbar tier={tier} name={session.name} avatar={session.avatar} />
+        {session && (
+          <ConsoleTopbar tier={tier} name={session.name} avatar={session.avatar} />
+        )}
         <main className={styles.content}>
-          {children}
+          {session ? children : (
+            <div className={styles.unauthPrompt}>
+              <p>Sign in using the panel on the left to access your ClawTrace workspace.</p>
+            </div>
+          )}
         </main>
       </div>
       {needsPlanSelection && <OnboardingModal />}

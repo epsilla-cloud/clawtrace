@@ -28,15 +28,6 @@ export default async function LoginPage({
   return (
     <main className={styles.page}>
       <div className={styles.card}>
-        <div className={styles.logo}>
-          <span className={styles.logoText}>ClawTrace</span>
-        </div>
-
-        <h1 className={styles.title}>Sign in</h1>
-        <p className={styles.subtitle}>
-          Observability for your OpenClaw agents
-        </p>
-
         {errorMessage && (
           <div className={styles.errorBanner} role="alert">
             {errorMessage}
@@ -44,7 +35,7 @@ export default async function LoginPage({
         )}
 
         <div className={styles.buttons}>
-          <LoginButtons redirect={redirect} inviteCode={invitecode} />
+          <LoginButtons redirect={redirect ?? '/console'} inviteCode={invitecode} />
         </div>
 
         <p className={styles.terms}>

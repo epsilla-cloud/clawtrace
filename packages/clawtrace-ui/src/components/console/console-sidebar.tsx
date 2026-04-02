@@ -1,6 +1,7 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
+import { LoginButtons } from '@/components/auth/login-buttons';
 import styles from './console-sidebar.module.css';
 
 const NAV_ITEMS = [
@@ -41,7 +42,11 @@ const NAV_ITEMS = [
   },
 ];
 
-export function ConsoleSidebar() {
+interface Props {
+  session?: { name: string; avatar: string } | null;
+}
+
+export function ConsoleSidebar({ session }: Props) {
   const pathname = usePathname();
 
   function isActive(href: string) {
@@ -69,6 +74,28 @@ export function ConsoleSidebar() {
           </a>
         ))}
       </nav>
+
+      {/* Bottom: sign-in when logged out, user pill when logged in */}
+      <div className={styles.bottom}>
+        {session ? (
+          <div className={styles.userPill}>
+            {session.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={session.avatar} alt={session.name} className={styles.userAvatar} />
+            ) : (
+              <span className={styles.userAvatarFallback}>
+                {session.name.charAt(0).toUpperCase()}
+              </span>
+            )}
+            <span className={styles.userName}>{session.name}</span>
+          </div>
+        ) : (
+          <div className={styles.signIn}>
+            <p className={styles.signInLabel}>Sign in to ClawTrace</p>
+            <LoginButtons redirect="/console" />
+          </div>
+        )}
+      </div>
     </aside>
   );
 }

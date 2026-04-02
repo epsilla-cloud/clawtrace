@@ -81,3 +81,71 @@
 .navLabel {
   flex: 1;
 }
+
+/* ── Bottom section ──────────────────────────────────────────────────────── */
+
+.bottom {
+  padding: 12px 10px;
+  border-top: 1px solid #e8d9c4;
+  flex-shrink: 0;
+}
+
+/* Signed-in: compact user pill */
+.userPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  background: color-mix(in srgb, #dacbb4 20%, white);
+  border: 1px solid #e8d9c4;
+}
+
+.userAvatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.userAvatarFallback {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #a4532b;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.userName {
+  font-size: 12px;
+  font-weight: 500;
+  color: #2e2115;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Signed-out: sign-in prompt + buttons */
+.signIn {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.signInLabel {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7c6854;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
