@@ -102,6 +102,19 @@
   text-overflow: ellipsis;
 }
 
+.divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--ct-border) 74%, white);
+  flex-shrink: 0;
+}
+
+.accountList {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .currentMeta {
   border-top: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   padding-top: 8px;
