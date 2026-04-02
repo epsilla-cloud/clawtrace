@@ -15,25 +15,6 @@
   flex-wrap: wrap;
 }
 
-.headerLabel {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #a4532b;
-  margin: 0 0 6px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.headerLabel::before {
-  content: '';
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #a4532b;
-}
-
 .title {
   font-size: 32px;
   font-weight: 750;
@@ -49,52 +30,23 @@
   max-width: 400px;
 }
 
-.headerRight {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-}
-
-.filters {
-  display: flex;
-  border: 1px solid #dacbb4;
-  border-radius: 8px;
-  overflow: hidden;
-  background: #fffdf8;
-}
-
-.filterBtn {
-  height: 34px;
-  padding: 0 14px;
-  font-size: 13px;
-  font-weight: 500;
-  color: #7c6854;
-  background: transparent;
-  border: none;
-  border-right: 1px solid #dacbb4;
-  cursor: pointer;
-}
-.filterBtn:last-child { border-right: none; }
-.filterBtn:hover { background: #f5e2d0; color: #2e2115; }
-.filterBtnActive { background: #f5e2d0; color: #2e2115; font-weight: 600; }
-
 .connectBtn {
   display: flex;
   align-items: center;
   gap: 6px;
   height: 36px;
   padding: 0 14px;
-  background: #2e2115;
+  background: #a4532b;
   color: #fff;
   font-size: 13px;
   font-weight: 600;
   border-radius: 8px;
   text-decoration: none;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 .connectBtn svg { width: 14px; height: 14px; }
-.connectBtn:hover { background: #1e150d; }
+.connectBtn:hover { background: #7c3a0f; }
 
 /* Grid */
 .grid {
@@ -112,12 +64,6 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.cardTop {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
 }
 
 .logoWrap {

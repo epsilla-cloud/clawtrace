@@ -78,11 +78,6 @@ export function ConnectWizard() {
               maxLength={80}
             />
             {error && <p className={styles.error}>{error}</p>}
-            <div className={styles.progress}>
-              <span className={styles.dot} data-active="true" />
-              <span className={styles.dot} />
-            </div>
-            <hr className={styles.divider} />
             <div className={styles.footer}>
               <button
                 type="submit"
@@ -144,14 +139,14 @@ export function ConnectWizard() {
               <span className={styles.stepNum}>2</span>
               <div>
                 <p className={styles.stepTitle}>Authenticate with your observe key</p>
-                <p className={styles.stepDesc}>Run the interactive setup to link your OpenClaw instance.</p>
+                <p className={styles.stepDesc}>
+                  Run the interactive setup. When prompted for your observe key,
+                  paste the key shown above.
+                </p>
                 <div className={styles.codeBlock}>
                   <span className={styles.codeLang}>BASH</span>
-                  <code>{`openclaw clawtrace setup \\
-  --endpoint https://ingest.clawtrace.ai/v1/traces/events \\
-  --observe-key ${createdKey.key} \\
-  --yes`}</code>
-                  <CopyButton text={`openclaw clawtrace setup --endpoint https://ingest.clawtrace.ai/v1/traces/events --observe-key ${createdKey.key} --yes`} />
+                  <code>openclaw clawtrace setup</code>
+                  <CopyButton text="openclaw clawtrace setup" />
                 </div>
               </div>
             </div>

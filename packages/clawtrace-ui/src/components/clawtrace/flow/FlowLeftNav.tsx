@@ -36,7 +36,7 @@ const CONSOLE_NAV_ITEMS = [
   {
     id: 'console-overview',
     href: '/console',
-    label: 'Account',
+    label: 'Overview',
     exact: true,
     icon: (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -74,7 +74,7 @@ const CONSOLE_NAV_ITEMS = [
 
 function resolveRoute(flowIds: ClawTraceFlowId[], allFlows: ClawTraceFlowDefinition[]): string {
   const resolved = flowIds.map((id) => allFlows.find((item) => item.id === id)).find(Boolean);
-  return resolved?.route ?? '/control-room';
+  return resolved?.route ?? '/traces';
 }
 
 function renderIcon(icon: NavIcon) {

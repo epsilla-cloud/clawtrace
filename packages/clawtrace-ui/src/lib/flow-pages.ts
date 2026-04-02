@@ -149,7 +149,7 @@ export const CLAWTRACE_FLOW_PAGES: ClawTraceFlowDefinition[] = [
   {
     id: 'f3-control-room',
     order: 3,
-    route: '/control-room',
+    route: '/traces',
     phase: 'Operate',
     title: 'Daily Overview',
     subtitle: 'Page 4. Calm, scanable daily operations view.',

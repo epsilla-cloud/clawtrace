@@ -11,8 +11,8 @@
 
 .footer {
   display: flex;
-  justify-content: flex-end;
-  padding-top: 16px;
+  justify-content: center;
+  padding-top: 20px;
 }
 
 .continueBtn {
@@ -325,4 +325,4 @@
   margin-left: auto;
 }
 
-.footer2 { display: flex; justify-content: center; }
+.footer2 { display: flex; justify-content: center; margin-bottom: 40px; }
