@@ -4,6 +4,7 @@ import { users } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 import { redirect } from 'next/navigation';
 import { PlanCards } from '@/components/console/plan-cards';
+import { ObserveKeys } from '@/components/console/observe-keys';
 import styles from './dashboard.module.css';
 
 const TIER_LABELS: Record<string, string> = {
@@ -109,6 +110,11 @@ export default async function ConsolePage() {
           <PlanCards currentTier={tier} />
         </div>
       )}
+
+      {/* Observe Keys — connect OpenClaw agents */}
+      <div className={styles.section}>
+        <ObserveKeys />
+      </div>
 
       {/* Pro user — all good */}
       {tier === 'pro' && (

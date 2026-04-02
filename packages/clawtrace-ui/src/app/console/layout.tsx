@@ -16,7 +16,17 @@ export default async function ConsoleLayout({ children }: { children: React.Reac
 
   const [user] = await db.select().from(users).where(eq(users.id, session.dbId));
   const tier = user?.tier ?? 'free';
-  const needsPlanSelection = !user?.plan_selected;
+
+  // Auto-select free plan for users who haven't explicitly chosen one.
+  // Default tier is 'free' so new users should never be blocked — silently
+  // mark plan_selected=true so the onboarding modal doesn't appear.
+  if (user && !user.plan_selected && user.tier === 'free') {
+    await db.update(users)
+      .set({ plan_selected: true, updated_at: new Date() })
+      .where(eq(users.id, session.dbId));
+  }
+
+  const needsPlanSelection = !user?.plan_selected && user?.tier !== 'free';
 
   return (
     <div className={styles.shell}>
