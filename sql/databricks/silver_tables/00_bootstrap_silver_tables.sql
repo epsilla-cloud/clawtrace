@@ -133,7 +133,11 @@ CLUSTER BY (tenant_id, agent_id, trace_id)
 TBLPROPERTIES (
   'delta.autoOptimize.optimizeWrite' = 'true',
   'delta.autoOptimize.autoCompact'   = 'true',
-  'delta.dataSkippingStatsColumns'   = 'tenant_id,agent_id,event_id,event_type,trace_id,span_id,parent_span_id,event_ts_ms,tool_name,model_name,event_date'
+  -- ingest_ts added: job 20 filters on ingest_ts > checkpoint on every run.
+  -- Without stats, every file is opened (full scan). Since ingest_ts =
+  -- current_timestamp() at write time and data is append-only, newer files
+  -- consistently have higher min(ingest_ts), so stats are highly effective.
+  'delta.dataSkippingStatsColumns'   = 'ingest_ts,tenant_id,agent_id,event_id,event_type,trace_id,span_id,parent_span_id,event_ts_ms,tool_name,model_name,event_date'
 );
 
 -- ── pg_traces ─────────────────────────────────────────────────────────────────
