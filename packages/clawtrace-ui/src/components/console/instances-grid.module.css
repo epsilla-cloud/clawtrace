@@ -1,0 +1,266 @@
+.root {
+  padding: 32px 28px;
+  max-width: 960px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.headerLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #a4532b;
+  margin: 0 0 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.headerLabel::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #a4532b;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 750;
+  color: #2e2115;
+  margin: 0 0 6px;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #7c6854;
+  line-height: 1.5;
+  margin: 0;
+  max-width: 400px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.filters {
+  display: flex;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fffdf8;
+}
+
+.filterBtn {
+  height: 34px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #7c6854;
+  background: transparent;
+  border: none;
+  border-right: 1px solid #dacbb4;
+  cursor: pointer;
+}
+.filterBtn:last-child { border-right: none; }
+.filterBtn:hover { background: #f5e2d0; color: #2e2115; }
+.filterBtnActive { background: #f5e2d0; color: #2e2115; font-weight: 600; }
+
+.connectBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  background: #2e2115;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.connectBtn svg { width: 14px; height: 14px; }
+.connectBtn:hover { background: #1e150d; }
+
+/* Grid */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+/* Instance card */
+.card {
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.logoWrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: #f5e2d0;
+  border: 1px solid #dacbb4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+}
+
+/* Status badges */
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 8px;
+  border-radius: 20px;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.status_observing {
+  background: #d4edda;
+  color: #1a5c2a;
+}
+.status_observing .statusDot { background: #2f6b3b; }
+
+.status_idle {
+  background: #fff3cd;
+  color: #856404;
+}
+.status_idle .statusDot { background: #f59e0b; }
+
+.status_not_connected {
+  background: #f0f0f0;
+  color: #6b7280;
+}
+.status_not_connected .statusDot { background: #9ca3af; }
+
+.cardName {
+  font-size: 17px;
+  font-weight: 650;
+  color: #2e2115;
+  margin: 0;
+}
+
+.cardId {
+  font-size: 12px;
+  color: #7c6854;
+  font-family: var(--font-mono, monospace);
+  margin: 0;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-top: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #e8d9c4;
+}
+
+.cardMetaLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #b89c84;
+  margin: 0 0 2px;
+}
+
+.cardMetaValue {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2e2115;
+  margin: 0;
+}
+
+.viewLink {
+  font-size: 12px;
+  color: #a4532b;
+  text-decoration: none;
+  font-weight: 500;
+}
+.viewLink:hover { text-decoration: underline; }
+
+/* Add New Node card */
+.addCard {
+  background: transparent;
+  border: 2px dashed #dacbb4;
+  border-radius: 14px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-decoration: none;
+  min-height: 160px;
+  cursor: pointer;
+  transition: border-color 120ms, background 120ms;
+}
+.addCard:hover { border-color: #a4532b; background: #fdf6ee; }
+
+.addIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f5e2d0;
+  border: 1px solid #dacbb4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: #7c6854;
+}
+
+.addLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #7c6854;
+}
+
+/* Empty state */
+.empty {
+  font-size: 14px;
+  color: #7c6854;
+  padding: 20px 0;
+}
+
+.emptyLink {
+  color: #a4532b;
+  text-decoration: none;
+  font-weight: 500;
+}
+.emptyLink:hover { text-decoration: underline; }
