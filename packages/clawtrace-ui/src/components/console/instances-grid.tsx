@@ -13,12 +13,39 @@ interface Agent {
   last_used_at: string | null;
 }
 
+function DeleteModal({ name, onConfirm, onCancel }: {
+  name: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className={styles.modalOverlay} onClick={onCancel}>
+      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+        <h3 className={styles.modalTitle}>Delete agent?</h3>
+        <p className={styles.modalBody}>
+          <strong>{name}</strong> will be permanently deleted. Any OpenClaw instances
+          using its observe key will stop sending telemetry.
+        </p>
+        <div className={styles.modalActions}>
+          <button type="button" className={styles.modalCancel} onClick={onCancel}>
+            Cancel
+          </button>
+          <button type="button" className={styles.modalDelete} onClick={onConfirm}>
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function InstancesGrid() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<Agent | null>(null);
   const renameInputRef = useRef<HTMLInputElement>(null);
 
   async function loadAgents() {
@@ -51,9 +78,9 @@ export function InstancesGrid() {
     setRenamingId(null);
   }
 
-  async function deleteAgent(id: string) {
-    if (!confirm('Delete this agent? This cannot be undone.')) return;
+  async function doDelete(id: string) {
     setDeletingId(id);
+    setConfirmDelete(null);
     const res = await fetch(`/api/agents/${id}`, { method: 'DELETE' });
     if (res.status === 204) setAgents((prev) => prev.filter((a) => a.id !== id));
     setDeletingId(null);
@@ -61,6 +88,15 @@ export function InstancesGrid() {
 
   return (
     <div className={styles.root}>
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <DeleteModal
+          name={confirmDelete.name}
+          onConfirm={() => doDelete(confirmDelete.id)}
+          onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>OpenClaw Agents</h1>
@@ -86,12 +122,8 @@ export function InstancesGrid() {
                 <Image src="/openclaw-logo.svg" alt="OpenClaw" width={32} height={32} />
               </div>
 
-              {/* Name — inline rename on click */}
               {renamingId === agent.id ? (
-                <form
-                  onSubmit={(e) => { e.preventDefault(); submitRename(agent.id); }}
-                  className={styles.renameForm}
-                >
+                <form onSubmit={(e) => { e.preventDefault(); submitRename(agent.id); }} className={styles.renameForm}>
                   <input
                     ref={renameInputRef}
                     className={styles.renameInput}
@@ -102,12 +134,7 @@ export function InstancesGrid() {
                   />
                 </form>
               ) : (
-                <button
-                  type="button"
-                  className={styles.cardName}
-                  onClick={() => startRename(agent)}
-                  title="Click to rename"
-                >
+                <button type="button" className={styles.cardName} onClick={() => startRename(agent)} title="Click to rename">
                   {agent.name}
                 </button>
               )}
@@ -118,9 +145,7 @@ export function InstancesGrid() {
                 <div>
                   <p className={styles.cardMetaLabel}>LAST ACTIVE</p>
                   <p className={styles.cardMetaValue}>
-                    {agent.last_used_at
-                      ? new Date(agent.last_used_at).toLocaleDateString()
-                      : '—'}
+                    {agent.last_used_at ? new Date(agent.last_used_at).toLocaleDateString() : '—'}
                   </p>
                 </div>
                 <div className={styles.cardActions}>
@@ -129,7 +154,7 @@ export function InstancesGrid() {
                     type="button"
                     className={styles.deleteBtn}
                     disabled={deletingId === agent.id}
-                    onClick={() => deleteAgent(agent.id)}
+                    onClick={() => setConfirmDelete(agent)}
                     title="Delete agent"
                   >
                     {deletingId === agent.id ? '…' : '✕'}
@@ -142,15 +167,6 @@ export function InstancesGrid() {
           <a href="/overview/connect" className={styles.addCard}>
             <span className={styles.addIcon}>+</span>
             <span className={styles.addLabel}>Add New Node</span>
-          </a>
-        </div>
-      )}
-
-      {!loading && agents.length === 0 && (
-        <div className={styles.empty}>
-          No agents connected yet.{' '}
-          <a href="/overview/connect" className={styles.emptyLink}>
-            Connect your first OpenClaw agent →
           </a>
         </div>
       )}

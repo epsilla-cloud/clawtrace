@@ -1,19 +1,19 @@
 'use client';
 
+import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import styles from './AppNav.module.css';
 
 const STORAGE_KEY = 'clawtrace:nav-expanded';
 
-const NAV_ITEMS = [
+const MAIN_NAV = [
   {
     href: '/overview',
     label: 'Overview',
     match: (p: string) => p === '/overview' || p.startsWith('/overview/'),
     icon: (
-      // 2×2 grid of rounded squares — "agents/dashboard overview"
       <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
         <rect x="2" y="2" width="8" height="8" rx="2.5" stroke="currentColor" strokeWidth="1.6"/>
         <rect x="12" y="2" width="8" height="8" rx="2.5" stroke="currentColor" strokeWidth="1.6"/>
@@ -27,7 +27,6 @@ const NAV_ITEMS = [
     label: 'Traces',
     match: (p: string) => p === '/traces' || p.startsWith('/traces/'),
     icon: (
-      // Branching tree — "trace spans / hierarchy"
       <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
         <circle cx="11" cy="4" r="2" stroke="currentColor" strokeWidth="1.6"/>
         <line x1="11" y1="6" x2="11" y2="10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
@@ -43,7 +42,6 @@ const NAV_ITEMS = [
     label: 'Trace',
     match: (p: string) => p === '/trace' || p.startsWith('/trace/'),
     icon: (
-      // Horizontal timeline rows with highlight dot — "inspect a single trace"
       <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
         <line x1="3" y1="6" x2="19" y2="6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.4"/>
         <circle cx="7" cy="6" r="2.5" fill="currentColor"/>
@@ -51,6 +49,42 @@ const NAV_ITEMS = [
         <circle cx="13" cy="11" r="2.5" fill="currentColor"/>
         <line x1="3" y1="16" x2="19" y2="16" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeOpacity="0.4"/>
         <circle cx="9" cy="16" r="2.5" fill="currentColor"/>
+      </svg>
+    ),
+  },
+];
+
+const BOTTOM_NAV = [
+  {
+    href: '/overview',
+    label: 'Account',
+    match: (p: string) => p === '/overview' || p.startsWith('/overview/'),
+    icon: (
+      <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <circle cx="11" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M4 19c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    href: '/overview/billing',
+    label: 'Billing',
+    match: (p: string) => p.startsWith('/overview/billing'),
+    icon: (
+      <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <rect x="2" y="5" width="18" height="12" rx="2" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M2 9h18" stroke="currentColor" strokeWidth="1.6"/>
+        <path d="M6 14h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+      </svg>
+    ),
+  },
+  {
+    href: '/overview/referrals',
+    label: 'Referrals',
+    match: (p: string) => p.startsWith('/overview/referrals'),
+    icon: (
+      <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+        <path d="M11 4l2 4h4l-3 3 1 4-4-2-4 2 1-4-3-3h4z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round"/>
       </svg>
     ),
   },
@@ -73,44 +107,55 @@ export function AppNav() {
   };
 
   return (
-    <aside className={`${styles.nav} ${expanded ? styles.expanded : styles.collapsed}`}>
-      {/* Logo */}
-      <div className={styles.logo}>
-        {/* Claw mark — always visible */}
-        <svg className={styles.logoMark} viewBox="0 0 28 28" fill="none" aria-hidden="true">
-          <path d="M14 3C8.48 3 4 7.48 4 13c0 3.31 1.59 6.24 4.07 8.12L9 22.5V25h10v-2.5l.93-1.38A9.96 9.96 0 0 0 24 13c0-5.52-4.48-10-10-10z" fill="url(#ct-grad)" />
-          <defs>
-            <linearGradient id="ct-grad" x1="4" y1="3" x2="24" y2="25" gradientUnits="userSpaceOnUse">
-              <stop offset="0%" stopColor="#c0622a"/>
-              <stop offset="100%" stopColor="#7c3a0f"/>
-            </linearGradient>
-          </defs>
-          <path d="M10 14.5c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round"/>
-          <path d="M10 17.5c0-2.21 1.79-4 4-4s4 1.79 4 4" stroke="rgba(255,255,255,0.45)" strokeWidth="1.4" strokeLinecap="round"/>
-        </svg>
-        {/* Wordmark — only when expanded */}
-        <span className={styles.logoText}>ClawTrace</span>
-      </div>
+    <div className={`${styles.wrap} ${expanded ? styles.wrapExpanded : styles.wrapCollapsed}`}>
+      <aside className={styles.nav}>
+        {/* Logo */}
+        <div className={styles.logo}>
+          <div className={styles.logoImgWrap}>
+            <Image
+              src="/clawtrace-logo.png"
+              alt="ClawTrace"
+              height={28}
+              width={expanded ? 140 : 28}
+              style={{ objectFit: 'contain', objectPosition: 'left center' }}
+              priority
+            />
+          </div>
+        </div>
 
-      {/* Nav items */}
-      <nav className={styles.items}>
-        {NAV_ITEMS.map((item) => {
-          const active = item.match(pathname ?? '');
-          return (
+        {/* Main nav */}
+        <nav className={styles.items}>
+          {MAIN_NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`${styles.item} ${active ? styles.itemActive : ''}`}
+              className={`${styles.item} ${item.match(pathname ?? '') ? styles.itemActive : ''}`}
               title={!expanded ? item.label : undefined}
             >
               <span className={styles.itemIcon}>{item.icon}</span>
               <span className={styles.itemLabel}>{item.label}</span>
             </Link>
-          );
-        })}
-      </nav>
+          ))}
+        </nav>
 
-      {/* Expand/collapse handle on the right border */}
+        {/* Bottom account nav */}
+        <div className={styles.divider} />
+        <nav className={styles.bottomItems}>
+          {BOTTOM_NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`${styles.item} ${item.match(pathname ?? '') ? styles.itemActive : ''}`}
+              title={!expanded ? item.label : undefined}
+            >
+              <span className={styles.itemIcon}>{item.icon}</span>
+              <span className={styles.itemLabel}>{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+      </aside>
+
+      {/* Handle — sibling element, no overlap */}
       <button
         type="button"
         className={styles.handle}
@@ -128,6 +173,6 @@ export function AppNav() {
           />
         </svg>
       </button>
-    </aside>
+    </div>
   );
 }

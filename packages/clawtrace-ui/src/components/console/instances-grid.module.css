@@ -1,6 +1,7 @@
 .root {
   padding: 32px 28px;
-  max-width: 960px;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -256,9 +257,70 @@
   padding: 20px 0;
 }
 
-.emptyLink {
-  color: #a4532b;
-  text-decoration: none;
-  font-weight: 500;
+/* Delete confirmation modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(46, 33, 21, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
 }
-.emptyLink:hover { text-decoration: underline; }
+
+.modal {
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 24px 24px 20px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 8px 32px rgba(46,33,21,0.18);
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 650;
+  color: #2e2115;
+  margin: 0 0 10px;
+}
+
+.modalBody {
+  font-size: 14px;
+  color: #5a4534;
+  line-height: 1.5;
+  margin: 0 0 20px;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.modalCancel {
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  background: #fff;
+  color: #5a4534;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.modalCancel:hover { background: #f5e2d0; }
+
+.modalDelete {
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: #c0392b;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.modalDelete:hover { background: #a93226; }

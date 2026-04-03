@@ -1,53 +1,44 @@
-.nav {
-  position: relative;
+/* Outer wrapper — flex row containing [nav | handle] */
+.wrap {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
   height: 100dvh;
+  transition: width 180ms ease;
+}
+
+.wrapCollapsed { width: 60px; }
+.wrapExpanded  { width: 211px; } /* 200px nav + 11px handle */
+
+/* ── Sidebar ─────────────────────────────────────────────────────────────── */
+.nav {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background: #fffdf8;
   border-right: 1px solid #e8d9c4;
-  flex-shrink: 0;
-  overflow: visible;          /* so the handle can poke out */
-  transition: width 180ms ease;
+  overflow: hidden;
 }
 
-.collapsed { width: 60px; }
-.expanded  { width: 200px; }
-
-/* ── Logo ──────────────────────────────────────────────────────────────────── */
+/* ── Logo ────────────────────────────────────────────────────────────────── */
 .logo {
   height: 56px;
   display: flex;
   align-items: center;
-  gap: 10px;
   padding: 0 14px;
   border-bottom: 1px solid #e8d9c4;
+  flex-shrink: 0;
   overflow: hidden;
-  flex-shrink: 0;
 }
 
-.logoMark {
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
+.logoImgWrap {
+  overflow: hidden;
+  display: flex;
+  align-items: center;
 }
 
-.logoText {
-  font-size: 15px;
-  font-weight: 720;
-  color: #2e2115;
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  opacity: 1;
-  transition: opacity 120ms ease;
-}
-
-.collapsed .logoText {
-  opacity: 0;
-  pointer-events: none;
-  width: 0;
-}
-
-/* ── Nav items ─────────────────────────────────────────────────────────────── */
+/* ── Nav items ───────────────────────────────────────────────────────────── */
 .items {
   flex: 1;
   display: flex;
@@ -55,6 +46,21 @@
   gap: 4px;
   padding: 12px 8px;
   overflow: hidden;
+}
+
+.divider {
+  height: 1px;
+  background: #e8d9c4;
+  margin: 0 8px;
+  flex-shrink: 0;
+}
+
+.bottomItems {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 8px 12px;
+  flex-shrink: 0;
 }
 
 .item {
@@ -72,10 +78,7 @@
   white-space: nowrap;
 }
 
-.item:hover {
-  background: #f5e2d0;
-  color: #2e2115;
-}
+.item:hover { background: #f5e2d0; color: #2e2115; }
 
 .itemActive {
   background: #f5e2d0;
@@ -93,53 +96,34 @@
   justify-content: center;
 }
 
-.itemIcon svg {
-  width: 20px;
-  height: 20px;
-}
+.itemIcon svg { width: 20px; height: 20px; }
 
 .itemLabel {
   font-size: 13px;
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
-  transition: opacity 120ms ease, width 120ms ease;
 }
 
-.collapsed .itemLabel {
-  opacity: 0;
-  width: 0;
-  pointer-events: none;
-}
+/* Hide labels when collapsed */
+.wrapCollapsed .itemLabel { display: none; }
 
-/* ── Expand/collapse handle ────────────────────────────────────────────────── */
+/* ── Expand/collapse handle — no overlap ─────────────────────────────────── */
 .handle {
-  position: absolute;
-  top: 50%;
-  right: -10px;
-  transform: translateY(-50%);
-  width: 20px;
-  height: 40px;
-  background: #fffdf8;
-  border: 1px solid #e8d9c4;
-  border-left: none;
-  border-radius: 0 8px 8px 0;
+  width: 11px;
+  flex-shrink: 0;
+  background: #f9f2e8;
+  border: none;
+  border-left: 1px solid #e8d9c4;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
   color: #b89c84;
-  z-index: 10;
-  transition: background 100ms, color 100ms;
   padding: 0;
+  transition: background 100ms, color 100ms;
 }
 
-.handle:hover {
-  background: #f5e2d0;
-  color: #5a4534;
-}
+.handle:hover { background: #f0e0cc; color: #5a4534; }
 
-.handle svg {
-  width: 8px;
-  height: 14px;
-}
+.handle svg { width: 8px; height: 14px; }
