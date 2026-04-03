@@ -2377,3 +2377,181 @@ export function TraceDetailWorkbench({
     </main>
   );
 }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+ * TraceDetailContent — same 4-view layout but designed to sit INSIDE an
+ * AppNav shell (no FlowLeftNav, no <main> wrapper).
+ * Use this on the /trace route where AppNav is already the outer nav.
+ * ───────────────────────────────────────────────────────────────────────────── */
+type TraceDetailContentProps = {
+  workflowId: string;
+  detail: TraceDetailSnapshot | null;
+};
+
+export function TraceDetailContent({ workflowId, detail }: TraceDetailContentProps) {
+  const [mode, setMode] = useState<TraceDetailViewMode>('execution_path');
+  const [tracyOpen, setTracyOpen] = useState(true);
+  const [selection, setSelection] = useState<SelectionSource | null>(null);
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
+  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
+
+  const spanById = useMemo(
+    () => new Map((detail?.spans ?? []).map((span) => [span.spanId, span])),
+    [detail?.spans],
+  );
+
+  const selectedSpan = useMemo(() => {
+    if (!detail) return null;
+    if (selection?.spanId) return spanById.get(selection.spanId) ?? null;
+    if (detail.quickInsights.hottestSpanId)
+      return spanById.get(detail.quickInsights.hottestSpanId) ?? null;
+    return detail.spans[0] ?? null;
+  }, [detail, selection, spanById]);
+
+  useEffect(() => {
+    if (!detail) return;
+    const initialSpanId =
+      detail.quickInsights.hottestSpanId ?? detail.spans[0]?.spanId ?? null;
+    if (!initialSpanId) return;
+    setSelection({
+      type: 'span',
+      spanId: initialSpanId,
+      label: spanDisplayLabel(spanById.get(initialSpanId) ?? detail.spans[0]),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail?.trace.trajectoryTraceId]);
+
+  const onSelectSpan = (spanId: string) => {
+    const span = spanById.get(spanId);
+    if (!span) return;
+    setSelection({ type: 'span', spanId, label: spanDisplayLabel(span) });
+  };
+
+  const onSelectEntity = (entityId: string, spanId: string | null, label: string) => {
+    setSelectedEntityId(entityId);
+    if (spanId) onSelectSpan(spanId);
+    setSelection({ type: 'entity', spanId, entityId, label });
+  };
+
+  const onSelectPhase = (phase: TraceDetailPhase) => {
+    setSelectedPhaseId(phase.id);
+    if (phase.representativeSpanId) onSelectSpan(phase.representativeSpanId);
+    setSelection({
+      type: 'phase',
+      spanId: phase.representativeSpanId,
+      phaseId: phase.id,
+      label: phase.statusLabel,
+    });
+  };
+
+  if (!detail) {
+    return (
+      <section className={styles.emptyShell} style={{ flex: 1, minWidth: 0 }}>
+        <article className={styles.emptyCard}>
+          <p className={styles.emptyKicker}>Trace detail</p>
+          <h1 className={styles.emptyTitle}>No trace loaded</h1>
+          <p className={styles.emptyBody}>
+            Could not load trace <code>{decodeURIComponent(workflowId)}</code>.
+          </p>
+          <Link href="/traces" className={styles.backButton}>
+            Back to Traces
+          </Link>
+        </article>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      className={`${styles.workbenchShell} ${tracyOpen ? styles.workbenchShellTracyOpen : styles.workbenchShellTracyClosed}`}
+    >
+      <section className={styles.content}>
+        <header className={styles.topRow}>
+          <div className={styles.topIdentity}>
+            <h1 className={styles.pageTitle}>Tracing Detail</h1>
+            <p className={styles.pageSubtitle}>
+              {detail.workflow.name} · {formatDate(detail.trace.startedAtMs)}
+            </p>
+          </div>
+          <div className={styles.topActions}>
+            <span className={`${styles.statusPill} ${statusClass(detail.trace.status)}`}>
+              {statusLabel(detail.trace.status)}
+            </span>
+            <Link href="/traces" className={styles.backButtonInline}>
+              Back to Traces
+            </Link>
+          </div>
+        </header>
+
+        <section className={styles.modeSwitcher} role="tablist" aria-label="Trace detail views">
+          {MODE_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`${styles.modeButton} ${mode === item.id ? styles.modeButtonActive : ''}`}
+              onClick={() => setMode(item.id)}
+              role="tab"
+              aria-selected={mode === item.id}
+            >
+              <span className={styles.modeLabel}>{item.label}</span>
+            </button>
+          ))}
+        </section>
+
+        <section className={styles.workspace}>
+          <article className={styles.viewCard}>
+            <div
+              className={`${styles.viewBody} ${
+                mode === 'execution_path' || mode === 'step_timeline'
+                  ? styles.viewBodyFlush
+                  : ''
+              }`}
+            >
+              {mode === 'execution_path' ? (
+                <ExecutionPathView
+                  detail={detail}
+                  selectedSpanId={selectedSpan?.spanId ?? null}
+                  onSelectSpan={onSelectSpan}
+                />
+              ) : null}
+              {mode === 'actor_map' ? (
+                <ActorMapView
+                  detail={detail}
+                  selectedEntityId={selectedEntityId}
+                  onSelect={onSelectEntity}
+                />
+              ) : null}
+              {mode === 'step_timeline' ? (
+                <StepTimelineView
+                  detail={detail}
+                  selectedSpanId={selectedSpan?.spanId ?? null}
+                  onSelectSpan={onSelectSpan}
+                />
+              ) : null}
+              {mode === 'run_efficiency' ? (
+                <RunEfficiencyView
+                  detail={detail}
+                  selectedPhaseId={selectedPhaseId}
+                  onSelectPhase={onSelectPhase}
+                />
+              ) : null}
+            </div>
+          </article>
+
+          <ViewInspector detail={detail} selection={selection} selectedSpan={selectedSpan} />
+        </section>
+      </section>
+
+      <aside
+        className={`${styles.tracyRail} ${tracyOpen ? styles.tracyRailOpen : styles.tracyRailClosed}`}
+      >
+        <TracyRunQualityPanel
+          detail={detail}
+          open={tracyOpen}
+          onToggleOpen={() => setTracyOpen((c) => !c)}
+          onSelectSpan={onSelectSpan}
+        />
+      </aside>
+    </section>
+  );
+}

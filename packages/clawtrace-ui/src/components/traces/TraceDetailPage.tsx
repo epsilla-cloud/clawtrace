@@ -2,10 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { TraceDetailWorkbench } from '../clawtrace/trace-detail/TraceDetailWorkbench';
-import { CLAWTRACE_FLOW_PAGES } from '../../lib/flow-pages';
+import { AppNav } from '../app-nav/AppNav';
+import { TraceDetailContent } from '../clawtrace/trace-detail/TraceDetailWorkbench';
 import { buildSnapshot, type BackendMetaData, type BackendSpanData } from '../../lib/trace-builder';
-import type { OpenClawDiscoverySnapshot } from '../../lib/openclaw-discovery';
 import type { TraceDetailSnapshot } from '../../lib/trace-detail';
 
 /* ── Wire types from /api/traces/[traceId] ───────────────────────────────── */
@@ -20,69 +19,11 @@ function extractUuid(eid: string): string {
   return m ? m[1] : eid;
 }
 
-// Dummy non-null snapshot satisfies the `!snapshot` guard in TraceDetailWorkbench
-// without being used for anything else.
-const DUMMY_SNAPSHOT = { id: '__loaded__' } as unknown as OpenClawDiscoverySnapshot;
-
-// The Daily Overview flow is the closest match for the Traces page context
-const DETAIL_FLOW = CLAWTRACE_FLOW_PAGES.find((f) => f.id === 'f3-control-room') ?? CLAWTRACE_FLOW_PAGES[0]!;
-
-/* ── Loading / error shells ──────────────────────────────────────────────── */
-function LoadingShell() {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100dvh',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--ct-page-bg, #faf4ec)',
-        color: '#7c6854',
-        fontSize: 14,
-      }}
-    >
-      Loading trace…
-    </div>
-  );
-}
-
-function ErrorShell({ message, traceId }: { message: string; traceId: string }) {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        height: '100dvh',
-        alignItems: 'center',
-        justifyContent: 'center',
-        flexDirection: 'column',
-        gap: 16,
-        background: 'var(--ct-page-bg, #faf4ec)',
-        padding: 32,
-      }}
-    >
-      <p style={{ color: '#b42318', fontSize: 14, textAlign: 'center' }}>
-        {message || `Could not load trace ${traceId}`}
-      </p>
-      <a
-        href="/traces"
-        style={{
-          color: '#a4532b',
-          fontSize: 13,
-          textDecoration: 'underline',
-        }}
-      >
-        ← Back to Traces
-      </a>
-    </div>
-  );
-}
-
 /* ── Main component ──────────────────────────────────────────────────────── */
 export function TraceDetailPage() {
   const searchParams = useSearchParams();
   const rawParam     = searchParams.get('traceId') ?? '';
-  // Accept both "Trace[uuid]" and bare "uuid"
-  const traceId = extractUuid(rawParam);
+  const traceId      = extractUuid(rawParam);
 
   const [response, setResponse] = useState<TraceDetailResponse | null>(null);
   const [loading, setLoading]   = useState(false);
@@ -111,8 +52,6 @@ export function TraceDetailPage() {
 
   useEffect(() => { void load(); }, [load]);
 
-  // Build the TraceDetailSnapshot from raw backend data whenever the
-  // response changes.  All computation is pure and runs client-side.
   const detail = useMemo<TraceDetailSnapshot | null>(() => {
     if (!response) return null;
     try {
@@ -122,25 +61,35 @@ export function TraceDetailPage() {
     }
   }, [traceId, response]);
 
-  if (!traceId) {
-    return <ErrorShell message="No trace ID provided." traceId="" />;
-  }
-
-  if (loading) {
-    return <LoadingShell />;
-  }
-
-  if (error) {
-    return <ErrorShell message={error} traceId={traceId} />;
-  }
-
   return (
-    <TraceDetailWorkbench
-      flow={DETAIL_FLOW}
-      allFlows={CLAWTRACE_FLOW_PAGES}
-      workflowId={traceId}
-      snapshot={response ? DUMMY_SNAPSHOT : null}
-      detail={detail}
-    />
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: '#f0e4d0' }}>
+      <AppNav />
+
+      {loading && (
+        <div style={{
+          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          background: 'var(--ct-page-bg, #faf4ec)', color: '#7c6854', fontSize: 14,
+        }}>
+          Loading trace…
+        </div>
+      )}
+
+      {!loading && error && (
+        <div style={{
+          flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+          justifyContent: 'center', gap: 16,
+          background: 'var(--ct-page-bg, #faf4ec)', padding: 32,
+        }}>
+          <p style={{ color: '#b42318', fontSize: 14, textAlign: 'center', margin: 0 }}>{error}</p>
+          <a href="/traces" style={{ color: '#a4532b', fontSize: 13, textDecoration: 'underline' }}>
+            ← Back to Traces
+          </a>
+        </div>
+      )}
+
+      {!loading && !error && (
+        <TraceDetailContent workflowId={traceId || 'unknown'} detail={detail} />
+      )}
+    </div>
   );
 }

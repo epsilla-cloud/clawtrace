@@ -1230,6 +1230,27 @@
   color: var(--ct-soft-text);
 }
 
+/* ── Content-only shell (AppNav is the outer nav, no FlowLeftNav) ──────────── */
+.workbenchShell {
+  flex: 1;
+  min-width: 0;
+  height: 100dvh;
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+  align-items: stretch;
+  transition: grid-template-columns 180ms ease;
+  overflow: hidden;
+}
+
+.workbenchShellTracyOpen {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
+}
+
+.workbenchShellTracyClosed {
+  grid-template-columns: minmax(0, 1fr) 0;
+}
+
 @media (max-width: 1500px) {
   .workspace {
     grid-template-columns: 1fr;
