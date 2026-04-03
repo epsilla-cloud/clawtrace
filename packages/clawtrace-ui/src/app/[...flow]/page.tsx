@@ -49,12 +49,10 @@ export default async function FlowRoutePage({ params }: FlowRoutePageProps) {
   const nextFlow = getAdjacentFlow(flow.id, 1);
 
   if (flow.id === 'f3-control-room') {
-    const snapshot = await loadOpenClawDiscoverySnapshot().catch(() => null);
-    return (
-      <div className="operator clawtrace">
-        <WorkflowPortfolio initialSnapshot={snapshot} flow={flow} allFlows={CLAWTRACE_FLOW_PAGES} />
-      </div>
-    );
+    // /traces is now backend-driven — render the TracesPage instead of the
+    // local-file WorkflowPortfolio
+    const { TracesPage } = await import('../../components/traces/TracesPage');
+    return <TracesPage />;
   }
 
   return (

@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import Settings
 from .database import close_pool, run_migrations
 from .models import HealthResponse
-from .routers import agents, auth, keys, tenant
+from .routers import agents, auth, keys, tenant, traces
 
 
 @asynccontextmanager
@@ -49,6 +49,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(keys.router)
     app.include_router(agents.router)
     app.include_router(tenant.router)
+    app.include_router(traces.router)
 
     @app.get("/healthz", response_model=HealthResponse, tags=["health"])
     async def healthz() -> HealthResponse:
