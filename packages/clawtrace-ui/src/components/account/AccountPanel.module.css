@@ -1,0 +1,130 @@
+.root {
+  padding: 32px 28px;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.heading {
+  font-size: 24px;
+  font-weight: 700;
+  color: #2e2115;
+  margin: 0 0 4px;
+}
+
+/* Profile card */
+.card {
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e8d9c4;
+  flex-shrink: 0;
+}
+
+.avatarFallback {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #f5e2d0;
+  border: 2px solid #e8d9c4;
+  color: #a4532b;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.profileInfo { display: flex; flex-direction: column; gap: 3px; }
+.profileName { font-size: 17px; font-weight: 650; color: #2e2115; margin: 0; }
+.profileEmail { font-size: 13px; color: #7c6854; margin: 0; }
+
+.providerBadge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: #5a4534;
+  background: #f5e2d0;
+  border: 1px solid #dacbb4;
+  border-radius: 5px;
+  padding: 2px 8px;
+  margin-top: 2px;
+}
+
+/* Stats */
+.statsRow {
+  display: flex;
+  gap: 12px;
+}
+
+.statCard {
+  flex: 1;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 12px;
+  padding: 14px 16px;
+}
+
+.statLabel { font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #b89c84; margin: 0 0 4px; text-transform: uppercase; }
+.statValue { font-size: 18px; font-weight: 650; color: #2e2115; margin: 0; }
+.tier_free    { color: #5a4534; }
+.tier_starter { color: #5b3db5; }
+.tier_pro     { color: #a4532b; }
+
+/* Links */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.actionLink {
+  padding: 13px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #2e2115;
+  text-decoration: none;
+  border-bottom: 1px solid #e8d9c4;
+}
+.actionLink:last-child { border-bottom: none; }
+.actionLink:hover { background: #f5e2d0; }
+
+/* Logout */
+.logoutBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  width: fit-content;
+  border: 1px solid #f0d0d0;
+  border-radius: 10px;
+  background: #fff5f5;
+  color: #c0392b;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 4px;
+}
+.logoutBtn svg { width: 16px; height: 16px; }
+.logoutBtn:hover { background: #ffe0de; border-color: #e09090; }

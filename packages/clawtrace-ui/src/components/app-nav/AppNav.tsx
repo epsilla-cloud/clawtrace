@@ -56,9 +56,9 @@ const MAIN_NAV = [
 
 const BOTTOM_NAV = [
   {
-    href: '/overview',
+    href: '/account',
     label: 'Account',
-    match: (p: string) => p === '/overview' || p.startsWith('/overview/'),
+    match: (p: string) => p === '/account' || p.startsWith('/account/'),
     icon: (
       <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
         <circle cx="11" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6"/>
