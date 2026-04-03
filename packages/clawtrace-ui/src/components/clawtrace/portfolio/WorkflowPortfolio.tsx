@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
-import { FlowLeftNav } from '../flow/FlowLeftNav';
+import { AppNav } from '../../app-nav/AppNav';
 import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
 import type { OpenClawDiscoverySnapshot } from '../../../lib/openclaw-discovery';
 import styles from './WorkflowPortfolio.module.css';
@@ -1517,7 +1517,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
       <main className={styles.page}>
         <section className={`${styles.shell} ${tracyOpen ? styles.shellTracyOpen : styles.shellTracyCollapsed}`}>
           <div className={styles.leftRail}>
-            <FlowLeftNav flow={flow} allFlows={allFlows} />
+            <AppNav />
           </div>
 
           <section className={styles.dashboard}>
@@ -1595,7 +1595,7 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
     <main className={styles.page}>
       <section className={`${styles.shell} ${tracyOpen ? styles.shellTracyOpen : styles.shellTracyCollapsed}`}>
         <div className={styles.leftRail}>
-          <FlowLeftNav flow={flow} allFlows={allFlows} />
+          <AppNav />
         </div>
 
         <section className={styles.dashboard}>

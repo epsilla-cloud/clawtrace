@@ -36,7 +36,7 @@ export function InstancesGrid() {
             streams telemetry through its observe key.
           </p>
         </div>
-        <a href="/console/connect" className={styles.connectBtn}>
+        <a href="/overview/connect" className={styles.connectBtn}>
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
             <circle cx="8" cy="8" r="6" />
             <path d="M8 5v6M5 8h6" />
@@ -72,7 +72,7 @@ export function InstancesGrid() {
           ))}
 
           {/* Add New Node card */}
-          <a href="/console/connect" className={styles.addCard}>
+          <a href="/overview/connect" className={styles.addCard}>
             <span className={styles.addIcon}>+</span>
             <span className={styles.addLabel}>Add New Node</span>
           </a>
@@ -82,7 +82,7 @@ export function InstancesGrid() {
       {!loading && keys.length === 0 && (
         <div className={styles.empty}>
           No agents connected yet.{' '}
-          <a href="/console/connect" className={styles.emptyLink}>
+          <a href="/overview/connect" className={styles.emptyLink}>
             Connect your first OpenClaw agent →
           </a>
         </div>

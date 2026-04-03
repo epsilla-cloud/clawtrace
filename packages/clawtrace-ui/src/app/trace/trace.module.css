@@ -1,0 +1,5 @@
+.shell { display: flex; height: 100dvh; overflow: hidden; background: #f0e4d0; }
+.main { flex: 1; display: flex; flex-direction: column; background: #faf4ec; overflow-y: auto; }
+.placeholder { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 40px; }
+.title { font-size: 22px; font-weight: 650; color: #2e2115; margin: 0; }
+.sub { font-size: 14px; color: #7c6854; margin: 0; }

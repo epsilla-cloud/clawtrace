@@ -1,0 +1,145 @@
+.nav {
+  position: relative;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: #fffdf8;
+  border-right: 1px solid #e8d9c4;
+  flex-shrink: 0;
+  overflow: visible;          /* so the handle can poke out */
+  transition: width 180ms ease;
+}
+
+.collapsed { width: 60px; }
+.expanded  { width: 200px; }
+
+/* ── Logo ──────────────────────────────────────────────────────────────────── */
+.logo {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  border-bottom: 1px solid #e8d9c4;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.logoMark {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.logoText {
+  font-size: 15px;
+  font-weight: 720;
+  color: #2e2115;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 120ms ease;
+}
+
+.collapsed .logoText {
+  opacity: 0;
+  pointer-events: none;
+  width: 0;
+}
+
+/* ── Nav items ─────────────────────────────────────────────────────────────── */
+.items {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 8px;
+  overflow: hidden;
+}
+
+.item {
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px;
+  text-decoration: none;
+  color: #7c6854;
+  border: 1px solid transparent;
+  transition: background 100ms, color 100ms, border-color 100ms;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.item:hover {
+  background: #f5e2d0;
+  color: #2e2115;
+}
+
+.itemActive {
+  background: #f5e2d0;
+  color: #2e2115;
+  border-color: #dacbb4;
+  font-weight: 580;
+}
+
+.itemIcon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.itemIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.itemLabel {
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: opacity 120ms ease, width 120ms ease;
+}
+
+.collapsed .itemLabel {
+  opacity: 0;
+  width: 0;
+  pointer-events: none;
+}
+
+/* ── Expand/collapse handle ────────────────────────────────────────────────── */
+.handle {
+  position: absolute;
+  top: 50%;
+  right: -10px;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 40px;
+  background: #fffdf8;
+  border: 1px solid #e8d9c4;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #b89c84;
+  z-index: 10;
+  transition: background 100ms, color 100ms;
+  padding: 0;
+}
+
+.handle:hover {
+  background: #f5e2d0;
+  color: #5a4534;
+}
+
+.handle svg {
+  width: 8px;
+  height: 14px;
+}
