@@ -1,87 +1,90 @@
+/* ── Layout ──────────────────────────────────────────────────────────────── */
 .page {
   min-height: 100vh;
   min-height: 100dvh;
   display: flex;
+}
+
+/* ── Left panel — dark introduction ─────────────────────────────────────── */
+.left {
+  flex: 1;
+  background: linear-gradient(160deg, #2e2115 0%, #4a2e1a 60%, #3a200f 100%);
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 24px 16px;
-  background:
-    radial-gradient(800px 400px at 50% -80px, color-mix(in srgb, #f5e2d0 42%, white), transparent 75%),
-    linear-gradient(180deg, #f7f0e6 0%, #f1e6d7 100%);
+  padding: 48px 56px;
+  position: relative;
+  overflow: hidden;
+}
+
+.left::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 20% 80%, rgba(164,83,43,.18) 0%, transparent 70%),
+              radial-gradient(ellipse 60% 40% at 80% 10%, rgba(90,45,10,.25) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.leftInner {
+  position: relative;
+  max-width: 460px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brandIcon { border-radius: 8px; }
+.brandName { font-size: 20px; font-weight: 700; color: #f5e2d0; letter-spacing: -.02em; }
+
+.hero { display: flex; flex-direction: column; gap: 14px; }
+.heroTitle { font-size: 32px; font-weight: 750; line-height: 1.2; color: #fff; letter-spacing: -.02em; margin: 0; }
+.heroSub { font-size: 15px; color: rgba(245,226,208,.75); line-height: 1.6; margin: 0; }
+
+.features { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 14px; }
+.featureItem { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; color: rgba(245,226,208,.85); line-height: 1.45; }
+.featureIcon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+.leftFooter { font-size: 12px; color: rgba(245,226,208,.4); margin: 0; }
+
+/* ── Right panel — login ─────────────────────────────────────────────────── */
+.right {
+  width: 480px;
+  flex-shrink: 0;
+  background: #faf4ec;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 40px;
 }
 
 .card {
   width: 100%;
-  max-width: 380px;
-  border-radius: 18px;
-  border: 1px solid color-mix(in srgb, #dacbb4 72%, white);
+  max-width: 360px;
   background: #fffdf8;
-  box-shadow: 0 12px 40px -24px rgba(46, 33, 21, 0.22);
-  padding: 32px 28px 28px;
+  border: 1px solid #dacbb4;
+  border-radius: 18px;
+  padding: 36px 32px 28px;
+  box-shadow: 0 8px 32px -12px rgba(46,33,21,.14);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 0;
 }
 
-.logo {
-  margin-bottom: 20px;
-}
+.cardTitle { font-size: 24px; font-weight: 700; color: #2e2115; margin: 0 0 6px; letter-spacing: -.02em; }
+.cardSub { font-size: 13px; color: #7c6854; margin: 0; line-height: 1.5; }
 
-.logoText {
-  font-size: 22px;
-  font-weight: 680;
-  color: #2e2115;
-  letter-spacing: -0.02em;
-}
+.errorBanner { margin-top: 16px; border-radius: 8px; border: 1px solid #f3b7c0; background: #fff1f3; color: #b42318; font-size: 13px; padding: 10px 12px; line-height: 1.4; }
 
-.title {
-  margin: 0;
-  font-size: 24px;
-  font-weight: 650;
-  color: #2e2115;
-  letter-spacing: -0.02em;
-  text-align: center;
-}
+.buttons { margin-top: 24px; }
 
-.subtitle {
-  margin: 8px 0 0;
-  font-size: 13px;
-  color: #7c6854;
-  text-align: center;
-  line-height: 1.4;
-}
+.terms { margin: 18px 0 0; font-size: 11px; color: #7c6854; text-align: center; line-height: 1.5; }
+.link { color: #a4532b; text-decoration: none; }
+.link:hover { text-decoration: underline; }
 
-.errorBanner {
-  margin-top: 14px;
-  width: 100%;
-  border-radius: 8px;
-  border: 1px solid #f3b7c0;
-  background: #fff1f3;
-  color: #b42318;
-  font-size: 13px;
-  padding: 10px 12px;
-  line-height: 1.4;
-}
-
-.buttons {
-  margin-top: 20px;
-  width: 100%;
-}
-
-.terms {
-  margin: 16px 0 0;
-  font-size: 11px;
-  color: #7c6854;
-  text-align: center;
-  line-height: 1.5;
-}
-
-.link {
-  color: #a4532b;
-  text-decoration: none;
-}
-
-.link:hover {
-  text-decoration: underline;
+@media (max-width: 768px) {
+  .page { flex-direction: column; }
+  .left { padding: 36px 28px 32px; flex: none; }
+  .heroTitle { font-size: 24px; }
+  .right { width: 100%; padding: 32px 20px 40px; }
 }

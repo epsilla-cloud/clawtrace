@@ -17,7 +17,7 @@ interface Props {
 export function AccountPanel({ name, email, avatar, provider, tier, points }: Props) {
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/overview';
+    window.location.href = '/';
   }
 
   return (

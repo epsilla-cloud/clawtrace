@@ -1,3 +1,4 @@
+import { redirect } from 'next/navigation';
 import { getUserSession } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
@@ -8,25 +9,19 @@ import styles from './overview.module.css';
 
 export default async function OverviewLayout({ children }: { children: React.ReactNode }) {
   const session = await getUserSession();
-  let needsPlanSelection = false;
-  if (session) {
-    const [user] = await db.select().from(users).where(eq(users.id, session.dbId));
-    if (user && !user.plan_selected && user.tier === 'free') {
-      await db.update(users).set({ plan_selected: true, updated_at: new Date() }).where(eq(users.id, session.dbId));
-    }
-    needsPlanSelection = !user?.plan_selected && user?.tier !== 'free';
+  if (!session) redirect('/login?redirect=/overview');
+
+  const [user] = await db.select().from(users).where(eq(users.id, session.dbId));
+  if (user && !user.plan_selected && user.tier === 'free') {
+    await db.update(users).set({ plan_selected: true, updated_at: new Date() }).where(eq(users.id, session.dbId));
   }
+  const needsPlanSelection = !user?.plan_selected && user?.tier !== 'free';
+
   return (
     <div className={styles.shell}>
       <AppNav />
       <div className={styles.main}>
-        <main className={styles.content}>
-          {session ? children : (
-            <div className={styles.unauthPrompt}>
-              <p>Sign in using the panel on the left to access your ClawTrace workspace.</p>
-            </div>
-          )}
-        </main>
+        <main className={styles.content}>{children}</main>
       </div>
       {needsPlanSelection && <OnboardingModal />}
     </div>
