@@ -1,71 +1,95 @@
 """
 PuppyGraph HTTP client.
 
-PuppyGraph exposes a REST API at port 8081. Cypher queries are submitted
-via POST /gremlin with basic auth. The response contains a list of result
-maps under data.result.data.
-
-Auth: Basic  puppygraph:<password>
+Endpoint: POST /submitCypher  (discovered from PuppyGraph v0.113 UI source)
+Auth:     session cookie — login once via POST /login, reuse cookie.
+Response: [{"Keys": [...], "Values": [...]}, ...]  — one dict per row.
 """
 from __future__ import annotations
 
-from typing import Any
+import asyncio
+from typing import Any, Optional
 
 import httpx
 
 from .config import Settings
 
+# Module-level cookie jar — reused across requests in the same process
+_cookies: Optional[dict[str, str]] = None
+_cookie_lock = asyncio.Lock()
+
+
+async def _ensure_logged_in(settings: Settings) -> dict[str, str]:
+    """Return a valid session cookie, logging in if necessary."""
+    global _cookies
+    async with _cookie_lock:
+        if _cookies:
+            return _cookies
+        base = settings.puppygraph_url.rstrip("/")
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(
+                f"{base}/login",
+                json={"username": settings.puppygraph_user,
+                      "password": settings.puppygraph_password},
+            )
+            resp.raise_for_status()
+        _cookies = dict(resp.cookies)
+        return _cookies
+
+
+def _invalidate_session() -> None:
+    global _cookies
+    _cookies = None
+
 
 async def run_cypher(query: str, settings: Settings) -> list[dict[str, Any]]:
-    """Execute an openCypher query against PuppyGraph and return the rows."""
-    url = f"{settings.puppygraph_url.rstrip('/')}/gremlin"
-    payload = {
-        "gremlin": query,
-        "bindings": {},
-        "language": "opencypher",
-    }
+    """
+    Execute a Cypher query via POST /submitCypher and return rows as plain dicts.
+
+    PuppyGraph response shape:
+      [{"Keys": ["col1","col2"], "Values": [val1, val2]}, ...]
+
+    Each item maps to one result row.
+    """
+    base = settings.puppygraph_url.rstrip("/")
+    cookies = await _ensure_logged_in(settings)
+
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
-            url,
-            json=payload,
-            auth=(settings.puppygraph_user, settings.puppygraph_password),
+            f"{base}/submitCypher",
+            json={"query": query, "timeoutMs": 25000},
+            cookies=cookies,
         )
+        # Session expired — re-login once
+        if resp.status_code in (401, 403):
+            _invalidate_session()
+            cookies = await _ensure_logged_in(settings)
+            resp = await client.post(
+                f"{base}/submitCypher",
+                json={"query": query, "timeoutMs": 25000},
+                cookies=cookies,
+            )
         resp.raise_for_status()
-        body = resp.json()
 
-    # PuppyGraph response shape:
-    # { "result": { "data": { "@type": "g:List", "@value": [...] } }, ... }
-    try:
-        data = body["result"]["data"]
-        if isinstance(data, dict):
-            rows = data.get("@value", [])
-        elif isinstance(data, list):
-            rows = data
-        else:
-            rows = []
-        # Each row may be a dict of {"@type": "g:Map", "@value": [k,v,k,v,...]}
-        # or a plain dict — normalise to plain dicts
-        return [_unwrap(r) for r in rows]
-    except (KeyError, TypeError):
+    raw = resp.json()
+    if not isinstance(raw, list):
         return []
 
-
-def _unwrap(value: Any) -> Any:
-    """Recursively unwrap PuppyGraph's Gremlin-type-annotated values."""
-    if not isinstance(value, dict):
-        return value
-    t = value.get("@type", "")
-    v = value.get("@value", value)
-    if t == "g:Map":
-        # @value is a flat [k, v, k, v, ...] list
-        it = iter(v)
-        return {_unwrap(k): _unwrap(next(it)) for k in it}
-    if t in ("g:List", "g:Set"):
-        return [_unwrap(i) for i in v]
-    if t in ("g:Int32", "g:Int64", "g:Float", "g:Double"):
-        return v
-    if isinstance(v, list):
-        return [_unwrap(i) for i in v]
-    if isinstance(v, dict):
-        return _unwrap(v)
-    return v
+    rows: list[dict[str, Any]] = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        keys   = item.get("Keys", [])
+        values = item.get("Values", [])
+        if not keys:
+            continue
+        row: dict[str, Any] = {}
+        for k, v in zip(keys, values):
+            # Scalar values are returned directly; vertex/edge values have
+            # ElementId / Props — extract Props for attribute access
+            if isinstance(v, dict) and "Props" in v:
+                row[k] = v["Props"]
+            else:
+                row[k] = v
+        rows.append(row)
+    return rows

@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     # Internal shared secret for ingest service → backend validation calls
     internal_secret: str = "REDACTED"
 
-    # PuppyGraph — HTTP API on same VM (port 8081)
-    puppygraph_url: str = "http://localhost:8081"
+    # PuppyGraph — HTTP API (same VM; use public URL or http://localhost:8081)
+    puppygraph_url: str = "https://puppy.clawtrace.ai"
     puppygraph_user: str = "puppygraph"
     puppygraph_password: str = "REDACTED"
