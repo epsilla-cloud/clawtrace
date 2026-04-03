@@ -61,6 +61,13 @@ def test_create_key_success():
     from datetime import datetime, timezone
     from uuid import UUID
 
+    import base64
+    import json as _json
+
+    _observe = base64.urlsafe_b64encode(
+        _json.dumps({"apiKey": "ct_live_abc123", "tenantId": TEST_USER_ID, "agentId": TEST_KEY_ID}).encode()
+    ).rstrip(b"=").decode()
+
     mock_response = CreateKeyResponse(
         id=UUID(TEST_KEY_ID),
         name="my key",
@@ -68,6 +75,7 @@ def test_create_key_success():
         key_prefix="ct_live_abc123456789",
         tenant_id=TEST_USER_ID,
         created_at=datetime.now(timezone.utc),
+        observe_key=_observe,
     )
 
     with patch("app.routers.keys.create_api_key", new=AsyncMock(return_value=mock_response)):
@@ -77,7 +85,8 @@ def test_create_key_success():
     data = r.json()
     assert data["key"].startswith("ct_live_")
     assert data["tenant_id"] == TEST_USER_ID
-    assert "key" in data  # plaintext returned once
+    assert "key" in data          # plaintext returned once
+    assert "observe_key" in data  # encoded bundle returned once
 
 
 def test_create_key_empty_name():

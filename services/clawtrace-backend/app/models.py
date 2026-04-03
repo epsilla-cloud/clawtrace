@@ -36,6 +36,7 @@ class CreateKeyResponse(BaseModel):
     key_prefix: str   # first 20 chars for display in key list
     tenant_id: str    # = user.db_id
     created_at: datetime
+    observe_key: str  # base64url-encoded bundle: {apiKey, tenantId, agentId}
 
 
 class ApiKeyItem(BaseModel):
@@ -51,6 +52,26 @@ class ApiKeyItem(BaseModel):
 
 class ApiKeyListResponse(BaseModel):
     keys: list[ApiKeyItem]
+
+
+# ── Agent models ──────────────────────────────────────────────────────────────
+
+class AgentItem(BaseModel):
+    """Safe representation of an agent (api key) for the UI — no plaintext, no hash."""
+    id: UUID
+    name: str
+    key_prefix: str
+    tenant_id: str
+    created_at: datetime
+    last_used_at: Optional[datetime] = None
+
+
+class AgentListResponse(BaseModel):
+    agents: list[AgentItem]
+
+
+class RenameAgentRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
 
 
 # ── Tenant info ────────────────────────────────────────────────────────────────

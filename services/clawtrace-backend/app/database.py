@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import base64
 import hashlib
+import json
 import os
 import secrets
 from datetime import datetime, timezone
@@ -10,7 +12,7 @@ from uuid import UUID, uuid4
 import asyncpg
 
 from .config import Settings
-from .models import ApiKeyItem, CreateKeyResponse, TenantInfo, ValidateKeyResponse
+from .models import AgentItem, ApiKeyItem, CreateKeyResponse, TenantInfo, ValidateKeyResponse
 
 _pool: Optional[asyncpg.Pool] = None
 
@@ -76,6 +78,28 @@ def _hash_key(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 
 
+def _encode_observe_key(api_key: str, tenant_id: str, agent_id: str) -> str:
+    """Return a base64url-encoded JSON bundle for use as an observe key."""
+    payload = json.dumps(
+        {"apiKey": api_key, "tenantId": tenant_id, "agentId": agent_id},
+        separators=(",", ":"),
+    ).encode()
+    return base64.urlsafe_b64encode(payload).rstrip(b"=").decode()
+
+
+def _decode_observe_key(observe_key: str) -> Optional[dict]:
+    """Decode a base64url observe key. Returns None if the input is not an encoded key."""
+    try:
+        pad = 4 - len(observe_key) % 4
+        padded = observe_key + ("=" * pad if pad != 4 else "")
+        payload = json.loads(base64.urlsafe_b64decode(padded))
+        if isinstance(payload, dict) and "apiKey" in payload:
+            return payload
+    except Exception:
+        pass
+    return None
+
+
 # ── API key operations ────────────────────────────────────────────────────────
 
 async def create_api_key(
@@ -95,6 +119,9 @@ async def create_api_key(
             UUID(user_id), name, key_hash, key_prefix, now,
         )
 
+    key_id = str(row["id"])
+    observe_key = _encode_observe_key(key, user_id, key_id)
+
     return CreateKeyResponse(
         id=row["id"],
         name=name,
@@ -102,6 +129,7 @@ async def create_api_key(
         key_prefix=key_prefix,
         tenant_id=user_id,
         created_at=row["created_at"],
+        observe_key=observe_key,
     )
 
 
@@ -177,8 +205,18 @@ async def get_tenant_info(user_id: str, settings: Settings) -> Optional[TenantIn
 # ── Internal: called by ingest service to validate observe keys ───────────────
 
 async def validate_api_key(key: str, settings: Settings) -> ValidateKeyResponse:
+    """Validate a raw API key OR a base64url-encoded observe key.
+
+    Encoded observe keys are decoded to extract the raw apiKey, which is then
+    validated the same way as a direct raw key submission.
+    """
     pool = await get_pool(settings)
-    key_hash = _hash_key(key)
+
+    # Attempt to decode as an observe key first; fall back to treating as raw key.
+    decoded = _decode_observe_key(key)
+    raw_key = decoded["apiKey"] if decoded else key
+
+    key_hash = _hash_key(raw_key)
     now = datetime.now(timezone.utc)
 
     async with pool.acquire() as conn:
@@ -203,3 +241,64 @@ async def validate_api_key(key: str, settings: Settings) -> ValidateKeyResponse:
         tenant_id=str(row["user_id"]),
         key_id=str(row["id"]),
     )
+
+
+# ── Agent operations ──────────────────────────────────────────────────────────
+
+async def list_agents(user_id: str, settings: Settings) -> list[AgentItem]:
+    """Return all non-revoked api keys for this user as AgentItem objects."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT id, name, key_prefix, created_at, last_used_at
+            FROM api_keys
+            WHERE user_id = $1 AND revoked = FALSE
+            ORDER BY created_at DESC
+            """,
+            UUID(user_id),
+        )
+    return [
+        AgentItem(
+            id=row["id"],
+            name=row["name"],
+            key_prefix=row["key_prefix"],
+            tenant_id=user_id,
+            created_at=row["created_at"],
+            last_used_at=row["last_used_at"],
+        )
+        for row in rows
+    ]
+
+
+async def rename_agent(
+    key_id: str, user_id: str, name: str, settings: Settings
+) -> bool:
+    """Rename an agent (api key). Returns True if found and updated."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            UPDATE api_keys
+            SET name = $1
+            WHERE id = $2 AND user_id = $3 AND revoked = FALSE
+            """,
+            name, UUID(key_id), UUID(user_id),
+        )
+    return result == "UPDATE 1"
+
+
+async def delete_agent(
+    key_id: str, user_id: str, settings: Settings
+) -> bool:
+    """Hard-delete an api key row. Returns True if a row was deleted."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            DELETE FROM api_keys
+            WHERE id = $1 AND user_id = $2
+            """,
+            UUID(key_id), UUID(user_id),
+        )
+    return result == "DELETE 1"

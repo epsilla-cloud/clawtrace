@@ -24,8 +24,8 @@ async def create_key(
     settings: Settings = Depends(get_settings),
 ) -> CreateKeyResponse:
     """Create a new observe key for the authenticated tenant.
-    The plaintext key is returned ONCE — store it securely.
-    Use it as the Bearer token in OpenClaw plugin config.
+    The plaintext key and the base64url-encoded observe_key are returned ONCE — store them securely.
+    Pass the observe_key directly to the OpenClaw plugin; it bundles tenant + agent metadata.
     """
     return await create_api_key(session.db_id, body.name, settings)
 
@@ -66,6 +66,7 @@ async def validate_key(
     settings: Settings = Depends(get_settings),
 ) -> ValidateKeyResponse:
     """Internal endpoint for the ingest service to validate an observe key.
+    Accepts both raw API keys (ct_live_xxx) and base64url-encoded observe keys.
     Returns the tenant_id if valid so ingest can partition data correctly.
     Not exposed in the public OpenAPI schema.
     """
