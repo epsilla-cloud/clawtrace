@@ -108,7 +108,7 @@ export function InstancesGrid() {
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
             <circle cx="8" cy="8" r="6" /><path d="M8 5v6M5 8h6" />
           </svg>
-          Connect New Instance
+          Observe New OpenClaw Agent
         </a>
       </div>
 
@@ -149,7 +149,7 @@ export function InstancesGrid() {
                   </p>
                 </div>
                 <div className={styles.cardActions}>
-                  <a href="/traces" className={styles.viewLink}>View Traces →</a>
+                  <a href={`/traces?agentId=${agent.id}`} className={styles.viewLink}>View Traces →</a>
                   <button
                     type="button"
                     className={styles.deleteBtn}
@@ -166,7 +166,7 @@ export function InstancesGrid() {
 
           <a href="/overview/connect" className={styles.addCard}>
             <span className={styles.addIcon}>+</span>
-            <span className={styles.addLabel}>Add New Node</span>
+            <span className={styles.addLabel}>Observe New OpenClaw Agent</span>
           </a>
         </div>
       )}
