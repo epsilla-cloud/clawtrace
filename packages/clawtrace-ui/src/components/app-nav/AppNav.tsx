@@ -106,62 +106,59 @@ export function AppNav() {
     });
   };
 
+  const cls = expanded ? styles.expanded : styles.collapsed;
+
   return (
-    <div className={`${styles.wrap} ${expanded ? styles.wrapExpanded : styles.wrapCollapsed}`}>
-      <aside className={styles.nav}>
-        {/* Logo */}
-        <div className={styles.logo}>
-          <div className={styles.logoImgWrap}>
-            <Image
-              src="/clawtrace-logo.png"
-              alt="ClawTrace"
-              height={28}
-              width={expanded ? 140 : 28}
-              style={{ objectFit: 'contain', objectPosition: 'left center' }}
-              priority
-            />
-          </div>
-        </div>
+    <aside className={`${styles.nav} ${cls}`}>
+      {/* Logo */}
+      <div className={styles.logo}>
+        <Image
+          src="/clawtrace-logo.png"
+          alt="ClawTrace"
+          height={28}
+          width={expanded ? 140 : 28}
+          style={{ objectFit: 'contain', objectPosition: 'left center', transition: 'width 180ms ease' }}
+          priority
+        />
+      </div>
 
-        {/* Main nav */}
-        <nav className={styles.items}>
-          {MAIN_NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${styles.item} ${item.match(pathname ?? '') ? styles.itemActive : ''}`}
-              title={!expanded ? item.label : undefined}
-            >
-              <span className={styles.itemIcon}>{item.icon}</span>
-              <span className={styles.itemLabel}>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
+      {/* Main nav */}
+      <nav className={styles.items}>
+        {MAIN_NAV.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`${styles.item} ${item.match(pathname ?? '') ? styles.itemActive : ''}`}
+            title={!expanded ? item.label : undefined}
+          >
+            <span className={styles.itemIcon}>{item.icon}</span>
+            <span className={styles.itemLabel}>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
 
-        {/* Bottom account nav */}
-        <div className={styles.divider} />
-        <nav className={styles.bottomItems}>
-          {BOTTOM_NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`${styles.item} ${item.match(pathname ?? '') ? styles.itemActive : ''}`}
-              title={!expanded ? item.label : undefined}
-            >
-              <span className={styles.itemIcon}>{item.icon}</span>
-              <span className={styles.itemLabel}>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-      </aside>
+      {/* Divider + bottom account nav */}
+      <div className={styles.divider} />
+      <nav className={styles.bottomItems}>
+        {BOTTOM_NAV.map((item) => (
+          <Link
+            key={item.href + item.label}
+            href={item.href}
+            className={`${styles.item} ${item.match(pathname ?? '') ? styles.itemActive : ''}`}
+            title={!expanded ? item.label : undefined}
+          >
+            <span className={styles.itemIcon}>{item.icon}</span>
+            <span className={styles.itemLabel}>{item.label}</span>
+          </Link>
+        ))}
+      </nav>
 
-      {/* Handle — sibling element, no overlap */}
+      {/* Handle — half-inserted into right border */}
       <button
         type="button"
         className={styles.handle}
         onClick={toggle}
-        aria-label={expanded ? 'Collapse navigation' : 'Expand navigation'}
-        title={expanded ? 'Collapse' : 'Expand'}
+        aria-label={expanded ? 'Collapse' : 'Expand'}
       >
         <svg viewBox="0 0 8 14" fill="none" aria-hidden="true">
           <path
@@ -173,6 +170,6 @@ export function AppNav() {
           />
         </svg>
       </button>
-    </div>
+    </aside>
   );
 }
