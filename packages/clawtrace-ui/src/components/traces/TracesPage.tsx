@@ -152,6 +152,8 @@ function msToDateInput(ms: number): string {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+const DEBOUNCE_MS = 400;
+
 /* ── Main component ──────────────────────────────────────────────────────── */
 export function TracesPage() {
   const searchParams   = useSearchParams();
@@ -159,19 +161,16 @@ export function TracesPage() {
 
   const [agents, setAgents]     = useState<Agent[]>([]);
   const [agentId, setAgentId]   = useState(initialAgentId);
-  const [presetIdx, setPresetIdx] = useState<number | null>(1); // null = custom
+  const [presetIdx, setPresetIdx] = useState<number | null>(1);
   const [customFrom, setCustomFrom] = useState(msToDateInput(Date.now() - 7 * MS_PER_DAY));
   const [customTo,   setCustomTo]   = useState(msToDateInput(Date.now()));
   const [data, setData]   = useState<TracesResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
 
-  /* Compute active time range */
-  const [fromMs, toMs] = (() => {
-    const now = Date.now();
-    if (presetIdx !== null) return [now - PRESETS[presetIdx].ms, now];
-    return [dateToMs(customFrom), dateToMs(customTo, true)];
-  })();
+  // Refs for debounce timer and in-flight request cancellation
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef    = useRef<AbortController | null>(null);
 
   useEffect(() => {
     fetch('/api/agents', { cache: 'no-store' })
@@ -185,13 +184,23 @@ export function TracesPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadTraces = useCallback(async () => {
-    if (!agentId) return;
+  // Core fetch — called after debounce, with fresh AbortController
+  const fetchTraces = useCallback(async (aid: string, pidx: number | null, cfrom: string, cto: string) => {
+    // Cancel any previous in-flight request
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    // Compute range at fetch time (avoids Date.now() in render loop)
+    const now = Date.now();
+    const fromMs = pidx !== null ? now - PRESETS[pidx].ms : dateToMs(cfrom);
+    const toMs   = pidx !== null ? now : dateToMs(cto, true);
+
     setLoading(true); setError('');
     try {
       const res = await fetch(
-        `/api/traces?agent_id=${agentId}&from_ms=${fromMs}&to_ms=${toMs}`,
-        { cache: 'no-store' }
+        `/api/traces?agent_id=${aid}&from_ms=${fromMs}&to_ms=${toMs}`,
+        { cache: 'no-store', signal: controller.signal }
       );
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
@@ -199,13 +208,34 @@ export function TracesPage() {
       }
       setData(await res.json());
     } catch (e: unknown) {
+      if ((e as Error).name === 'AbortError') return; // cancelled — ignore
       setError(e instanceof Error ? e.message : 'Failed to load traces');
     } finally {
       setLoading(false);
     }
-  }, [agentId, fromMs, toMs]);
+  }, []);
 
-  useEffect(() => { loadTraces(); }, [loadTraces]);
+  // Debounced trigger — runs whenever query params change
+  const scheduleLoad = useCallback((aid: string, pidx: number | null, cfrom: string, cto: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (aid) fetchTraces(aid, pidx, cfrom, cto);
+    }, DEBOUNCE_MS);
+  }, [fetchTraces]);
+
+  // Fire on first mount and whenever inputs change
+  useEffect(() => {
+    scheduleLoad(agentId, presetIdx, customFrom, customTo);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [agentId, presetIdx, customFrom, customTo, scheduleLoad]);
+
+  // Manual refresh (bypasses debounce, cancels previous immediately)
+  const loadTraces = useCallback(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (agentId) fetchTraces(agentId, presetIdx, customFrom, customTo);
+  }, [agentId, presetIdx, customFrom, customTo, fetchTraces]);
 
   const categories = data?.trends.map(t => t.date) ?? [];
   const runValues  = data?.trends.map(t => t.run_count) ?? [];
