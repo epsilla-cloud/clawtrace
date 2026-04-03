@@ -110,16 +110,27 @@ export function AppNav() {
 
   return (
     <aside className={`${styles.nav} ${cls}`}>
-      {/* Logo */}
+      {/* Logo: favicon mark when collapsed, full wordmark when expanded */}
       <div className={styles.logo}>
-        <Image
-          src="/clawtrace-logo.png"
-          alt="ClawTrace"
-          height={28}
-          width={expanded ? 140 : 28}
-          style={{ objectFit: 'contain', objectPosition: 'left center', transition: 'width 180ms ease' }}
-          priority
-        />
+        {expanded ? (
+          <Image
+            src="/clawtrace-logo.png"
+            alt="ClawTrace"
+            height={26}
+            width={130}
+            style={{ objectFit: 'contain', objectPosition: 'left center' }}
+            priority
+          />
+        ) : (
+          <Image
+            src="/favicon.png"
+            alt="ClawTrace"
+            height={30}
+            width={30}
+            style={{ objectFit: 'contain' }}
+            priority
+          />
+        )}
       </div>
 
       {/* Main nav */}
