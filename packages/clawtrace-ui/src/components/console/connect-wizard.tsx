@@ -8,6 +8,7 @@ type Step = 1 | 2;
 
 interface CreatedKey {
   key: string;
+  observe_key: string;
   key_prefix: string;
   id: string;
 }
@@ -50,7 +51,7 @@ export function ConnectWizard() {
       });
       if (!res.ok) throw new Error('Failed to create key');
       const data = await res.json();
-      setCreatedKey({ key: data.key, key_prefix: data.key_prefix, id: data.id });
+      setCreatedKey({ key: data.key, observe_key: data.observe_key, key_prefix: data.key_prefix, id: data.id });
       setStep(2);
     } catch {
       setError('Could not create observe key. Please try again.');
@@ -110,8 +111,8 @@ export function ConnectWizard() {
               </span>
             </div>
             <div className={styles.keyRow}>
-              <code className={styles.keyValue}>{createdKey.key}</code>
-              <CopyButton text={createdKey.key} />
+              <code className={styles.keyValue}>{createdKey.observe_key}</code>
+              <CopyButton text={createdKey.observe_key} />
             </div>
             <p className={styles.keyWarning}>
               Treat this key as a password. ClawTrace will not show it again once you leave this screen.
