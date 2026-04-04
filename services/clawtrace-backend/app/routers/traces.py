@@ -6,7 +6,7 @@ Schema facts (from puppygraph/schema.json):
                 trace_start_ts_ms, trace_end_ts_ms, duration_ms,
                 event_count, trace_date
   Span  vertex  id=span_id,  attributes: tenant_id, agent_id, trace_id,
-                total_tokens, input_tokens, output_tokens, cost_usd, has_error
+                total_tokens, input_tokens, output_tokens, has_error
   Edges: Agent-[:OWNS]->Trace, Trace-[:HAS_SPAN]->Span
 
 Rules confirmed by testing:
@@ -44,14 +44,12 @@ def _default_range() -> tuple[int, int]:
 class TraceMetrics(BaseModel):
     total_traces: int
     total_tokens: int
-    total_cost_usd: float
     success_rate: float
 
 
 class TrendPoint(BaseModel):
     date: str
     run_count: int
-    cost_usd: float
 
 
 class TraceRow(BaseModel):
@@ -62,7 +60,6 @@ class TraceRow(BaseModel):
     total_tokens: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
-    cost_usd: float = 0.0
     has_error: int = 0
 
 
@@ -133,7 +130,6 @@ OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
   count(DISTINCT elementId(t))                          AS total_traces,
   coalesce(sum(s.total_tokens), 0)                      AS total_tokens,
-  coalesce(sum(s.cost_usd), 0.0)                        AS total_cost,
   sum(CASE WHEN s.has_error = 1 THEN 1 ELSE 0 END)      AS error_spans
 """
     m_rows = await run_cypher(metrics_q, settings)
@@ -147,7 +143,6 @@ RETURN
     metrics = TraceMetrics(
         total_traces=total_traces,
         total_tokens=_safe_int(m.get("total_tokens", 0)),
-        total_cost_usd=_safe_float(m.get("total_cost", 0.0)),
         success_rate=success_rate,
     )
 
@@ -161,8 +156,7 @@ WHERE t.agent_id  = '{agent_id}'
 OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
   t.trace_date                         AS date,
-  count(DISTINCT elementId(t))         AS run_count,
-  coalesce(sum(s.cost_usd), 0.0)       AS cost_usd
+  count(DISTINCT elementId(t))         AS run_count
 ORDER BY date
 """
     t_rows = await run_cypher(trends_q, settings)
@@ -170,7 +164,6 @@ ORDER BY date
         TrendPoint(
             date=str(r.get("date", "")),
             run_count=_safe_int(r.get("run_count", 0)),
-            cost_usd=_safe_float(r.get("cost_usd", 0.0)),
         )
         for r in t_rows if r.get("date")
     ]
@@ -191,7 +184,6 @@ RETURN
   coalesce(sum(s.input_tokens),  0)         AS input_tokens,
   coalesce(sum(s.output_tokens), 0)         AS output_tokens,
   coalesce(sum(s.total_tokens),  0)         AS total_tokens,
-  coalesce(sum(s.cost_usd),      0.0)       AS cost_usd,
   max(coalesce(s.has_error,      0))        AS has_error
 ORDER BY started_at_ms DESC
 LIMIT {limit}
@@ -206,7 +198,6 @@ LIMIT {limit}
             input_tokens=_safe_int(r.get("input_tokens", 0)),
             output_tokens=_safe_int(r.get("output_tokens", 0)),
             total_tokens=_safe_int(r.get("total_tokens", 0)),
-            cost_usd=_safe_float(r.get("cost_usd", 0.0)),
             has_error=_safe_int(r.get("has_error", 0)),
         )
         for r in tr_rows
@@ -228,7 +219,6 @@ class SpanDetail(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
-    cost_usd: float = 0.0
     has_error: int = 0
 
 
@@ -303,7 +293,6 @@ RETURN elementId(s)        AS span_id,
        s.input_tokens      AS input_tokens,
        s.output_tokens     AS output_tokens,
        s.total_tokens      AS total_tokens,
-       s.cost_usd          AS cost_usd,
        s.has_error         AS has_error
 ORDER BY s.span_start_ts_ms
 """
@@ -320,7 +309,6 @@ ORDER BY s.span_start_ts_ms
             input_tokens=_safe_int(r.get("input_tokens", 0)),
             output_tokens=_safe_int(r.get("output_tokens", 0)),
             total_tokens=_safe_int(r.get("total_tokens", 0)),
-            cost_usd=_safe_float(r.get("cost_usd", 0.0)),
             has_error=_safe_int(r.get("has_error", 0)),
         )
         for r in span_rows

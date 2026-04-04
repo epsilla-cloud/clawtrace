@@ -100,7 +100,6 @@
             { "type": "Long",   "field": "input_tokens",     "alias": "input_tokens"     },
             { "type": "Long",   "field": "output_tokens",    "alias": "output_tokens"    },
             { "type": "Long",   "field": "total_tokens",     "alias": "total_tokens"     },
-            { "type": "Double", "field": "cost_usd",         "alias": "cost_usd"         },
             { "type": "Int",    "field": "has_error",        "alias": "has_error"        }
           ]
         }

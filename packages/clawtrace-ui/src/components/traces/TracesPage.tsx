@@ -7,12 +7,12 @@ import styles from './TracesPage.module.css';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
 interface Agent { id: string; name: string; key_prefix: string; }
-interface TraceMetrics { total_traces: number; total_tokens: number; total_cost_usd: number; success_rate: number; }
-interface TrendPoint { date: string; run_count: number; cost_usd: number; }
+interface TraceMetrics { total_traces: number; total_tokens: number; success_rate: number; }
+interface TrendPoint { date: string; run_count: number; }
 interface TraceRow {
   trace_id: string; started_at_ms: number | null; duration_ms: number | null;
   event_count: number | null; input_tokens: number; output_tokens: number;
-  total_tokens: number; cost_usd: number; has_error: number;
+  total_tokens: number; has_error: number;
 }
 interface TracesResponse { metrics: TraceMetrics; trends: TrendPoint[]; traces: TraceRow[]; }
 
@@ -129,10 +129,6 @@ function fmtTs(ms: number | null) {
     timeZoneName: 'short',
   });
 }
-function fmtCost(usd: number) {
-  if (!usd) return '—';
-  return usd < 0.001 ? `$${usd.toFixed(5)}` : `$${usd.toFixed(4)}`;
-}
 function fmtTokens(n: number) {
   if (!n) return '—';
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
@@ -239,7 +235,6 @@ export function TracesPage() {
 
   const categories = data?.trends.map(t => t.date) ?? [];
   const runValues  = data?.trends.map(t => t.run_count) ?? [];
-  const costValues = data?.trends.map(t => t.cost_usd) ?? [];
 
   return (
     <div className={styles.shell}>
@@ -295,7 +290,6 @@ export function TracesPage() {
           {[
             { label: 'Total Traces', value: data?.metrics.total_traces.toLocaleString() ?? '—' },
             { label: 'Total Tokens', value: fmtTokens(data?.metrics.total_tokens ?? 0) },
-            { label: 'Total Cost',   value: fmtCost(data?.metrics.total_cost_usd ?? 0) },
             { label: 'Success Rate', value: data ? `${(data.metrics.success_rate * 100).toFixed(1)}%` : '—' },
           ].map(m => (
             <div key={m.label} className={styles.metricCard}>
@@ -311,10 +305,10 @@ export function TracesPage() {
             categories={categories} values={runValues}
             lineColor="#a4532b" areaTop="rgba(164,83,43,0.18)" areaBottom="rgba(164,83,43,0.02)"
             valueMode="number" />
-          <TraceChart title="Token cost over time (USD)"
-            categories={categories} values={costValues}
+          <TraceChart title="Success rate over time"
+            categories={categories} values={runValues}
             lineColor="#5b3db5" areaTop="rgba(91,61,181,0.14)" areaBottom="rgba(91,61,181,0.02)"
-            valueMode="currency" />
+            valueMode="number" />
         </div>
 
         {/* ── Traces table ────────────────────────────────────────────────── */}
@@ -325,12 +319,12 @@ export function TracesPage() {
               <thead>
                 <tr>
                   <th>Trace</th><th>Started</th><th>Duration</th><th>Events</th>
-                  <th>Input tokens</th><th>Output tokens</th><th>Cost</th><th>Status</th>
+                  <th>Input tokens</th><th>Output tokens</th><th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {data.traces.length === 0 && (
-                  <tr><td colSpan={8} className={styles.empty}>No traces in this time range.</td></tr>
+                  <tr><td colSpan={7} className={styles.empty}>No traces in this time range.</td></tr>
                 )}
                 {data.traces.map(t => (
                   <tr key={t.trace_id} className={`${styles.traceRow} ${t.has_error ? styles.rowError : ''}`}
@@ -347,7 +341,6 @@ export function TracesPage() {
                     <td>{t.event_count ?? '—'}</td>
                     <td>{fmtTokens(t.input_tokens)}</td>
                     <td>{fmtTokens(t.output_tokens)}</td>
-                    <td>{fmtCost(t.cost_usd)}</td>
                     <td><span className={`${styles.badge} ${t.has_error ? styles.badgeError : styles.badgeOk}`}>
                       {t.has_error ? 'error' : 'ok'}
                     </span></td>

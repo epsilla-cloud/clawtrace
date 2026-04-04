@@ -29,15 +29,10 @@
 -- Span semantics:
 --   Each span maps 1:1 to a single LLM invocation OR a single tool call.
 --   Multiple LLM calls per span is impossible — each llm_before_call creates
---   a fresh spanId keyed to the runId. Therefore MAX(cost_usd) per span is
---   correct (equivalent to SUM since at most one llm_after_call per span).
+--   a fresh spanId keyed to the runId.
 --
--- Cost calculation:
---   OpenClaw pre-calculates USD cost per LLM call using a built-in pricing
---   table per model. cost_usd = cacheRead + cacheWrite + input + output tokens
---   × their respective per-token rates. Stored at:
---   $.lastAssistant.usage.cost.total in the llm_after_call payload_json.
---   No pricing table is needed on our side.
+-- Cost: NOT stored here. OpenClaw only reports raw token counts.
+--   Cost is calculated on the UI side using a local pricing table.
 --
 -- Session/trace context recovery:
 --   OpenClaw omits sessionKey from after_tool_call hook ctx. The plugin
@@ -163,9 +158,8 @@ TBLPROPERTIES (
 
 -- ── pg_spans ──────────────────────────────────────────────────────────────────
 -- One row per span. Carries per-span metrics for the Span vertex in PuppyGraph.
--- Each span wraps exactly one LLM call or one tool call (1:1 by plugin design),
--- so MAX(cost_usd) is correct — equivalent to SUM since at most one
--- llm_after_call event contributes cost per span. Populated by job 20.
+-- Each span wraps exactly one LLM call or one tool call (1:1 by plugin design).
+-- Cost is NOT stored — calculated on the UI side from model + tokens.
 
 CREATE TABLE IF NOT EXISTS clawtrace.silver.pg_spans (
   tenant_id        STRING NOT NULL,
@@ -177,11 +171,10 @@ CREATE TABLE IF NOT EXISTS clawtrace.silver.pg_spans (
   span_end_ts_ms   BIGINT,
   duration_ms      BIGINT,
   actor_label      STRING,  -- free-text model/tool name, excluded from stats
-  actor_type       STRING,  -- 'model' | 'tool' | 'session'
+  actor_type       STRING,  -- 'llm_call' | 'tool_call' | 'subagent' | 'session'
   input_tokens     BIGINT,
   output_tokens    BIGINT,
   total_tokens     BIGINT,
-  cost_usd         DOUBLE,  -- pre-calculated by OpenClaw (model × token rates)
   has_error        INT
 )
 CLUSTER BY (trace_id, span_id)
@@ -189,7 +182,7 @@ TBLPROPERTIES (
   'delta.autoOptimize.optimizeWrite' = 'true',
   'delta.autoOptimize.autoCompact'   = 'true',
   -- actor_label excluded: free-text model/tool name, never range-filtered
-  'delta.dataSkippingStatsColumns'   = 'tenant_id,agent_id,trace_id,span_id,parent_span_id,actor_type,span_start_ts_ms,duration_ms,cost_usd,has_error'
+  'delta.dataSkippingStatsColumns'   = 'tenant_id,agent_id,trace_id,span_id,parent_span_id,actor_type,span_start_ts_ms,duration_ms,has_error'
 );
 
 -- ── pg_tenants ────────────────────────────────────────────────────────────────
