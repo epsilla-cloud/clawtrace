@@ -23,7 +23,14 @@ spec:
             - containerPort: 8080
           env:
             - name: CLAWTRACE_INGEST_AUTH_MODE
-              value: "mock_pass"
+              value: "remote_api"
+            - name: CLAWTRACE_INGEST_BACKEND_URL
+              value: "https://api.clawtrace.ai"
+            - name: CLAWTRACE_INGEST_INTERNAL_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: clawtrace-ingest-secrets
+                  key: internal-secret
             - name: CLAWTRACE_INGEST_STORAGE_PROVIDER
               value: "gcs"
             - name: CLAWTRACE_INGEST_RAW_BUCKET

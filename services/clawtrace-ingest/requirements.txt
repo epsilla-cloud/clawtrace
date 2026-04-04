@@ -3,6 +3,7 @@ uvicorn[standard]==0.37.0
 pydantic==2.12.3
 pydantic-settings==2.11.0
 python-json-logger==3.3.0
+httpx==0.28.1
 google-cloud-storage==3.4.1
 google-cloud-pubsub==2.31.1
 azure-identity==1.25.1

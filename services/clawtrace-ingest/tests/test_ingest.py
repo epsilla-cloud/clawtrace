@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+from unittest.mock import MagicMock, patch
 from uuid import uuid4
 
+import httpx
 from fastapi.testclient import TestClient
 
 from app.config import AuthMode, Settings
@@ -180,3 +182,82 @@ def test_ingest_rejects_invalid_json_string_payload():
 
     response = client.post("/v1/traces/events", json=payload)
     assert response.status_code == 422
+
+
+# ── Remote API auth mode tests ────────────────────────────────────────────────
+
+def _client_remote_api(backend_url: str = "https://api.clawtrace.ai") -> tuple:
+    storage = FakeRawEventStorage()
+    service = IngestService(storage=storage, publisher=NoopPublisher(), schema_version=1)
+    settings = Settings(
+        auth_mode=AuthMode.REMOTE_API,
+        backend_url=backend_url,
+        internal_secret="test-internal-secret",
+        raw_bucket="dummy-bucket-for-tests",
+    )
+    client = TestClient(create_app(settings, ingest_service=service))
+    return client, storage
+
+
+def _mock_valid_response(tenant_id: str, key_id: str) -> MagicMock:
+    mock = MagicMock(spec=httpx.Response)
+    mock.status_code = 200
+    mock.json.return_value = {"valid": True, "tenant_id": tenant_id, "key_id": key_id}
+    return mock
+
+
+def _mock_invalid_response() -> MagicMock:
+    mock = MagicMock(spec=httpx.Response)
+    mock.status_code = 200
+    mock.json.return_value = {"valid": False}
+    return mock
+
+
+def test_remote_api_auth_accepts_valid_key():
+    client, storage = _client_remote_api()
+    tenant_id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+    key_id = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+
+    with patch("httpx.post", return_value=_mock_valid_response(tenant_id, key_id)):
+        response = client.post(
+            "/v1/traces/events",
+            json=_payload(),
+            headers={"Authorization": "Bearer ct_live_testkey123"},
+        )
+
+    assert response.status_code == 200
+    assert storage.rows[0]["accountId"] == tenant_id
+
+
+def test_remote_api_auth_rejects_invalid_key():
+    client, _ = _client_remote_api()
+
+    with patch("httpx.post", return_value=_mock_invalid_response()):
+        response = client.post(
+            "/v1/traces/events",
+            json=_payload(),
+            headers={"Authorization": "Bearer ct_live_badkey"},
+        )
+
+    assert response.status_code == 401
+    assert "Invalid" in response.json()["detail"]
+
+
+def test_remote_api_auth_rejects_missing_token():
+    client, _ = _client_remote_api()
+
+    response = client.post("/v1/traces/events", json=_payload())
+    assert response.status_code == 401
+
+
+def test_remote_api_auth_handles_backend_unreachable():
+    client, _ = _client_remote_api()
+
+    with patch("httpx.post", side_effect=httpx.ConnectError("refused")):
+        response = client.post(
+            "/v1/traces/events",
+            json=_payload(),
+            headers={"Authorization": "Bearer ct_live_testkey"},
+        )
+
+    assert response.status_code == 503

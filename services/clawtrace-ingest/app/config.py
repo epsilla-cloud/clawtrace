@@ -11,6 +11,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class AuthMode(str, Enum):
     MOCK_PASS = "mock_pass"
     STATIC_KEYS = "static_keys"
+    REMOTE_API = "remote_api"
 
 
 class StorageProvider(str, Enum):
@@ -32,6 +33,9 @@ class Settings(BaseSettings):
 
     auth_mode: AuthMode = AuthMode.MOCK_PASS
     static_keys_json: str = "{}"
+    # remote_api mode: validate observe keys against the clawtrace-backend
+    backend_url: str = "https://api.clawtrace.ai"
+    internal_secret: str = ""
 
     storage_provider: StorageProvider = StorageProvider.GCS
     raw_bucket: str = ""
