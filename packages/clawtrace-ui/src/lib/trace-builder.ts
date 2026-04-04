@@ -51,9 +51,38 @@ function extractUuid(elementId: string): string {
 }
 
 /* ── Span mapping ────────────────────────────────────────────────────────── */
+
+/**
+ * Map the silver-table actor_type string to a TraceDetailSpanKind.
+ *
+ * The silver table previously used 'model' / 'tool' (3-value enum).
+ * After the SQL fix it emits 'llm_call' / 'tool_call' / 'subagent' / 'session'
+ * to match TraceDetailSpanKind directly.  Both old and new values are handled
+ * here so the UI keeps working for data not yet re-processed by the pipeline.
+ *
+ * Subagent detection fallback: a 'session' span that has a parent_span_id is
+ * a spawned child session — classify it as 'subagent' even if the silver table
+ * hasn't been re-run yet.
+ */
+function resolveKind(
+  actorType: string,
+  parentSpanId: string | null,
+): TraceDetailSpanKind {
+  switch (actorType) {
+    case 'llm_call':  return 'llm_call';
+    case 'model':     return 'llm_call';   // legacy silver table value
+    case 'tool_call': return 'tool_call';
+    case 'tool':      return 'tool_call';  // legacy silver table value
+    case 'subagent':  return 'subagent';
+    case 'session':   return parentSpanId ? 'subagent' : 'session';
+    default:          return parentSpanId ? 'subagent' : 'session';
+  }
+}
+
 function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan {
-  const kind = (s.actor_type as TraceDetailSpanKind) || 'session';
   const spanId = extractUuid(s.span_id);
+  const parentSpanId = s.parent_span_id ? extractUuid(s.parent_span_id) : null;
+  const kind = resolveKind(s.actor_type, parentSpanId);
   const startMs = toNum(s.span_start_ts_ms);
   const endMs = s.span_end_ts_ms != null ? toNum(s.span_end_ts_ms) : null;
   const durMs = toNum(s.duration_ms) > 0 ? toNum(s.duration_ms) : null;
@@ -64,12 +93,12 @@ function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan 
   return {
     traceId: traceUuid,
     spanId,
-    parentSpanId: s.parent_span_id ? extractUuid(s.parent_span_id) : null,
+    parentSpanId,
     kind,
     name: label || kind,
-    agentId: kind === 'session' ? (label || null) : null,
+    agentId: (kind === 'session' || kind === 'subagent') ? (label !== 'session' ? label : null) : null,
     // Session key for session spans; derived for others in deriveSessionKeys()
-    sessionKey: kind === 'session' ? (label || spanId) : null,
+    sessionKey: (kind === 'session' || kind === 'subagent') ? (label !== 'session' ? label : spanId) : null,
     startMs,
     endMs,
     durationMs: durMs,
@@ -77,8 +106,8 @@ function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan 
     resolvedDurationMs,
     toolName: kind === 'tool_call' ? (label || null) : null,
     toolParams: null,
-    childSessionKey: kind === 'subagent' ? (label || null) : null,
-    childAgentId: kind === 'subagent' ? (label || null) : null,
+    childSessionKey: kind === 'subagent' ? (label !== 'session' ? label : spanId) : null,
+    childAgentId: kind === 'subagent' ? (label !== 'session' ? label : spanId) : null,
     provider: null,
     model: kind === 'llm_call' ? (label || null) : null,
     tokensIn: toNum(s.input_tokens),

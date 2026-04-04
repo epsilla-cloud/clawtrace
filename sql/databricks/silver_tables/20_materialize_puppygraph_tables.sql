@@ -21,7 +21,7 @@
 --
 -- pg_spans:
 --   CLUSTER BY (trace_id, span_id) — primary PuppyGraph access is HAS_SPAN
---   traversal: fetch all spans within a trace. actor_type (3 values) excluded
+--   traversal: fetch all spans within a trace. actor_type (4 values) excluded
 --   from clustering — no benefit and breaks trace-level co-location.
 --   actor_label excluded from dataSkippingStatsColumns: free-text model/tool
 --   name (e.g. "gemini-3.1-pro-preview"), never used as a range filter.
@@ -114,9 +114,15 @@ USING (
     MAX(event_ts_ms)                      AS span_end_ts_ms,
     MAX(event_ts_ms) - MIN(event_ts_ms)   AS duration_ms,
     COALESCE(MAX(model_name), MAX(tool_name), MAX(span_name), 'session') AS actor_label,
+    -- actor_type maps to TraceDetailSpanKind on the frontend:
+    --   llm_call  = LLM step (model_name present)
+    --   tool_call = tool action (tool_name present, no model_name)
+    --   subagent  = spawned child session (parent_span_id IS NOT NULL, no model/tool)
+    --   session   = root orchestrator session
     CASE
-      WHEN MAX(model_name) IS NOT NULL THEN 'model'
-      WHEN MAX(tool_name)  IS NOT NULL THEN 'tool'
+      WHEN MAX(model_name)  IS NOT NULL THEN 'llm_call'
+      WHEN MAX(tool_name)   IS NOT NULL THEN 'tool_call'
+      WHEN parent_span_id   IS NOT NULL THEN 'subagent'
       ELSE 'session'
     END                                   AS actor_type,
     MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)) AS input_tokens,
