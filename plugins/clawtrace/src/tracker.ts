@@ -76,10 +76,7 @@ type SubagentSpawnBase = {
   requester?: { channel?: string; accountId?: string; to?: string; threadId?: string | number };
 };
 
-// Fires BEFORE spawn — can block/cancel. Child session does not exist yet.
 type SubagentSpawningEvent = SubagentSpawnBase;
-
-// Fires AFTER spawn — child session is confirmed. Includes child runId.
 type SubagentSpawnedEvent = SubagentSpawnBase & { runId: string };
 
 type SubagentEndedEvent = {
@@ -100,9 +97,32 @@ type SubagentContext = {
   requesterSessionKey?: string;
 };
 
-type SessionState = {
-  traceId: string;
-  spanId: string;
+type AgentEndEvent = {
+  messages?: unknown[];
+};
+
+type AgentEndContext = {
+  agentId?: string;
+  sessionKey?: string;
+  sessionId?: string;
+  runId?: string;
+};
+
+// ── State types ─────────────────────────────────────────────────────────────
+
+/** Lightweight session metadata — no traceId here; traces are per-run. */
+type SessionMeta = {
+  agentId?: string;
+  sessionKey: string;
+};
+
+/**
+ * One active Agent Loop (= one trace).
+ * traceId IS the runId — one trace per agentic turn.
+ */
+type RunState = {
+  traceId: string;     // = runId from OpenClaw
+  rootSpanId: string;  // the session-type root span
   sessionKey: string;
 };
 
@@ -141,15 +161,24 @@ const pruneUndefined = (input: Record<string, unknown>): Record<string, unknown>
 const toIso = (tsMs: number): string => new Date(tsMs).toISOString();
 
 export class HookEventTracker {
-  private readonly sessions = new Map<string, SessionState>();
-  private readonly runs = new Map<string, ActiveSpanState>();
+  /** Session metadata (no trace boundary — just agentId + sessionKey). */
+  private readonly sessions = new Map<string, SessionMeta>();
+
+  /**
+   * Active agent loops keyed by runId.
+   * Each entry is one trace (traceId = runId).
+   */
+  private readonly activeRuns = new Map<string, RunState>();
+
+  /** In-flight tool calls keyed by toolCallId. */
   private readonly tools = new Map<string, ActiveSpanState>();
   private readonly anonymousToolQueues = new Map<string, string[]>();
-  private readonly subagents = new Map<string, ActiveSpanState>();
-  // Populated at before_tool_call; consumed at after_tool_call to recover
-  // session context when OpenClaw omits it from the after hook ctx.
+  /** Recovers sessionKey when OpenClaw omits it from after_tool_call ctx. */
   private readonly toolCallIdToSessionKey = new Map<string, string>();
   private syntheticToolCallCounter = 0;
+
+  /** In-flight subagent spawns keyed by childSessionKey. */
+  private readonly subagents = new Map<string, ActiveSpanState>();
 
   private readonly sink: IngestEventSink;
   private readonly config: ClawTracePluginConfig;
@@ -165,61 +194,78 @@ export class HookEventTracker {
     this.nowMs = deps.nowMs ?? Date.now;
   }
 
+  // ── Session lifecycle (metadata only — no trace boundary) ───────────────
+
   onSessionStart(event: SessionStartEvent, ctx: SessionContext): void {
     const sessionKey = this.sessionKeyFrom(event, ctx);
-    const state: SessionState = {
-      traceId: this.idFactory(),
-      spanId: this.idFactory(),
-      sessionKey,
-    };
-    this.sessions.set(sessionKey, state);
-
-    this.emit({
-      eventType: "session_start",
-      traceId: state.traceId,
-      spanId: state.spanId,
-      parentSpanId: null,
-      payload: pruneUndefined({
-        sessionId: event.sessionId,
-        sessionKey,
-        resumedFrom: event.resumedFrom,
-        hook: "session_start",
-      }),
-    });
+    this.sessions.set(sessionKey, { agentId: ctx.agentId, sessionKey });
   }
 
   onSessionEnd(event: SessionEndEvent, ctx: SessionContext): void {
     const sessionKey = this.sessionKeyFrom(event, ctx);
-    const state = this.ensureSession(sessionKey, { sessionId: event.sessionId });
+
+    // Emit session_end for every still-active run in this session
+    for (const [runId, run] of this.activeRuns) {
+      if (run.sessionKey === sessionKey) {
+        this.emit({
+          eventType: "session_end",
+          traceId: run.traceId,
+          spanId: run.rootSpanId,
+          parentSpanId: null,
+          payload: pruneUndefined({
+            sessionId: event.sessionId,
+            sessionKey,
+            messageCount: event.messageCount,
+            durationMs: event.durationMs,
+            hook: "session_end",
+          }),
+        });
+        this.cleanupRunState(runId);
+      }
+    }
+
+    this.sessions.delete(sessionKey);
+  }
+
+  // ── Agent loop lifecycle ────────────────────────────────────────────────
+
+  /**
+   * Fires when the agent finishes its turn (all tool calls done, reply sent).
+   * Emits session_end to close this run's trace.
+   */
+  onAgentEnd(event: AgentEndEvent, ctx: AgentEndContext): void {
+    const runId = ctx.runId;
+    if (!runId) return;
+    const run = this.activeRuns.get(runId);
+    if (!run) return;
 
     this.emit({
       eventType: "session_end",
-      traceId: state.traceId,
-      spanId: state.spanId,
+      traceId: run.traceId,
+      spanId: run.rootSpanId,
       parentSpanId: null,
       payload: pruneUndefined({
-        sessionId: event.sessionId,
-        sessionKey,
-        messageCount: event.messageCount,
-        durationMs: event.durationMs,
-        hook: "session_end",
+        sessionKey: run.sessionKey,
+        hook: "agent_end",
       }),
     });
 
-    this.sessions.delete(sessionKey);
-    this.cleanupSessionState(state.traceId, sessionKey);
+    this.cleanupRunState(runId);
   }
+
+  // ── LLM hooks ───────────────────────────────────────────────────────────
 
   onLlmInput(event: LlmInputEvent, ctx: AgentContext): void {
     const sessionKey = this.sessionKeyFrom({ sessionId: event.sessionId }, ctx);
-    const session = this.ensureSession(sessionKey, { sessionId: event.sessionId });
+    const run = this.ensureRun(event.runId, sessionKey, ctx);
 
     const span: ActiveSpanState = {
-      traceId: session.traceId,
+      traceId: run.traceId,
       spanId: this.idFactory(),
-      parentSpanId: session.spanId,
+      parentSpanId: run.rootSpanId,
     };
-    this.runs.set(event.runId, span);
+    // Store so llm_output can close the same span
+    this.tools.set(`llm:${event.runId}`, span);
 
     this.emit({
       eventType: "llm_before_call",
@@ -242,14 +288,17 @@ export class HookEventTracker {
   }
 
   onLlmOutput(event: LlmOutputEvent, ctx: AgentContext): void {
-    const run = this.runs.get(event.runId);
     const sessionKey = this.sessionKeyFrom({ sessionId: event.sessionId }, ctx);
-    const fallbackSession = this.ensureSession(sessionKey, { sessionId: event.sessionId });
-    const span = run ?? {
-      traceId: fallbackSession.traceId,
+    const run = this.ensureRun(event.runId, sessionKey, ctx);
+
+    // Recover the span opened by llm_input, or create a new one
+    const llmSpan = this.tools.get(`llm:${event.runId}`);
+    const span = llmSpan ?? {
+      traceId: run.traceId,
       spanId: this.idFactory(),
-      parentSpanId: fallbackSession.spanId,
+      parentSpanId: run.rootSpanId,
     };
+    this.tools.delete(`llm:${event.runId}`);
 
     this.emit({
       eventType: "llm_after_call",
@@ -268,19 +317,22 @@ export class HookEventTracker {
         hook: "llm_output",
       }),
     });
-
-    this.runs.delete(event.runId);
   }
+
+  // ── Tool hooks ──────────────────────────────────────────────────────────
 
   onBeforeToolCall(event: BeforeToolCallEvent, ctx: ToolContext): void {
     const sessionKey = this.sessionKeyFrom({}, ctx);
-    const session = this.ensureSession(sessionKey, {});
-    const run = event.runId ? this.runs.get(event.runId) : undefined;
-    const parentSpanId = run?.spanId ?? session.spanId;
+    const runId = event.runId ?? ctx.runId;
+    const run = runId ? this.activeRuns.get(runId) : undefined;
+    // Parent under the current LLM span if one is active, otherwise root
+    const llmSpan = runId ? this.tools.get(`llm:${runId}`) : undefined;
+    const parentSpanId = llmSpan?.spanId ?? run?.rootSpanId ?? null;
+    const traceId = run?.traceId ?? runId ?? this.idFactory();
 
     const toolCallId = this.resolveToolCallId(event, ctx) ?? `anon-tool-${this.idFactory()}`;
     const span: ActiveSpanState = {
-      traceId: run?.traceId ?? session.traceId,
+      traceId,
       spanId: this.idFactory(),
       parentSpanId,
     };
@@ -293,7 +345,7 @@ export class HookEventTracker {
       spanId: span.spanId,
       parentSpanId: span.parentSpanId,
       payload: pruneUndefined({
-        runId: event.runId ?? ctx.runId,
+        runId: runId,
         toolCallId,
         sessionKey,
         toolName: event.toolName,
@@ -305,29 +357,21 @@ export class HookEventTracker {
 
   onAfterToolCall(event: AfterToolCallEvent, ctx: ToolContext): void {
     const toolCallId = this.resolveToolCallId(event, ctx, true);
-    // OpenClaw does not populate session ctx on after_tool_call — recover from
-    // the sessionKey stored when the matching before_tool_call was processed.
     const ctxSessionKey = this.sessionKeyFrom({}, ctx);
     const sessionKey =
       ctxSessionKey === "unknown" && toolCallId
         ? (this.toolCallIdToSessionKey.get(toolCallId) ?? ctxSessionKey)
         : ctxSessionKey;
     if (toolCallId) this.toolCallIdToSessionKey.delete(toolCallId);
-    const session = this.ensureSession(sessionKey, {});
-    const run = event.runId ? this.runs.get(event.runId) : undefined;
+
+    const runId = event.runId ?? ctx.runId;
+    const run = runId ? this.activeRuns.get(runId) : undefined;
+
     const span =
       (toolCallId ? this.tools.get(toolCallId) : undefined) ??
       (run
-        ? {
-            traceId: run.traceId,
-            spanId: this.idFactory(),
-            parentSpanId: run.spanId,
-          }
-        : {
-            traceId: session.traceId,
-            spanId: this.idFactory(),
-            parentSpanId: session.spanId,
-          });
+        ? { traceId: run.traceId, spanId: this.idFactory(), parentSpanId: run.rootSpanId }
+        : { traceId: runId ?? this.idFactory(), spanId: this.idFactory(), parentSpanId: null });
 
     this.emit({
       eventType: "tool_after_call",
@@ -335,7 +379,7 @@ export class HookEventTracker {
       spanId: span.spanId,
       parentSpanId: span.parentSpanId,
       payload: pruneUndefined({
-        runId: event.runId ?? ctx.runId,
+        runId: runId,
         toolCallId,
         sessionKey,
         toolName: event.toolName,
@@ -365,36 +409,32 @@ export class HookEventTracker {
     if (toolCallId) this.tools.delete(toolCallId);
   }
 
-  // Pre-spawn gate hook — fires before the child session is created.
-  // Only sets up span state so it's ready for onSubagentSpawned / onSubagentEnded.
-  // Does NOT emit: spawn can still be cancelled at this point.
+  // ── Subagent hooks ──────────────────────────────────────────────────────
+
   onSubagentSpawning(event: SubagentSpawningEvent, ctx: SubagentContext): void {
-    const requesterSessionKey = ctx.requesterSessionKey ?? "unknown";
-    const session = this.ensureSession(requesterSessionKey, {});
+    const parentRunId = ctx.runId;
+    const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
+
     const span: ActiveSpanState = {
-      traceId: session.traceId,
+      traceId: parentRun?.traceId ?? parentRunId ?? this.idFactory(),
       spanId: this.idFactory(),
-      parentSpanId: session.spanId,
+      parentSpanId: parentRun?.rootSpanId ?? null,
     };
     this.subagents.set(event.childSessionKey, span);
   }
 
-  // Post-spawn confirmation hook — fires after the child session is created.
-  // This is the authoritative "spawn happened" signal; emits subagent_spawn.
   onSubagentSpawned(event: SubagentSpawnedEvent, ctx: SubagentContext): void {
     const requesterSessionKey = ctx.requesterSessionKey ?? "unknown";
-    // Span may have been pre-allocated by onSubagentSpawning; create it if not.
+    const parentRunId = ctx.runId;
+    const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
+
     const existing = this.subagents.get(event.childSessionKey);
-    const span: ActiveSpanState = existing ?? (() => {
-      const session = this.ensureSession(requesterSessionKey, {});
-      const s: ActiveSpanState = {
-        traceId: session.traceId,
-        spanId: this.idFactory(),
-        parentSpanId: session.spanId,
-      };
-      this.subagents.set(event.childSessionKey, s);
-      return s;
-    })();
+    const span: ActiveSpanState = existing ?? {
+      traceId: parentRun?.traceId ?? parentRunId ?? this.idFactory(),
+      spanId: this.idFactory(),
+      parentSpanId: parentRun?.rootSpanId ?? null,
+    };
+    if (!existing) this.subagents.set(event.childSessionKey, span);
 
     this.emit({
       eventType: "subagent_spawn",
@@ -417,14 +457,15 @@ export class HookEventTracker {
 
   onSubagentEnded(event: SubagentEndedEvent, ctx: SubagentContext): void {
     const span = this.subagents.get(event.targetSessionKey);
-    const fallbackSession = this.ensureSession(ctx.requesterSessionKey ?? "unknown", {});
-    const resolved =
-      span ??
-      ({
-        traceId: fallbackSession.traceId,
+    const parentRunId = ctx.runId;
+    const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
+
+    const resolved: ActiveSpanState =
+      span ?? {
+        traceId: parentRun?.traceId ?? parentRunId ?? this.idFactory(),
         spanId: this.idFactory(),
-        parentSpanId: fallbackSession.spanId,
-      } as ActiveSpanState);
+        parentSpanId: parentRun?.rootSpanId ?? null,
+      };
 
     this.emit({
       eventType: "subagent_join",
@@ -462,6 +503,8 @@ export class HookEventTracker {
     this.subagents.delete(event.targetSessionKey);
   }
 
+  // ── Internals ───────────────────────────────────────────────────────────
+
   private emit(input: EmitInput): void {
     const tsMs = input.tsMs ?? this.nowMs();
     const envelope: IngestEnvelope = {
@@ -484,6 +527,41 @@ export class HookEventTracker {
     this.sink.enqueue(envelope);
   }
 
+  /**
+   * Ensure an active run exists for this runId.
+   * If it's the first event for this runId, create a new trace (traceId = runId)
+   * and emit a session_start root span.
+   */
+  private ensureRun(runId: string, sessionKey: string, ctx: AgentContext): RunState {
+    const existing = this.activeRuns.get(runId);
+    if (existing) return existing;
+
+    const rootSpanId = this.idFactory();
+    const run: RunState = {
+      traceId: runId,
+      rootSpanId,
+      sessionKey,
+    };
+    this.activeRuns.set(runId, run);
+
+    // Emit the root span (session type) for this agent loop
+    this.emit({
+      eventType: "session_start",
+      traceId: runId,
+      spanId: rootSpanId,
+      parentSpanId: null,
+      payload: pruneUndefined({
+        sessionKey,
+        agentId: ctx.agentId,
+        sessionId: ctx.sessionId,
+        runId,
+        hook: "agent_loop_start",
+      }),
+    });
+
+    return run;
+  }
+
   private sessionKeyFrom(
     event: { sessionKey?: string; sessionId?: string },
     ctx: { sessionKey?: string; sessionId?: string },
@@ -491,32 +569,24 @@ export class HookEventTracker {
     return event.sessionKey ?? ctx.sessionKey ?? event.sessionId ?? ctx.sessionId ?? "unknown";
   }
 
-  private ensureSession(sessionKey: string, payload: Record<string, unknown>): SessionState {
-    const existing = this.sessions.get(sessionKey);
-    if (existing) return existing;
+  private cleanupRunState(runId: string): void {
+    const run = this.activeRuns.get(runId);
+    if (!run) return;
+    this.activeRuns.delete(runId);
 
-    const synthetic: SessionState = {
-      traceId: this.idFactory(),
-      spanId: this.idFactory(),
-      sessionKey,
-    };
-    this.sessions.set(sessionKey, synthetic);
-
-    this.logger.warn?.(`[clawtrace] Missing explicit session_start for ${sessionKey}; emitting synthetic session_start.`);
-    this.emit({
-      eventType: "session_start",
-      traceId: synthetic.traceId,
-      spanId: synthetic.spanId,
-      parentSpanId: null,
-      payload: pruneUndefined({
-        sessionKey,
-        synthetic: true,
-        syntheticReason: "session_state_missing",
-        ...payload,
-      }),
-    });
-
-    return synthetic;
+    // Clean up tool/subagent state associated with this trace
+    for (const [key, span] of this.tools) {
+      if (span.traceId === run.traceId) this.tools.delete(key);
+    }
+    for (const [key, span] of this.subagents) {
+      if (span.traceId === run.traceId) this.subagents.delete(key);
+    }
+    for (const [key] of this.anonymousToolQueues) {
+      if (key.endsWith(`::${run.sessionKey}`)) this.anonymousToolQueues.delete(key);
+    }
+    for (const [key, sk] of this.toolCallIdToSessionKey) {
+      if (sk === run.sessionKey) this.toolCallIdToSessionKey.delete(key);
+    }
   }
 
   private resolveToolCallId(
@@ -534,9 +604,6 @@ export class HookEventTracker {
     if (consumeAnonymous) {
       const id = queue.shift();
       if (id) return id;
-      // Fallback: OpenClaw may omit session context on after_tool_call, causing
-      // a different queue key than was used at before_tool_call. Scan for any
-      // queue matching runId::toolName regardless of session part.
       const prefix = `${event.runId ?? ctx.runId ?? "run:unknown"}::${event.toolName}::`;
       for (const [key, q] of this.anonymousToolQueues) {
         if (key !== queueKey && key.startsWith(prefix) && q.length > 0) {
@@ -559,45 +626,5 @@ export class HookEventTracker {
   ): string {
     const sessionPart = ctx.sessionKey ?? ctx.sessionId ?? "unknown";
     return `${runId ?? "run:unknown"}::${toolName}::${sessionPart}`;
-  }
-
-  private cleanupSessionState(traceId: string, sessionKey: string): void {
-    const runKeysToDelete: string[] = [];
-    for (const [runId, run] of this.runs) {
-      if (run.traceId === traceId) {
-        runKeysToDelete.push(runId);
-      }
-    }
-    for (const runId of runKeysToDelete) this.runs.delete(runId);
-
-    const toolKeysToDelete: string[] = [];
-    for (const [toolCallId, tool] of this.tools) {
-      if (tool.traceId === traceId) {
-        toolKeysToDelete.push(toolCallId);
-      }
-    }
-    for (const toolCallId of toolKeysToDelete) this.tools.delete(toolCallId);
-
-    const subagentKeysToDelete: string[] = [];
-    for (const [childSessionKey, subagent] of this.subagents) {
-      if (subagent.traceId === traceId) {
-        subagentKeysToDelete.push(childSessionKey);
-      }
-    }
-    for (const childSessionKey of subagentKeysToDelete) this.subagents.delete(childSessionKey);
-
-    const anonymousQueueKeysToDelete: string[] = [];
-    for (const queueKey of this.anonymousToolQueues.keys()) {
-      if (queueKey.endsWith(`::${sessionKey}`)) {
-        anonymousQueueKeysToDelete.push(queueKey);
-      }
-    }
-    for (const queueKey of anonymousQueueKeysToDelete) this.anonymousToolQueues.delete(queueKey);
-
-    const toolCallIdsToDelete: string[] = [];
-    for (const [toolCallId, sk] of this.toolCallIdToSessionKey) {
-      if (sk === sessionKey) toolCallIdsToDelete.push(toolCallId);
-    }
-    for (const id of toolCallIdsToDelete) this.toolCallIdToSessionKey.delete(id);
   }
 }
