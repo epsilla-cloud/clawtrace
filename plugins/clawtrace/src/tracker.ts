@@ -160,6 +160,24 @@ const pruneUndefined = (input: Record<string, unknown>): Record<string, unknown>
 
 const toIso = (tsMs: number): string => new Date(tsMs).toISOString();
 
+/**
+ * Parse the OpenClaw sessionKey to extract the agent identity.
+ *
+ * Format: agent:<agentId>:<target>
+ * Examples:
+ *   "agent:main:main"           → agentName="main",   isSubAgent=false
+ *   "agent:coding:main"         → agentName="coding",  isSubAgent=false
+ *   "agent:main:subagent:550e…" → agentName="main",   isSubAgent=true
+ *   "agent:codex:acp:123…"     → agentName="codex",  isSubAgent=true
+ *   "unknown"                   → agentName="unknown", isSubAgent=false
+ */
+function parseAgentIdentity(sessionKey: string): { agentName: string; isSubAgent: boolean } {
+  const parts = sessionKey.split(":");
+  const agentName = parts.length >= 2 && parts[0] === "agent" ? parts[1] : sessionKey;
+  const isSubAgent = parts.includes("subagent") || parts.includes("acp");
+  return { agentName, isSubAgent };
+}
+
 export class HookEventTracker {
   /** Session metadata (no trace boundary — just agentId + sessionKey). */
   private readonly sessions = new Map<string, SessionMeta>();
@@ -544,6 +562,10 @@ export class HookEventTracker {
     };
     this.activeRuns.set(runId, run);
 
+    // Parse agent identity from sessionKey
+    // Format: agent:<agentId>:<target> e.g. "agent:main:main", "agent:codex:subagent:550e..."
+    const identity = parseAgentIdentity(sessionKey);
+
     // Emit the root span (session type) for this agent loop
     this.emit({
       eventType: "session_start",
@@ -553,6 +575,8 @@ export class HookEventTracker {
       payload: pruneUndefined({
         sessionKey,
         agentId: ctx.agentId,
+        agentName: identity.agentName,
+        isSubAgent: identity.isSubAgent || undefined,
         sessionId: ctx.sessionId,
         runId,
         hook: "agent_loop_start",

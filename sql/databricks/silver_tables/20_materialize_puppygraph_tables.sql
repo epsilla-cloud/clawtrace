@@ -25,11 +25,10 @@
 --   from clustering — no benefit and breaks trace-level co-location.
 --   actor_label excluded from dataSkippingStatsColumns: free-text model/tool
 --   name (e.g. "gemini-3.1-pro-preview"), never used as a range filter.
---   cost_usd uses MAX() not SUM(): each span wraps exactly one LLM call
---   (plugin creates a fresh spanId per llm_before_call), so at most one
---   llm_after_call event contributes cost per span — MAX == SUM.
---   OpenClaw pre-calculates cost in USD (cacheRead + cacheWrite + input +
---   output tokens × per-model rates) before emitting the event.
+--   cost_usd: OpenClaw does NOT report cost in USD — only raw token counts
+--   (usage: { input, output, cacheRead, cacheWrite, total }).
+--   We estimate cost from model name + token counts using published pricing.
+--   For production accuracy, maintain a pricing table in the backend.
 --
 -- pg_child_of_edges:
 --   CLUSTER BY (trace_id, parent_span_id) — most frequent traversal is
@@ -128,7 +127,34 @@ USING (
     MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)) AS input_tokens,
     MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)) AS output_tokens,
     MAX(CAST(get_json_object(payload_json, '$.usage.total')  AS BIGINT)) AS total_tokens,
-    MAX(CAST(get_json_object(payload_json, '$.lastAssistant.usage.cost.total') AS DOUBLE)) AS cost_usd,
+    -- OpenClaw hooks report raw token counts only — NOT USD cost.
+    -- Estimate cost from model name + token counts. For production accuracy,
+    -- maintain a pricing table in the backend and override this value.
+    CASE
+      WHEN MAX(model_name) LIKE '%claude%opus%'   THEN
+        (COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)), 0) * 15.0
+       + COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)), 0) * 75.0) / 1000000
+      WHEN MAX(model_name) LIKE '%claude%sonnet%' THEN
+        (COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)), 0) * 3.0
+       + COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)), 0) * 15.0) / 1000000
+      WHEN MAX(model_name) LIKE '%claude%haiku%'  THEN
+        (COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)), 0) * 0.25
+       + COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)), 0) * 1.25) / 1000000
+      WHEN MAX(model_name) LIKE '%gpt-4o%'        THEN
+        (COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)), 0) * 2.5
+       + COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)), 0) * 10.0) / 1000000
+      WHEN MAX(model_name) LIKE '%gemini%pro%'    THEN
+        (COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)), 0) * 1.25
+       + COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)), 0) * 5.0) / 1000000
+      WHEN MAX(model_name) LIKE '%gemini%flash%'  THEN
+        (COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)), 0) * 0.075
+       + COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)), 0) * 0.30) / 1000000
+      WHEN MAX(model_name) IS NOT NULL             THEN
+        -- Fallback: $4/1M input, $12/1M output (mid-tier estimate)
+        (COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)), 0) * 4.0
+       + COALESCE(MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)), 0) * 12.0) / 1000000
+      ELSE NULL
+    END                                           AS cost_usd,
     MAX(CASE WHEN event_type = 'error' THEN 1 ELSE 0 END)               AS has_error
   FROM clawtrace.silver.events_all
   WHERE trace_id IN (
