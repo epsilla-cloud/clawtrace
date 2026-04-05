@@ -201,6 +201,17 @@ export class HookEventTracker {
   /** In-flight subagent spawns keyed by childSessionKey. */
   private readonly subagents = new Map<string, ActiveSpanState>();
 
+  /**
+   * childSessionKey → parent trace link.
+   * Set when subagent_spawned fires so that the child's llm_input uses the
+   * parent's traceId instead of the child's own runId — keeping the entire
+   * multi-agent tree in ONE trace.
+   */
+  private readonly childSessionToParentTrace = new Map<
+    string,
+    { traceId: string; spawnSpanId: string }
+  >();
+
   private readonly sink: IngestEventSink;
   private readonly config: ClawTracePluginConfig;
   private readonly logger: PluginLogger;
@@ -424,7 +435,8 @@ export class HookEventTracker {
   // ── Subagent hooks ──────────────────────────────────────────────────────
 
   onSubagentSpawning(event: SubagentSpawningEvent, ctx: SubagentContext): void {
-    const parentRunId = ctx.runId;
+    const requesterSessionKey = ctx.requesterSessionKey ?? "unknown";
+    const parentRunId = ctx.runId ?? this.sessionToRunId.get(requesterSessionKey);
     const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
 
     const span: ActiveSpanState = {
@@ -437,7 +449,8 @@ export class HookEventTracker {
 
   onSubagentSpawned(event: SubagentSpawnedEvent, ctx: SubagentContext): void {
     const requesterSessionKey = ctx.requesterSessionKey ?? "unknown";
-    const parentRunId = ctx.runId;
+    // Resolve parent run (ctx.runId may be undefined — fall back to sessionKey)
+    const parentRunId = ctx.runId ?? this.sessionToRunId.get(requesterSessionKey);
     const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
 
     const existing = this.subagents.get(event.childSessionKey);
@@ -447,6 +460,12 @@ export class HookEventTracker {
       parentSpanId: parentRun?.rootSpanId ?? null,
     };
     if (!existing) this.subagents.set(event.childSessionKey, span);
+
+    // Link child session to parent trace — child events will join this trace
+    this.childSessionToParentTrace.set(event.childSessionKey, {
+      traceId: span.traceId,
+      spawnSpanId: span.spanId,
+    });
 
     this.emit({
       eventType: "subagent_spawn",
@@ -469,7 +488,8 @@ export class HookEventTracker {
 
   onSubagentEnded(event: SubagentEndedEvent, ctx: SubagentContext): void {
     const span = this.subagents.get(event.targetSessionKey);
-    const parentRunId = ctx.runId;
+    const requesterSessionKey = ctx.requesterSessionKey ?? "unknown";
+    const parentRunId = ctx.runId ?? this.sessionToRunId.get(requesterSessionKey);
     const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
 
     const resolved: ActiveSpanState =
@@ -548,9 +568,16 @@ export class HookEventTracker {
     const existing = this.activeRuns.get(runId);
     if (existing) return existing;
 
+    // If this session was spawned by a parent agent, join the parent's trace
+    // instead of starting a new one. This keeps the entire multi-agent tree
+    // in ONE trace so the UI renders a single execution hierarchy.
+    const parentLink = this.childSessionToParentTrace.get(sessionKey);
+    const traceId = parentLink?.traceId ?? runId;
+    const rootParentSpanId = parentLink?.spawnSpanId ?? null;
+
     const rootSpanId = this.idFactory();
     const run: RunState = {
-      traceId: runId,
+      traceId,
       rootSpanId,
       sessionKey,
     };
@@ -561,12 +588,13 @@ export class HookEventTracker {
     // Format: agent:<agentId>:<target> e.g. "agent:main:main", "agent:codex:subagent:550e..."
     const identity = parseAgentIdentity(sessionKey);
 
-    // Emit the root span (session type) for this agent loop
+    // Emit the root span for this agent loop.
+    // If spawned by a parent, parentSpanId links to the sessions_spawn span.
     this.emit({
       eventType: "session_start",
-      traceId: runId,
+      traceId,
       spanId: rootSpanId,
-      parentSpanId: null,
+      parentSpanId: rootParentSpanId,
       payload: pruneUndefined({
         sessionKey,
         agentId: ctx.agentId,
