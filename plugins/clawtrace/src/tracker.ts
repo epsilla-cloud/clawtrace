@@ -571,14 +571,12 @@ export class HookEventTracker {
     const existing = this.activeRuns.get(runId);
     if (existing) return existing;
 
-    // If this session was spawned by a parent agent, join the parent's trace
-    const parentLink = this.childSessionToParentTrace.get(sessionKey);
-    const traceId = parentLink?.traceId ?? runId;
-    const rootParentSpanId = parentLink?.spawnSpanId ?? null;
-
-    this.logger.warn?.(
-      `[clawtrace:debug] ensureRun: runId=${runId} sessionKey="${sessionKey}" parentLinkFound=${!!parentLink} traceId=${traceId} mapKeys=[${[...this.childSessionToParentTrace.keys()].join(", ")}]`,
-    );
+    // If this session is a subagent, join the parent's trace.
+    // Detect via sessionKey format: "agent:<id>:subagent:<uuid>" or "agent:<id>:acp:<uuid>"
+    // and resolve the parent's active run via sessionToRunId.
+    const parentInfo = this.resolveParentTrace(sessionKey);
+    const traceId = parentInfo?.traceId ?? runId;
+    const rootParentSpanId = parentInfo?.parentSpanId ?? null;
 
     const rootSpanId = this.idFactory();
     const run: RunState = {
@@ -612,6 +610,40 @@ export class HookEventTracker {
     });
 
     return run;
+  }
+
+  /**
+   * If sessionKey indicates a subagent (contains ":subagent:" or ":acp:"),
+   * find the parent agent's active run and return its traceId + rootSpanId.
+   * This is timing-safe: the parent's llm_input always fires before the
+   * child's because the parent must invoke the model → call sessions_spawn
+   * → create child → child starts. So sessionToRunId is guaranteed to have
+   * the parent's runId by the time the child's ensureRun fires.
+   */
+  private resolveParentTrace(
+    childSessionKey: string,
+  ): { traceId: string; parentSpanId: string } | null {
+    // Also check explicit childSessionToParentTrace map (set by onSubagentSpawning for thread=true spawns)
+    const explicit = this.childSessionToParentTrace.get(childSessionKey);
+    if (explicit) return { traceId: explicit.traceId, parentSpanId: explicit.spawnSpanId };
+
+    // Detect subagent from sessionKey format: agent:<agentId>:subagent:<uuid>
+    const parts = childSessionKey.split(":");
+    const subIdx = parts.indexOf("subagent");
+    const acpIdx = parts.indexOf("acp");
+    const markerIdx = subIdx >= 0 ? subIdx : acpIdx;
+    if (markerIdx < 0) return null; // not a subagent
+
+    // Derive parent's sessionKey: agent:<agentId>:main
+    // (the prefix before :subagent/:acp + :main)
+    const parentSessionKey = parts.slice(0, markerIdx).join(":") + ":main";
+    const parentRunId = this.sessionToRunId.get(parentSessionKey);
+    if (!parentRunId) return null;
+
+    const parentRun = this.activeRuns.get(parentRunId);
+    if (!parentRun) return null;
+
+    return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
   }
 
   private sessionKeyFrom(
