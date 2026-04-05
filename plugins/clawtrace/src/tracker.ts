@@ -641,21 +641,38 @@ export class HookEventTracker {
 
     // 2. Only spawned child sessions merge into a parent trace.
     //    Spawned children have ":subagent:" or ":acp:" in their sessionKey.
-    //    The parent's sessionKey is everything before the last spawn marker.
-    //    Only exact prefix match — no broad search.
     //
-    //    agent:main:telegram:direct:123:subagent:abc → parent = agent:main:telegram:direct:123
-    //    agent:main:subagent:abc:subagent:def        → parent = agent:main:subagent:abc
-    //    agent:main:subagent:abc                     → parent = agent:main (try exact match only)
+    //    Step A: Try exact prefix (strip last spawn marker).
+    //      agent:main:telegram:direct:123:subagent:abc → agent:main:telegram:direct:123 (exact match)
+    //      agent:main:subagent:abc:subagent:def        → agent:main:subagent:abc (exact match)
+    //
+    //    Step B: OpenClaw formats direct children as agent:<id>:subagent:<uuid>
+    //      (NOT as <parentKey>:subagent:<uuid>), so exact prefix gives "agent:main"
+    //      which won't match "agent:main:main" or "agent:main:telegram:...".
+    //      For direct children only (one spawn marker), search the agent's active
+    //      non-spawn sessions.
     {
       const lastSub = childSessionKey.lastIndexOf(":subagent:");
       const lastAcp = childSessionKey.lastIndexOf(":acp:");
       const lastMarker = Math.max(lastSub, lastAcp);
       if (lastMarker > 0) {
-        const parentSessionKey = childSessionKey.slice(0, lastMarker);
-        const parentRunId = this.sessionToRunId.get(parentSessionKey);
-        const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
-        if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
+        // Step A: exact prefix
+        const stripped = childSessionKey.slice(0, lastMarker);
+        const directRunId = this.sessionToRunId.get(stripped);
+        const directRun = directRunId ? this.activeRuns.get(directRunId) : undefined;
+        if (directRun) return { traceId: directRun.traceId, parentSpanId: directRun.rootSpanId };
+
+        // Step B: for direct children (stripped has no spawn markers),
+        // search the agent's non-spawn sessions by prefix
+        if (!stripped.includes(":subagent:") && !stripped.includes(":acp:")) {
+          const agentPrefix = stripped + ":";
+          for (const [sk, rid] of this.sessionToRunId) {
+            if (!sk.startsWith(agentPrefix) || sk === childSessionKey) continue;
+            if (sk.includes(":subagent:") || sk.includes(":acp:")) continue;
+            const parentRun = this.activeRuns.get(rid);
+            if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
+          }
+        }
       }
     }
 
