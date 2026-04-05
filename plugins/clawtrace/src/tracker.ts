@@ -639,21 +639,19 @@ export class HookEventTracker {
     const explicit = this.childSessionToParentTrace.get(childSessionKey);
     if (explicit) return { traceId: explicit.traceId, parentSpanId: explicit.spawnSpanId };
 
-    // 2. Detect subagent from sessionKey: agent:<id>:subagent:<uuid>
-    const parts = childSessionKey.split(":");
-    const subIdx = parts.indexOf("subagent");
-    const acpIdx = parts.indexOf("acp");
-    const markerIdx = subIdx >= 0 ? subIdx : acpIdx;
-    if (markerIdx >= 0) {
-      // The parent could be on any channel session (main, telegram, discord, etc.)
-      // Search all active sessions for the same agent prefix.
-      const agentPrefix = parts.slice(0, markerIdx).join(":") + ":";
-      for (const [sk, rid] of this.sessionToRunId) {
-        if (sk.startsWith(agentPrefix) && !sk.includes(":subagent:") && !sk.includes(":acp:")) {
-          const parentRun = this.activeRuns.get(rid);
-          if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
-        }
-      }
+    // 2. Detect subagent/acp from sessionKey and resolve one level up.
+    //    agent:main:telegram:direct:123:subagent:abc → parent = agent:main:telegram:direct:123
+    //    agent:main:subagent:abc:subagent:def        → parent = agent:main:subagent:abc
+    //    agent:main:acp:abc                          → parent prefix = agent:main:
+    const lastSub = childSessionKey.lastIndexOf(":subagent:");
+    const lastAcp = childSessionKey.lastIndexOf(":acp:");
+    const lastMarker = Math.max(lastSub, lastAcp);
+    if (lastMarker > 0) {
+      // Exact parent sessionKey = everything before the last :subagent:/:acp: segment
+      const parentSessionKey = childSessionKey.slice(0, lastMarker);
+      const parentRunId = this.sessionToRunId.get(parentSessionKey);
+      const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
+      if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
     }
 
     // 3. Detect announce runs: "announce:v1:agent:<id>:subagent:<uuid>:<childRunId>"
