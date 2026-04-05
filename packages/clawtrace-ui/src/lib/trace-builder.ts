@@ -26,6 +26,7 @@ export type BackendSpanData = {
   output_tokens?: number;
   total_tokens?: number;
   has_error?: number;
+  payload_json?: string | null;
 };
 
 export type BackendMetaData = {
@@ -102,6 +103,12 @@ function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan 
   const resolvedDurationMs = Math.max(0, durMs ?? (resolvedEndMs - startMs));
   const label = s.actor_label ?? '';
 
+  // Parse payload_json for detail inspection (tool params/results, LLM prompts/responses)
+  let payload: Record<string, unknown> = {};
+  if (s.payload_json) {
+    try { payload = JSON.parse(s.payload_json) as Record<string, unknown>; } catch { /* ignore */ }
+  }
+
   return {
     traceId: traceUuid,
     spanId,
@@ -117,16 +124,25 @@ function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan 
     resolvedEndMs,
     resolvedDurationMs,
     toolName: kind === 'tool_call' ? (label || null) : null,
-    toolParams: null,
+    toolParams: (payload.params as Record<string, unknown>) ?? null,
     childSessionKey: kind === 'subagent' ? (label !== 'session' ? label : spanId) : null,
     childAgentId: kind === 'subagent' ? (label !== 'session' ? label : spanId) : null,
-    provider: null,
-    model: kind === 'llm_call' ? (label || null) : null,
+    provider: (payload.provider as string) ?? null,
+    model: kind === 'llm_call' ? (label || (payload.model as string) || null) : null,
     tokensIn: toNum(s.input_tokens),
     tokensOut: toNum(s.output_tokens),
     totalTokens: toNum(s.total_tokens),
     attributes: {
       has_error: s.has_error ?? 0,
+      // Surface payload fields for ViewInspector's "Output / response" section
+      result: payload.result ?? undefined,
+      output: payload.assistantTexts ?? payload.outcome ?? undefined,
+      response: payload.lastAssistant ?? undefined,
+      error: payload.error ?? undefined,
+      // Extra context
+      prompt: payload.prompt ?? undefined,
+      systemPrompt: payload.systemPrompt ?? undefined,
+      usage: payload.usage ?? undefined,
     },
     sourceCount: 1,
     hasClosedRecord: endMs !== null,
