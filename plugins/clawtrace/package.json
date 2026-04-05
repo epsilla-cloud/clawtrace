@@ -1,6 +1,6 @@
 {
   "name": "@epsilla/clawtrace",
-  "version": "0.1.12",
+  "version": "0.1.15",
   "description": "ClawTrace plugin for OpenClaw runtime observability",
   "type": "module",
   "main": "index.ts",

@@ -450,23 +450,23 @@ export class HookEventTracker {
       traceId: span.traceId,
       spawnSpanId: span.spanId,
     });
-
-    this.logger.warn?.(
-      `[clawtrace:debug] subagent_spawning: childSessionKey="${event.childSessionKey}" parentRunId=${parentRunId ?? "UNDEF"} parentRunFound=${!!parentRun} traceId=${span.traceId} mapSize=${this.childSessionToParentTrace.size}`,
-    );
   }
 
   onSubagentSpawned(event: SubagentSpawnedEvent, ctx: SubagentContext): void {
     const requesterSessionKey = ctx.requesterSessionKey ?? "unknown";
-    // Resolve parent run (ctx.runId may be undefined — fall back to sessionKey)
     const parentRunId = ctx.runId ?? this.sessionToRunId.get(requesterSessionKey);
     const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
 
+    // Only emit subagent_spawn if we can resolve the parent trace.
+    // If the parent is unknown, emitting would create an orphan trace.
+    // The child's own events will still merge correctly via resolveParentTrace().
+    if (!parentRun) return;
+
     const existing = this.subagents.get(event.childSessionKey);
     const span: ActiveSpanState = existing ?? {
-      traceId: parentRun?.traceId ?? parentRunId ?? this.idFactory(),
+      traceId: parentRun.traceId,
       spanId: this.idFactory(),
-      parentSpanId: parentRun?.rootSpanId ?? null,
+      parentSpanId: parentRun.rootSpanId,
     };
     if (!existing) this.subagents.set(event.childSessionKey, span);
 
@@ -495,11 +495,17 @@ export class HookEventTracker {
     const parentRunId = ctx.runId ?? this.sessionToRunId.get(requesterSessionKey);
     const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
 
+    // Skip if neither pre-allocated span nor parent run found — would create orphan
+    if (!span && !parentRun) {
+      this.subagents.delete(event.targetSessionKey);
+      return;
+    }
+
     const resolved: ActiveSpanState =
       span ?? {
-        traceId: parentRun?.traceId ?? parentRunId ?? this.idFactory(),
+        traceId: parentRun!.traceId,
         spanId: this.idFactory(),
-        parentSpanId: parentRun?.rootSpanId ?? null,
+        parentSpanId: parentRun!.rootSpanId,
       };
 
     this.emit({
@@ -571,10 +577,8 @@ export class HookEventTracker {
     const existing = this.activeRuns.get(runId);
     if (existing) return existing;
 
-    // If this session is a subagent, join the parent's trace.
-    // Detect via sessionKey format: "agent:<id>:subagent:<uuid>" or "agent:<id>:acp:<uuid>"
-    // and resolve the parent's active run via sessionToRunId.
-    const parentInfo = this.resolveParentTrace(sessionKey);
+    // If this is a subagent or an announce run, join the parent's trace.
+    const parentInfo = this.resolveParentTrace(runId, sessionKey);
     const traceId = parentInfo?.traceId ?? runId;
     const rootParentSpanId = parentInfo?.parentSpanId ?? null;
 
@@ -621,29 +625,37 @@ export class HookEventTracker {
    * the parent's runId by the time the child's ensureRun fires.
    */
   private resolveParentTrace(
+    runId: string,
     childSessionKey: string,
   ): { traceId: string; parentSpanId: string } | null {
-    // Also check explicit childSessionToParentTrace map (set by onSubagentSpawning for thread=true spawns)
+    // 1. Explicit map from onSubagentSpawning (thread=true spawns only)
     const explicit = this.childSessionToParentTrace.get(childSessionKey);
     if (explicit) return { traceId: explicit.traceId, parentSpanId: explicit.spawnSpanId };
 
-    // Detect subagent from sessionKey format: agent:<agentId>:subagent:<uuid>
+    // 2. Detect subagent from sessionKey: agent:<id>:subagent:<uuid>
     const parts = childSessionKey.split(":");
     const subIdx = parts.indexOf("subagent");
     const acpIdx = parts.indexOf("acp");
     const markerIdx = subIdx >= 0 ? subIdx : acpIdx;
-    if (markerIdx < 0) return null; // not a subagent
+    if (markerIdx >= 0) {
+      const parentSessionKey = parts.slice(0, markerIdx).join(":") + ":main";
+      const parentRunId = this.sessionToRunId.get(parentSessionKey);
+      const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
+      if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
+    }
 
-    // Derive parent's sessionKey: agent:<agentId>:main
-    // (the prefix before :subagent/:acp + :main)
-    const parentSessionKey = parts.slice(0, markerIdx).join(":") + ":main";
-    const parentRunId = this.sessionToRunId.get(parentSessionKey);
-    if (!parentRunId) return null;
+    // 3. Detect announce runs: "announce:v1:agent:<id>:subagent:<uuid>:<childRunId>"
+    //    The childRunId at the end maps to an active run that already joined the parent trace.
+    if (runId.startsWith("announce:")) {
+      const lastColon = runId.lastIndexOf(":");
+      if (lastColon > 0) {
+        const embeddedRunId = runId.slice(lastColon + 1);
+        const childRun = this.activeRuns.get(embeddedRunId);
+        if (childRun) return { traceId: childRun.traceId, parentSpanId: childRun.rootSpanId };
+      }
+    }
 
-    const parentRun = this.activeRuns.get(parentRunId);
-    if (!parentRun) return null;
-
-    return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
+    return null;
   }
 
   private sessionKeyFrom(
@@ -657,10 +669,9 @@ export class HookEventTracker {
     const run = this.activeRuns.get(runId);
     if (!run) return;
     this.activeRuns.delete(runId);
-    // Remove sessionKey → runId mapping
-    if (this.sessionToRunId.get(run.sessionKey) === runId) {
-      this.sessionToRunId.delete(run.sessionKey);
-    }
+    // Keep sessionToRunId mapping alive — late tool calls (e.g. sessions_yield
+    // from announce phases) may still need it to find their parent trace.
+    // The mapping is cleaned up in onSessionEnd.
 
     // Clean up tool/subagent state associated with this trace
     for (const [key, span] of this.tools) {
