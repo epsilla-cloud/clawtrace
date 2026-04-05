@@ -4,9 +4,10 @@ Traces API — backed by PuppyGraph Cypher queries via POST /submitCypher.
 Schema facts (from puppygraph/schema.json):
   Trace vertex  id=trace_id, attributes: tenant_id, agent_id,
                 trace_start_ts_ms, trace_end_ts_ms, duration_ms,
-                event_count, trace_date
+                event_count, trace_date, agent_name, session_key
   Span  vertex  id=span_id,  attributes: tenant_id, agent_id, trace_id,
-                total_tokens, input_tokens, output_tokens, has_error
+                total_tokens, input_tokens, output_tokens, has_error,
+                input_payload, output_payload
   Edges: Agent-[:OWNS]->Trace, Trace-[:HAS_SPAN]->Span
 
 Rules confirmed by testing:
@@ -44,12 +45,16 @@ def _default_range() -> tuple[int, int]:
 class TraceMetrics(BaseModel):
     total_traces: int
     total_tokens: int
+    total_input_tokens: int
+    total_output_tokens: int
     success_rate: float
 
 
 class TrendPoint(BaseModel):
     date: str
     run_count: int
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class TraceRow(BaseModel):
@@ -61,6 +66,7 @@ class TraceRow(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     has_error: int = 0
+    category: str = "Work"
 
 
 class TracesResponse(BaseModel):
@@ -100,6 +106,16 @@ def _safe_float(v: object) -> float:
         return 0.0
 
 
+def _classify_category(payloads: list) -> str:
+    """Classify trace category from collected span input_payload snippets."""
+    combined = " ".join(str(p) for p in payloads if p)
+    if "HEARTBEAT" in combined or "heartbeat.md" in combined.lower():
+        return "Heartbeat"
+    if "Pre-compaction memory flush" in combined or "pre-compaction" in combined.lower():
+        return "Memory Compact"
+    return "Work"
+
+
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=TracesResponse)
@@ -119,7 +135,6 @@ async def get_traces(
     to_ms   = to_ms   or _to
 
     # ── 1. Metrics ────────────────────────────────────────────────────────────
-    # Filter Trace by agent_id + tenant_id attributes (both are non-id attrs)
     metrics_q = f"""
 MATCH (t:Trace)
 WHERE t.agent_id   = '{agent_id}'
@@ -130,6 +145,8 @@ OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
   count(DISTINCT elementId(t))                          AS total_traces,
   coalesce(sum(s.total_tokens), 0)                      AS total_tokens,
+  coalesce(sum(s.input_tokens), 0)                      AS total_input_tokens,
+  coalesce(sum(s.output_tokens), 0)                     AS total_output_tokens,
   sum(CASE WHEN s.has_error = 1 THEN 1 ELSE 0 END)      AS error_spans
 """
     m_rows = await run_cypher(metrics_q, settings)
@@ -143,6 +160,8 @@ RETURN
     metrics = TraceMetrics(
         total_traces=total_traces,
         total_tokens=_safe_int(m.get("total_tokens", 0)),
+        total_input_tokens=_safe_int(m.get("total_input_tokens", 0)),
+        total_output_tokens=_safe_int(m.get("total_output_tokens", 0)),
         success_rate=success_rate,
     )
 
@@ -156,7 +175,9 @@ WHERE t.agent_id  = '{agent_id}'
 OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
   t.trace_date                         AS date,
-  count(DISTINCT elementId(t))         AS run_count
+  count(DISTINCT elementId(t))         AS run_count,
+  coalesce(sum(s.input_tokens), 0)     AS input_tokens,
+  coalesce(sum(s.output_tokens), 0)    AS output_tokens
 ORDER BY date
 """
     t_rows = await run_cypher(trends_q, settings)
@@ -164,6 +185,8 @@ ORDER BY date
         TrendPoint(
             date=str(r.get("date", "")),
             run_count=_safe_int(r.get("run_count", 0)),
+            input_tokens=_safe_int(r.get("input_tokens", 0)),
+            output_tokens=_safe_int(r.get("output_tokens", 0)),
         )
         for r in t_rows if r.get("date")
     ]
@@ -184,7 +207,8 @@ RETURN
   coalesce(sum(s.input_tokens),  0)         AS input_tokens,
   coalesce(sum(s.output_tokens), 0)         AS output_tokens,
   coalesce(sum(s.total_tokens),  0)         AS total_tokens,
-  max(coalesce(s.has_error,      0))        AS has_error
+  max(coalesce(s.has_error,      0))        AS has_error,
+  collect(substring(coalesce(s.input_payload, ''), 0, 300)) AS payload_snippets
 ORDER BY started_at_ms DESC
 LIMIT {limit + 50}
 """
@@ -201,6 +225,7 @@ LIMIT {limit + 50}
             output_tokens=_safe_int(r.get("output_tokens", 0)),
             total_tokens=_safe_int(r.get("total_tokens", 0)),
             has_error=_safe_int(r.get("has_error", 0)),
+            category=_classify_category(r.get("payload_snippets", [])),
         )
         for r in tr_rows
     ]
