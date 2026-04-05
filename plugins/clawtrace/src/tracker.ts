@@ -639,19 +639,26 @@ export class HookEventTracker {
     const explicit = this.childSessionToParentTrace.get(childSessionKey);
     if (explicit) return { traceId: explicit.traceId, parentSpanId: explicit.spawnSpanId };
 
-    // 2. Detect subagent/acp from sessionKey and resolve one level up.
-    //    agent:main:telegram:direct:123:subagent:abc → parent = agent:main:telegram:direct:123
-    //    agent:main:subagent:abc:subagent:def        → parent = agent:main:subagent:abc
-    //    agent:main:acp:abc                          → parent prefix = agent:main:
-    const lastSub = childSessionKey.lastIndexOf(":subagent:");
-    const lastAcp = childSessionKey.lastIndexOf(":acp:");
-    const lastMarker = Math.max(lastSub, lastAcp);
-    if (lastMarker > 0) {
-      // Exact parent sessionKey = everything before the last :subagent:/:acp: segment
-      const parentSessionKey = childSessionKey.slice(0, lastMarker);
-      const parentRunId = this.sessionToRunId.get(parentSessionKey);
-      const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
-      if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
+    // 2. Walk up the sessionKey hierarchy by progressively stripping
+    //    the last :<type>:<id> pair until we find a matching parent run.
+    //    Fully generic — works for any spawn type (subagent, acp, future types).
+    //
+    //    agent:main:telegram:direct:123:subagent:abc → try agent:main:telegram:direct:123
+    //    agent:main:subagent:abc:subagent:def        → try agent:main:subagent:abc
+    //    agent:main:foo:bar                          → try agent:main
+    {
+      let candidate = childSessionKey;
+      while (true) {
+        // Strip last 2 colon-separated segments (:<type>:<id>)
+        const idx2 = candidate.lastIndexOf(":");
+        if (idx2 <= 0) break;
+        const idx1 = candidate.lastIndexOf(":", idx2 - 1);
+        if (idx1 <= 0) break;
+        candidate = candidate.slice(0, idx1);
+        const parentRunId = this.sessionToRunId.get(candidate);
+        const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
+        if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
+      }
     }
 
     // 3. Detect announce runs: "announce:v1:agent:<id>:subagent:<uuid>:<childRunId>"
