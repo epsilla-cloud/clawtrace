@@ -1,2 +1,0 @@
-export declare const listTelegramDirectoryPeersFromConfig: (configParams: import("openclaw/plugin-sdk/directory-runtime").DirectoryConfigParams) => Promise<import("openclaw/plugin-sdk/directory-runtime").ChannelDirectoryEntry[]>;
-export declare const listTelegramDirectoryGroupsFromConfig: (configParams: import("openclaw/plugin-sdk/directory-runtime").DirectoryConfigParams) => Promise<import("openclaw/plugin-sdk/directory-runtime").ChannelDirectoryEntry[]>;

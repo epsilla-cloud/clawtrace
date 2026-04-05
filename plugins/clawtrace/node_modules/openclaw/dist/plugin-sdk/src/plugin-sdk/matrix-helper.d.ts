@@ -1,1 +1,0 @@
-export { findMatrixAccountEntry, getMatrixScopedEnvVarNames, requiresExplicitMatrixDefaultAccount, resolveConfiguredMatrixAccountIds, resolveMatrixAccountStorageRoot, resolveMatrixChannelConfig, resolveMatrixCredentialsDir, resolveMatrixCredentialsPath, resolveMatrixDefaultOrOnlyAccountId, resolveMatrixLegacyFlatStoragePaths, } from "../../extensions/matrix/api.js";

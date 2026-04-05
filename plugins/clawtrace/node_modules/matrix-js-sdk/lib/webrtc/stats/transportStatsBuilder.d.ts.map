@@ -1,1 +1,0 @@
-{"version":3,"file":"transportStatsBuilder.d.ts","sourceRoot":"","sources":["../../../src/webrtc/stats/transportStatsBuilder.ts"],"names":[],"mappings":"AAAA,OAAO,EAAE,KAAK,cAAc,EAAE,MAAM,qBAAqB,CAAC;AAE1D,qBAAa,qBAAqB;WAChB,WAAW,CACrB,MAAM,EAAE,cAAc,GAAG,SAAS,EAClC,GAAG,EAAE,wBAAwB,EAC7B,wBAAwB,EAAE,cAAc,EAAE,EAC1C,OAAO,EAAE,OAAO,GACjB,cAAc,EAAE;CAuCtB"}

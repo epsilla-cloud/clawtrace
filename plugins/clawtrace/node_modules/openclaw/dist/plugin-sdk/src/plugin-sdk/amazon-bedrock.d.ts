@@ -1,1 +1,0 @@
-export { discoverBedrockModels, mergeImplicitBedrockProvider, resetBedrockDiscoveryCacheForTest, resolveBedrockConfigApiKey, resolveImplicitBedrockProvider, } from "../../extensions/amazon-bedrock/api.js";

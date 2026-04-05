@@ -1,1 +1,0 @@
-{"version":3,"file":"discovery.d.ts","sourceRoot":"","sources":["../../src/oidc/discovery.ts"],"names":[],"mappings":"AAoBA,OAAO,EAAE,KAAK,gBAAgB,EAAE,MAAM,YAAY,CAAC;AAEnD;;;;;;;;;;;GAWG;AACH,eAAO,MAAM,sCAAsC,GAAU,QAAQ,MAAM,KAAG,OAAO,CAAC,gBAAgB,CAQrG,CAAC;AAEF;;;;;GAKG;AACH,eAAO,MAAM,2BAA2B,GAAU,cAAc,OAAO,KAAG,OAAO,CAAC,gBAAgB,CAgBjG,CAAC"}

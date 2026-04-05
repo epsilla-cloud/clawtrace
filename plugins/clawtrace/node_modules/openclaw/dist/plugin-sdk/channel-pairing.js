@@ -1,2 +1,0 @@
-import { a as createLoggedPairingApprovalNotifier, n as createChannelPairingController, o as createPairingPrefixStripper, s as createTextPairingAdapter, t as createChannelPairingChallengeIssuer } from "../channel-pairing-cpi9_8zd.js";
-export { createChannelPairingChallengeIssuer, createChannelPairingController, createLoggedPairingApprovalNotifier, createPairingPrefixStripper, createTextPairingAdapter };
