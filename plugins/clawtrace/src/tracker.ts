@@ -263,6 +263,11 @@ export class HookEventTracker {
 
   onLlmInput(event: LlmInputEvent, ctx: AgentContext): void {
     const sessionKey = this.sessionKeyFrom({ sessionId: event.sessionId }, ctx);
+
+    this.logger.warn?.(
+      `[clawtrace:debug] llm_input: event.runId=${event.runId ?? "UNDEF"} ctx.runId=${ctx.runId ?? "UNDEF"} sessionKey=${sessionKey} activeRuns=${this.activeRuns.size}`,
+    );
+
     const run = this.ensureRun(event.runId, sessionKey, ctx);
 
     const span: ActiveSpanState = {
@@ -335,6 +340,10 @@ export class HookEventTracker {
     const llmSpan = runId ? this.tools.get(`llm:${runId}`) : undefined;
     const parentSpanId = llmSpan?.spanId ?? run?.rootSpanId ?? null;
     const traceId = run?.traceId ?? runId ?? this.idFactory();
+
+    this.logger.warn?.(
+      `[clawtrace:debug] before_tool_call: tool=${event.toolName} event.runId=${event.runId ?? "UNDEF"} ctx.runId=${ctx.runId ?? "UNDEF"} resolvedRunId=${runId ?? "UNDEF"} runFound=${!!run} activeRuns=${this.activeRuns.size} traceId=${traceId}`,
+    );
 
     const toolCallId = this.resolveToolCallId(event, ctx) ?? `anon-tool-${this.idFactory()}`;
     const span: ActiveSpanState = {
