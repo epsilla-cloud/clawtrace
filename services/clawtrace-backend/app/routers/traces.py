@@ -186,9 +186,11 @@ RETURN
   coalesce(sum(s.total_tokens),  0)         AS total_tokens,
   max(coalesce(s.has_error,      0))        AS has_error
 ORDER BY started_at_ms DESC
-LIMIT {limit}
+LIMIT {limit + 50}
 """
     tr_rows = await run_cypher(traces_q, settings)
+    # Filter out orphan traces (single dangling tool calls with no session root)
+    tr_rows = [r for r in tr_rows if _safe_int(r.get("event_count", 0)) > 1][:limit]
     traces = [
         TraceRow(
             trace_id=str(r.get("trace_id", "")),
