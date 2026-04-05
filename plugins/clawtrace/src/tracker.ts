@@ -445,6 +445,16 @@ export class HookEventTracker {
       parentSpanId: parentRun?.rootSpanId ?? null,
     };
     this.subagents.set(event.childSessionKey, span);
+
+    // MUST set here (before spawn), NOT in onSubagentSpawned (after spawn).
+    // The child's llm_input fires immediately after the child session is created,
+    // often BEFORE the parallel subagent_spawned hook runs. If we wait until
+    // onSubagentSpawned, ensureRun() can't find the parent link and creates
+    // a separate trace for the child.
+    this.childSessionToParentTrace.set(event.childSessionKey, {
+      traceId: span.traceId,
+      spawnSpanId: span.spanId,
+    });
   }
 
   onSubagentSpawned(event: SubagentSpawnedEvent, ctx: SubagentContext): void {
@@ -460,12 +470,6 @@ export class HookEventTracker {
       parentSpanId: parentRun?.rootSpanId ?? null,
     };
     if (!existing) this.subagents.set(event.childSessionKey, span);
-
-    // Link child session to parent trace — child events will join this trace
-    this.childSessionToParentTrace.set(event.childSessionKey, {
-      traceId: span.traceId,
-      spawnSpanId: span.spanId,
-    });
 
     this.emit({
       eventType: "subagent_spawn",
