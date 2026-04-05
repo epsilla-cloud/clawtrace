@@ -248,27 +248,15 @@ export class HookEventTracker {
   // ── Agent loop lifecycle ────────────────────────────────────────────────
 
   /**
-   * Fires when the agent finishes its turn (all tool calls done, reply sent).
-   * Emits session_end to close this run's trace.
+   * Fires per runEmbeddedAttempt (NOT per user turn).
+   * The while(true) retry loop in run.ts calls runEmbeddedAttempt multiple
+   * times for compaction/overflow/retry — each fires agent_end.
+   * We must NOT clean up run state here; that would fragment the trace.
+   * Cleanup happens in onSessionEnd instead.
    */
-  onAgentEnd(event: AgentEndEvent, ctx: AgentEndContext): void {
-    const runId = ctx.runId;
-    if (!runId) return;
-    const run = this.activeRuns.get(runId);
-    if (!run) return;
-
-    this.emit({
-      eventType: "session_end",
-      traceId: run.traceId,
-      spanId: run.rootSpanId,
-      parentSpanId: null,
-      payload: pruneUndefined({
-        sessionKey: run.sessionKey,
-        hook: "agent_end",
-      }),
-    });
-
-    this.cleanupRunState(runId);
+  onAgentEnd(_event: AgentEndEvent, _ctx: AgentEndContext): void {
+    // Intentionally empty — do not clean up run state between attempts.
+    // The trace stays open until session_end fires.
   }
 
   // ── LLM hooks ───────────────────────────────────────────────────────────
