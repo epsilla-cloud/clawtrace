@@ -645,10 +645,15 @@ export class HookEventTracker {
     const acpIdx = parts.indexOf("acp");
     const markerIdx = subIdx >= 0 ? subIdx : acpIdx;
     if (markerIdx >= 0) {
-      const parentSessionKey = parts.slice(0, markerIdx).join(":") + ":main";
-      const parentRunId = this.sessionToRunId.get(parentSessionKey);
-      const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
-      if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
+      // The parent could be on any channel session (main, telegram, discord, etc.)
+      // Search all active sessions for the same agent prefix.
+      const agentPrefix = parts.slice(0, markerIdx).join(":") + ":";
+      for (const [sk, rid] of this.sessionToRunId) {
+        if (sk.startsWith(agentPrefix) && !sk.includes(":subagent:") && !sk.includes(":acp:")) {
+          const parentRun = this.activeRuns.get(rid);
+          if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
+        }
+      }
     }
 
     // 3. Detect announce runs: "announce:v1:agent:<id>:subagent:<uuid>:<childRunId>"
