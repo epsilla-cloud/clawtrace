@@ -225,6 +225,8 @@ class SpanDetail(BaseModel):
 class TraceMeta(BaseModel):
     trace_id: str
     agent_id: Optional[str] = None
+    agent_name: Optional[str] = None
+    session_key: Optional[str] = None
     trace_start_ts_ms: Optional[int] = None
     trace_end_ts_ms: Optional[int] = None
     duration_ms: int = 0
@@ -259,6 +261,8 @@ WHERE elementId(t) = '{eid}'
   AND t.tenant_id  = '{tid}'
 RETURN elementId(t)        AS trace_id,
        t.agent_id           AS agent_id,
+       t.agent_name         AS agent_name,
+       t.session_key        AS session_key,
        t.trace_start_ts_ms  AS trace_start_ts_ms,
        t.trace_end_ts_ms    AS trace_end_ts_ms,
        t.duration_ms        AS duration_ms,
@@ -272,6 +276,8 @@ RETURN elementId(t)        AS trace_id,
     meta = TraceMeta(
         trace_id=str(m.get("trace_id", eid)),
         agent_id=m.get("agent_id"),
+        agent_name=m.get("agent_name"),
+        session_key=m.get("session_key"),
         trace_start_ts_ms=m.get("trace_start_ts_ms"),
         trace_end_ts_ms=m.get("trace_end_ts_ms"),
         duration_ms=_safe_int(m.get("duration_ms", 0)),

@@ -74,7 +74,12 @@ USING (
     MAX(event_ts_ms)                      AS trace_end_ts_ms,
     MAX(event_ts_ms) - MIN(event_ts_ms)   AS duration_ms,
     COUNT(*)                              AS event_count,
-    MIN(event_date)                       AS trace_date
+    MIN(event_date)                       AS trace_date,
+    -- agent_name + session_key: emitted by plugin in session_start payload
+    MAX(CASE WHEN event_type = 'session_start'
+         THEN get_json_object(payload_json, '$.agentName') END) AS agent_name,
+    MAX(CASE WHEN event_type = 'session_start'
+         THEN get_json_object(payload_json, '$.sessionKey') END) AS session_key
   FROM clawtrace.silver.events_all
   WHERE trace_id IN (
     -- Only recompute traces that got new events since the last pg refresh
@@ -93,7 +98,9 @@ WHEN MATCHED THEN UPDATE SET
   trace_end_ts_ms   = s.trace_end_ts_ms,
   duration_ms       = s.duration_ms,
   event_count       = s.event_count,
-  trace_date        = s.trace_date
+  trace_date        = s.trace_date,
+  agent_name        = s.agent_name,
+  session_key       = s.session_key
 WHEN NOT MATCHED THEN INSERT *;
 
 -- ─────────────────────────────────────────────────────────────────────────────
