@@ -222,7 +222,8 @@ class SpanDetail(BaseModel):
     output_tokens: int = 0
     total_tokens: int = 0
     has_error: int = 0
-    payload_json: Optional[str] = None
+    input_payload: Optional[str] = None
+    output_payload: Optional[str] = None
 
 
 class TraceMeta(BaseModel):
@@ -303,7 +304,8 @@ RETURN elementId(s)        AS span_id,
        s.output_tokens     AS output_tokens,
        s.total_tokens      AS total_tokens,
        s.has_error         AS has_error,
-       s.payload_json      AS payload_json
+       s.input_payload     AS input_payload,
+       s.output_payload    AS output_payload
 ORDER BY s.span_start_ts_ms
 """
     span_rows = await run_cypher(spans_q, settings)
@@ -320,7 +322,8 @@ ORDER BY s.span_start_ts_ms
             output_tokens=_safe_int(r.get("output_tokens", 0)),
             total_tokens=_safe_int(r.get("total_tokens", 0)),
             has_error=_safe_int(r.get("has_error", 0)),
-            payload_json=r.get("payload_json") or None,
+            input_payload=r.get("input_payload") or None,
+            output_payload=r.get("output_payload") or None,
         )
         for r in span_rows
     ]

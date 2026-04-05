@@ -178,7 +178,8 @@ CREATE TABLE IF NOT EXISTS clawtrace.silver.pg_spans (
   output_tokens    BIGINT,
   total_tokens     BIGINT,
   has_error        INT,
-  payload_json     STRING   -- full event payload for detail inspection (from after-call events)
+  input_payload    STRING,  -- before-call payload (prompt, params)
+  output_payload   STRING   -- after-call payload (result, response, usage)
 )
 CLUSTER BY (trace_id, span_id)
 TBLPROPERTIES (

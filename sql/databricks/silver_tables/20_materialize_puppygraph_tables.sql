@@ -133,13 +133,15 @@ USING (
     MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)) AS output_tokens,
     MAX(CAST(get_json_object(payload_json, '$.usage.total')  AS BIGINT)) AS total_tokens,
     MAX(CASE WHEN event_type = 'error' THEN 1 ELSE 0 END)               AS has_error,
-    -- Pick the most informative payload per span: after-call events have
-    -- both input params and output results. Falls back to any payload.
+    -- Store both input (before-call) and output (after-call) payloads.
+    -- Before-call has prompt/params; after-call has result/response.
+    MAX(CASE WHEN event_type IN ('llm_before_call','tool_before_call','subagent_spawn','session_start')
+             THEN payload_json END)                                      AS input_payload,
     COALESCE(
       MAX(CASE WHEN event_type IN ('llm_after_call','tool_after_call','subagent_join','session_end')
                THEN payload_json END),
       MAX(payload_json)
-    )                                                                    AS payload_json
+    )                                                                    AS output_payload
   FROM clawtrace.silver.events_all
   WHERE trace_id IN (
     SELECT DISTINCT trace_id
@@ -162,7 +164,8 @@ WHEN MATCHED THEN UPDATE SET
   output_tokens    = s.output_tokens,
   total_tokens     = s.total_tokens,
   has_error        = s.has_error,
-  payload_json     = s.payload_json
+  input_payload    = s.input_payload,
+  output_payload   = s.output_payload
 WHEN NOT MATCHED THEN INSERT *;
 
 -- ─────────────────────────────────────────────────────────────────────────────

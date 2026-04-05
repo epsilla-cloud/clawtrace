@@ -26,7 +26,8 @@ export type BackendSpanData = {
   output_tokens?: number;
   total_tokens?: number;
   has_error?: number;
-  payload_json?: string | null;
+  input_payload?: string | null;
+  output_payload?: string | null;
 };
 
 export type BackendMetaData = {
@@ -103,10 +104,14 @@ function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan 
   const resolvedDurationMs = Math.max(0, durMs ?? (resolvedEndMs - startMs));
   const label = s.actor_label ?? '';
 
-  // Parse payload_json for detail inspection (tool params/results, LLM prompts/responses)
-  let payload: Record<string, unknown> = {};
-  if (s.payload_json) {
-    try { payload = JSON.parse(s.payload_json) as Record<string, unknown>; } catch { /* ignore */ }
+  // Parse input/output payloads for detail inspection
+  let inputPayload: Record<string, unknown> = {};
+  let outputPayload: Record<string, unknown> = {};
+  if (s.input_payload) {
+    try { inputPayload = JSON.parse(s.input_payload) as Record<string, unknown>; } catch { /* ignore */ }
+  }
+  if (s.output_payload) {
+    try { outputPayload = JSON.parse(s.output_payload) as Record<string, unknown>; } catch { /* ignore */ }
   }
 
   return {
@@ -124,25 +129,25 @@ function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan 
     resolvedEndMs,
     resolvedDurationMs,
     toolName: kind === 'tool_call' ? (label || null) : null,
-    toolParams: (payload.params as Record<string, unknown>) ?? null,
+    toolParams: (inputPayload.params ?? outputPayload.params) as Record<string, unknown> | null ?? null,
     childSessionKey: kind === 'subagent' ? (label !== 'session' ? label : spanId) : null,
     childAgentId: kind === 'subagent' ? (label !== 'session' ? label : spanId) : null,
-    provider: (payload.provider as string) ?? null,
-    model: kind === 'llm_call' ? (label || (payload.model as string) || null) : null,
+    provider: (outputPayload.provider ?? inputPayload.provider) as string ?? null,
+    model: kind === 'llm_call' ? (label || (outputPayload.model ?? inputPayload.model) as string || null) : null,
     tokensIn: toNum(s.input_tokens),
     tokensOut: toNum(s.output_tokens),
     totalTokens: toNum(s.total_tokens),
     attributes: {
       has_error: s.has_error ?? 0,
-      // Surface payload fields for ViewInspector's "Output / response" section
-      result: payload.result ?? undefined,
-      output: payload.assistantTexts ?? payload.outcome ?? undefined,
-      response: payload.lastAssistant ?? undefined,
-      error: payload.error ?? undefined,
-      // Extra context
-      prompt: payload.prompt ?? undefined,
-      systemPrompt: payload.systemPrompt ?? undefined,
-      usage: payload.usage ?? undefined,
+      // Input (from before-call payload)
+      prompt: inputPayload.prompt ?? undefined,
+      systemPrompt: inputPayload.systemPrompt ?? undefined,
+      // Output (from after-call payload)
+      result: outputPayload.result ?? undefined,
+      output: outputPayload.assistantTexts ?? outputPayload.outcome ?? undefined,
+      response: outputPayload.lastAssistant ?? undefined,
+      error: outputPayload.error ?? undefined,
+      usage: outputPayload.usage ?? undefined,
     },
     sourceCount: 1,
     hasClosedRecord: endMs !== null,
