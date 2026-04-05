@@ -446,15 +446,14 @@ export class HookEventTracker {
     };
     this.subagents.set(event.childSessionKey, span);
 
-    // MUST set here (before spawn), NOT in onSubagentSpawned (after spawn).
-    // The child's llm_input fires immediately after the child session is created,
-    // often BEFORE the parallel subagent_spawned hook runs. If we wait until
-    // onSubagentSpawned, ensureRun() can't find the parent link and creates
-    // a separate trace for the child.
     this.childSessionToParentTrace.set(event.childSessionKey, {
       traceId: span.traceId,
       spawnSpanId: span.spanId,
     });
+
+    this.logger.warn?.(
+      `[clawtrace:debug] subagent_spawning: childSessionKey="${event.childSessionKey}" parentRunId=${parentRunId ?? "UNDEF"} parentRunFound=${!!parentRun} traceId=${span.traceId} mapSize=${this.childSessionToParentTrace.size}`,
+    );
   }
 
   onSubagentSpawned(event: SubagentSpawnedEvent, ctx: SubagentContext): void {
@@ -573,11 +572,13 @@ export class HookEventTracker {
     if (existing) return existing;
 
     // If this session was spawned by a parent agent, join the parent's trace
-    // instead of starting a new one. This keeps the entire multi-agent tree
-    // in ONE trace so the UI renders a single execution hierarchy.
     const parentLink = this.childSessionToParentTrace.get(sessionKey);
     const traceId = parentLink?.traceId ?? runId;
     const rootParentSpanId = parentLink?.spawnSpanId ?? null;
+
+    this.logger.warn?.(
+      `[clawtrace:debug] ensureRun: runId=${runId} sessionKey="${sessionKey}" parentLinkFound=${!!parentLink} traceId=${traceId} mapKeys=[${[...this.childSessionToParentTrace.keys()].join(", ")}]`,
+    );
 
     const rootSpanId = this.idFactory();
     const run: RunState = {
