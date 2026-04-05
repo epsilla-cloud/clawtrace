@@ -2035,7 +2035,7 @@ function ExecutionPathView({
         <button
           type="button"
           id={`span-${span.spanId}`}
-          className={`${styles.treeRow} ${selectedSpanId === span.spanId ? styles.treeRowSelected : ''}`}
+          className={`${styles.treeRow} ${selectedSpanId === span.spanId ? styles.treeRowSelected : ''} ${Number(span.attributes.has_error) > 0 ? styles.treeRowError : ''}`}
           style={{ paddingLeft: `${12 + depth * 18}px` }}
           onClick={() => onSelectSpan(span.spanId)}
         >
@@ -2317,9 +2317,6 @@ export function TraceDetailWorkbench({
             </div>
 
             <div className={styles.topActions}>
-              <span className={`${styles.statusPill} ${statusClass(detail.trace.status)}`}>
-                {statusLabel(detail.trace.status)}
-              </span>
               <Link href="/control-room" className={styles.backButtonInline}>
                 Back to Overview
               </Link>

@@ -327,7 +327,7 @@ export function TracesPage() {
                   <tr><td colSpan={7} className={styles.empty}>No traces in this time range.</td></tr>
                 )}
                 {data.traces.map(t => (
-                  <tr key={t.trace_id} className={`${styles.traceRow} ${t.has_error ? styles.rowError : ''}`}
+                  <tr key={t.trace_id} className={styles.traceRow}
                     onClick={() => { window.location.href = `/trace?traceId=${traceUuid(t.trace_id)}`; }}
                     title="Click to drill into trace">
                     <td className={styles.traceId}>
@@ -341,8 +341,8 @@ export function TracesPage() {
                     <td>{t.event_count ?? '—'}</td>
                     <td>{fmtTokens(t.input_tokens)}</td>
                     <td>{fmtTokens(t.output_tokens)}</td>
-                    <td><span className={`${styles.badge} ${t.has_error ? styles.badgeError : styles.badgeOk}`}>
-                      {t.has_error ? 'error' : 'ok'}
+                    <td><span className={styles.badge}>
+                      {t.has_error ? `${t.has_error} error${t.has_error > 1 ? 's' : ''}` : 'clean'}
                     </span></td>
                   </tr>
                 ))}

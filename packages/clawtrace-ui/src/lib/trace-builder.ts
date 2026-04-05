@@ -439,7 +439,7 @@ export function buildSnapshot(
   const quickInsights = createQuickInsights(spans);
 
   // 6. Trace-level aggregates
-  const hasError = spans.some((s) => Number(s.attributes.has_error) > 0);
+  // No trace-level success/failure — individual span errors are shown per-step.
   const totalTokens = spans.reduce((sum, s) => sum + s.totalTokens, 0);
   const models = [
     ...new Set(spans.filter((s) => s.model).map((s) => s.model as string)),
@@ -464,7 +464,7 @@ export function buildSnapshot(
       startedAtMs: windowStartMs,
       endedAtMs: windowEndMs,
       durationMs: meta.duration_ms ?? windowEndMs - windowStartMs,
-      status: hasError ? 'failure' : 'success',
+      status: 'success',
       inputTokens: spans.reduce((sum, s) => sum + s.tokensIn, 0),
       outputTokens: spans.reduce((sum, s) => sum + s.tokensOut, 0),
       totalTokens,
