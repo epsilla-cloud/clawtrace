@@ -1,0 +1,23 @@
+import { IWidgetApiRequest, IWidgetApiRequestData } from "./IWidgetApiRequest";
+import { WidgetApiFromWidgetAction } from "./WidgetApiAction";
+import { IWidgetApiResponseData } from "./IWidgetApiResponse";
+import { IRoomEvent } from "./IRoomEvent";
+import { Symbols } from "../Symbols";
+export interface IReadEventFromWidgetRequestData extends IWidgetApiRequestData {
+    state_key?: string | boolean;
+    msgtype?: string;
+    type: string;
+    limit?: number;
+    room_ids?: Symbols.AnyRoom | string[];
+    since?: string;
+}
+export interface IReadEventFromWidgetActionRequest extends IWidgetApiRequest {
+    action: WidgetApiFromWidgetAction.MSC2876ReadEvents;
+    data: IReadEventFromWidgetRequestData;
+}
+export interface IReadEventFromWidgetResponseData extends IWidgetApiResponseData {
+    events: IRoomEvent[];
+}
+export interface IReadEventFromWidgetActionResponse extends IReadEventFromWidgetActionRequest {
+    response: IReadEventFromWidgetResponseData;
+}

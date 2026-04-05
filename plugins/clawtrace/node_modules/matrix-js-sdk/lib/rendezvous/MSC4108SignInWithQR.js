@@ -1,0 +1,389 @@
+import _asyncToGenerator from "@babel/runtime/helpers/asyncToGenerator";
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+/*
+Copyright 2024 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { QrCodeIntent } from "@matrix-org/matrix-sdk-crypto-wasm";
+import { ClientRendezvousFailureReason, MSC4108FailureReason, RendezvousError } from "./index.js";
+import { logger } from "../logger.js";
+import { MatrixError } from "../http-api/index.js";
+import { sleep } from "../utils.js";
+import { OAuthGrantType } from "../oidc/index.js";
+/**
+ * Enum representing the payload types transmissible over [MSC4108](https://github.com/matrix-org/matrix-spec-proposals/pull/4108)
+ * secure channels.
+ * @experimental Note that this is UNSTABLE and may have breaking changes without notice.
+ */
+export var PayloadType = /*#__PURE__*/function (PayloadType) {
+  PayloadType["Protocols"] = "m.login.protocols";
+  PayloadType["Protocol"] = "m.login.protocol";
+  PayloadType["Failure"] = "m.login.failure";
+  PayloadType["Success"] = "m.login.success";
+  PayloadType["Secrets"] = "m.login.secrets";
+  PayloadType["ProtocolAccepted"] = "m.login.protocol_accepted";
+  PayloadType["Declined"] = "m.login.declined";
+  return PayloadType;
+}({});
+
+/**
+ * Type representing the base payload format for [MSC4108](https://github.com/matrix-org/matrix-spec-proposals/pull/4108)
+ * messages sent over the secure channel.
+ * @experimental Note that this is UNSTABLE and may have breaking changes without notice.
+ */
+
+function isDeviceAuthorizationGrantProtocolPayload(payload) {
+  return payload.protocol === "device_authorization_grant";
+}
+/**
+ * Prototype of the unstable [MSC4108](https://github.com/matrix-org/matrix-spec-proposals/pull/4108)
+ * sign in with QR + OIDC flow.
+ * @experimental Note that this is UNSTABLE and may have breaking changes without notice.
+ */
+export class MSC4108SignInWithQR {
+  /**
+   * Returns the check code for the secure channel or undefined if not generated yet.
+   */
+  get checkCode() {
+    var _this$channel;
+    return (_this$channel = this.channel) === null || _this$channel === void 0 ? void 0 : _this$channel.getCheckCode();
+  }
+
+  /**
+   * @param channel - The secure channel used for communication
+   * @param client - The Matrix client in used on the device already logged in
+   * @param didScanCode - Whether this side of the channel scanned the QR code from the other party
+   * @param onFailure - Callback for when the rendezvous fails
+   */
+  constructor(channel, didScanCode, client, onFailure) {
+    this.channel = channel;
+    this.didScanCode = didScanCode;
+    this.client = client;
+    this.onFailure = onFailure;
+    _defineProperty(this, "ourIntent", void 0);
+    _defineProperty(this, "_code", void 0);
+    _defineProperty(this, "expectingNewDeviceId", void 0);
+    this.ourIntent = client ? QrCodeIntent.Reciprocate : QrCodeIntent.Login;
+  }
+
+  /**
+   * Returns the code representing the rendezvous suitable for rendering in a QR code or undefined if not generated yet.
+   */
+  get code() {
+    return this._code;
+  }
+
+  /**
+   * Generate the code including doing partial set up of the channel where required.
+   */
+  generateCode() {
+    var _this = this;
+    return _asyncToGenerator(function* () {
+      if (_this._code) {
+        return;
+      }
+      if (_this.ourIntent === QrCodeIntent.Reciprocate && _this.client) {
+        _this._code = yield _this.channel.generateCode(_this.ourIntent, _this.client.getDomain());
+      } else if (_this.ourIntent === QrCodeIntent.Login) {
+        _this._code = yield _this.channel.generateCode(_this.ourIntent);
+      }
+    })();
+  }
+
+  /**
+   * Returns true if the device is the already logged in device reciprocating a new login on the other side of the channel.
+   */
+  get isExistingDevice() {
+    return this.ourIntent === QrCodeIntent.Reciprocate;
+  }
+
+  /**
+   * Returns true if the device is the new device logging in being reciprocated by the device on the other side of the channel.
+   */
+  get isNewDevice() {
+    return !this.isExistingDevice;
+  }
+
+  /**
+   * The first step in the OIDC QR login process.
+   * To be called after the QR code has been rendered or scanned.
+   * The scanning device has to discover the homeserver details, if they scanned the code then they already have it.
+   * If the new device is the one rendering the QR code then it has to wait be sent the homeserver details via the rendezvous channel.
+   */
+  negotiateProtocols() {
+    var _this2 = this;
+    return _asyncToGenerator(function* () {
+      logger.info("negotiateProtocols(isNewDevice=".concat(_this2.isNewDevice, " didScanCode=").concat(_this2.didScanCode, ")"));
+      yield _this2.channel.connect();
+      if (_this2.didScanCode) {
+        // Secure Channel step 6 completed, we trust the channel
+
+        if (_this2.isNewDevice) {
+          // MSC4108-Flow: ExistingScanned - take homeserver from QR code which should already be set
+        } else {
+          var _oidcClientConfig;
+          // MSC4108-Flow: NewScanned -send protocols message
+          var oidcClientConfig;
+          try {
+            oidcClientConfig = yield _this2.client.getAuthMetadata();
+          } catch (e) {
+            logger.error("Failed to discover OIDC metadata", e);
+          }
+          if ((_oidcClientConfig = oidcClientConfig) !== null && _oidcClientConfig !== void 0 && _oidcClientConfig.grant_types_supported.includes(OAuthGrantType.DeviceAuthorization)) {
+            yield _this2.send({
+              type: PayloadType.Protocols,
+              protocols: ["device_authorization_grant"],
+              homeserver: _this2.client.getDomain()
+            });
+          } else {
+            yield _this2.send({
+              type: PayloadType.Failure,
+              reason: MSC4108FailureReason.UnsupportedProtocol
+            });
+            throw new RendezvousError("Device code grant unsupported", MSC4108FailureReason.UnsupportedProtocol);
+          }
+        }
+      } else if (_this2.isNewDevice) {
+        // MSC4108-Flow: ExistingScanned - wait for protocols message
+        logger.info("Waiting for protocols message");
+        var payload = yield _this2.receive();
+        if ((payload === null || payload === void 0 ? void 0 : payload.type) === PayloadType.Failure) {
+          throw new RendezvousError("Failed", payload.reason);
+        }
+        if ((payload === null || payload === void 0 ? void 0 : payload.type) !== PayloadType.Protocols) {
+          yield _this2.send({
+            type: PayloadType.Failure,
+            reason: MSC4108FailureReason.UnexpectedMessageReceived
+          });
+          throw new RendezvousError("Unexpected message received", MSC4108FailureReason.UnexpectedMessageReceived);
+        }
+        return {
+          serverName: payload.homeserver
+        };
+      } else {
+        // MSC4108-Flow: NewScanned - nothing to do
+      }
+      return {};
+    })();
+  }
+
+  /**
+   * The second & third step in the OIDC QR login process.
+   * To be called after `negotiateProtocols` for the existing device.
+   * To be called after OIDC negotiation for the new device. (Currently unsupported)
+   */
+  deviceAuthorizationGrant() {
+    var _this3 = this;
+    return _asyncToGenerator(function* () {
+      if (_this3.isNewDevice) {
+        throw new Error("New device flows around OIDC are not yet implemented");
+      } else {
+        // The user needs to do step 7 for the out-of-band confirmation
+        // but, first we receive the protocol chosen by the other device so that
+        // the confirmation_uri is ready to go
+        logger.info("Waiting for protocol message");
+        var payload = yield _this3.receive();
+        if ((payload === null || payload === void 0 ? void 0 : payload.type) === PayloadType.Failure) {
+          throw new RendezvousError("Failed", payload.reason);
+        }
+        if ((payload === null || payload === void 0 ? void 0 : payload.type) !== PayloadType.Protocol) {
+          yield _this3.send({
+            type: PayloadType.Failure,
+            reason: MSC4108FailureReason.UnexpectedMessageReceived
+          });
+          throw new RendezvousError("Unexpected message received", MSC4108FailureReason.UnexpectedMessageReceived);
+        }
+        if (isDeviceAuthorizationGrantProtocolPayload(payload)) {
+          var {
+            device_authorization_grant: dag,
+            device_id: expectingNewDeviceId
+          } = payload;
+          var {
+            verification_uri: verificationUri,
+            verification_uri_complete: verificationUriComplete
+          } = dag;
+          var deviceAlreadyExists = true;
+          try {
+            var _this3$client;
+            yield (_this3$client = _this3.client) === null || _this3$client === void 0 ? void 0 : _this3$client.getDevice(expectingNewDeviceId);
+          } catch (err) {
+            if (err instanceof MatrixError && err.httpStatus === 404) {
+              deviceAlreadyExists = false;
+            }
+          }
+          if (deviceAlreadyExists) {
+            yield _this3.send({
+              type: PayloadType.Failure,
+              reason: MSC4108FailureReason.DeviceAlreadyExists
+            });
+            throw new RendezvousError("Specified device ID already exists", MSC4108FailureReason.DeviceAlreadyExists);
+          }
+          _this3.expectingNewDeviceId = expectingNewDeviceId;
+          return {
+            verificationUri: verificationUriComplete !== null && verificationUriComplete !== void 0 ? verificationUriComplete : verificationUri
+          };
+        }
+        yield _this3.send({
+          type: PayloadType.Failure,
+          reason: MSC4108FailureReason.UnsupportedProtocol
+        });
+        throw new RendezvousError("Received a request for an unsupported protocol", MSC4108FailureReason.UnsupportedProtocol);
+      }
+    })();
+  }
+
+  /**
+   * The fifth (and final) step in the OIDC QR login process.
+   * To be called after the new device has completed authentication.
+   */
+  shareSecrets() {
+    var _this4 = this;
+    return _asyncToGenerator(function* () {
+      if (_this4.isNewDevice) {
+        yield _this4.send({
+          type: PayloadType.Success
+        });
+        // then wait for secrets
+        logger.info("Waiting for secrets message");
+        var payload = yield _this4.receive();
+        if ((payload === null || payload === void 0 ? void 0 : payload.type) === PayloadType.Failure) {
+          throw new RendezvousError("Failed", payload.reason);
+        }
+        if ((payload === null || payload === void 0 ? void 0 : payload.type) !== PayloadType.Secrets) {
+          yield _this4.send({
+            type: PayloadType.Failure,
+            reason: MSC4108FailureReason.UnexpectedMessageReceived
+          });
+          throw new RendezvousError("Unexpected message received", MSC4108FailureReason.UnexpectedMessageReceived);
+        }
+        return {
+          secrets: payload
+        };
+        // then done?
+      } else {
+        if (!_this4.expectingNewDeviceId) {
+          throw new Error("No new device ID expected");
+        }
+        yield _this4.send({
+          type: PayloadType.ProtocolAccepted
+        });
+        logger.info("Waiting for outcome message");
+        var _payload = yield _this4.receive();
+        if ((_payload === null || _payload === void 0 ? void 0 : _payload.type) === PayloadType.Failure) {
+          throw new RendezvousError("Failed", _payload.reason);
+        }
+        if ((_payload === null || _payload === void 0 ? void 0 : _payload.type) === PayloadType.Declined) {
+          throw new RendezvousError("User declined", ClientRendezvousFailureReason.UserDeclined);
+        }
+        if ((_payload === null || _payload === void 0 ? void 0 : _payload.type) !== PayloadType.Success) {
+          yield _this4.send({
+            type: PayloadType.Failure,
+            reason: MSC4108FailureReason.UnexpectedMessageReceived
+          });
+          throw new RendezvousError("Unexpected message", MSC4108FailureReason.UnexpectedMessageReceived);
+        }
+        var timeout = Date.now() + 10000; // wait up to 10 seconds
+        do {
+          // is the device visible via the Homeserver?
+          try {
+            var _this4$client;
+            var device = yield (_this4$client = _this4.client) === null || _this4$client === void 0 ? void 0 : _this4$client.getDevice(_this4.expectingNewDeviceId);
+            if (device) {
+              // if so, return the secrets
+              var secretsBundle = yield _this4.client.getCrypto().exportSecretsBundle();
+              if (_this4.channel.cancelled) {
+                throw new RendezvousError("User cancelled", MSC4108FailureReason.UserCancelled);
+              }
+              // send secrets
+              yield _this4.send(_objectSpread({
+                type: PayloadType.Secrets
+              }, secretsBundle));
+              return {
+                secrets: secretsBundle
+              };
+              // let the other side close the rendezvous session
+            }
+          } catch (err) {
+            if (err instanceof MatrixError && err.httpStatus === 404) {
+              // not found, so keep waiting until timeout
+            } else {
+              throw err;
+            }
+          }
+          yield sleep(1000);
+        } while (Date.now() < timeout);
+        yield _this4.send({
+          type: PayloadType.Failure,
+          reason: MSC4108FailureReason.DeviceNotFound
+        });
+        throw new RendezvousError("New device not found", MSC4108FailureReason.DeviceNotFound);
+      }
+    })();
+  }
+  receive() {
+    var _this5 = this;
+    return _asyncToGenerator(function* () {
+      return yield _this5.channel.secureReceive();
+    })();
+  }
+  send(payload) {
+    var _this6 = this;
+    return _asyncToGenerator(function* () {
+      yield _this6.channel.secureSend(payload);
+    })();
+  }
+
+  /**
+   * Decline the login on the existing device.
+   */
+  declineLoginOnExistingDevice() {
+    var _this7 = this;
+    return _asyncToGenerator(function* () {
+      if (!_this7.isExistingDevice) {
+        throw new Error("Can only decline login on existing device");
+      }
+      yield _this7.send({
+        type: PayloadType.Failure,
+        reason: MSC4108FailureReason.UserCancelled
+      });
+    })();
+  }
+
+  /**
+   * Cancels the rendezvous session.
+   * @param reason the reason for the cancellation
+   */
+  cancel(reason) {
+    var _this8 = this;
+    return _asyncToGenerator(function* () {
+      var _this8$onFailure;
+      (_this8$onFailure = _this8.onFailure) === null || _this8$onFailure === void 0 || _this8$onFailure.call(_this8, reason);
+      yield _this8.channel.cancel(reason);
+    })();
+  }
+
+  /**
+   * Closes the rendezvous session.
+   */
+  close() {
+    var _this9 = this;
+    return _asyncToGenerator(function* () {
+      yield _this9.channel.close();
+    })();
+  }
+}
+//# sourceMappingURL=MSC4108SignInWithQR.js.map

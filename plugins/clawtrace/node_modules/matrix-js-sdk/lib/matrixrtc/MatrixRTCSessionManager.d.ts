@@ -1,0 +1,46 @@
+import { type Logger } from "../logger.ts";
+import { type MatrixClient } from "../client.ts";
+import { TypedEventEmitter } from "../models/typed-event-emitter.ts";
+import { type Room } from "../models/room.ts";
+import { MatrixRTCSession } from "./MatrixRTCSession.ts";
+import { type SlotDescription } from "./types.ts";
+export declare enum MatrixRTCSessionManagerEvents {
+    SessionStarted = "session_started",
+    SessionEnded = "session_ended"
+}
+type EventHandlerMap = {
+    [MatrixRTCSessionManagerEvents.SessionStarted]: (roomId: string, session: MatrixRTCSession) => void;
+    [MatrixRTCSessionManagerEvents.SessionEnded]: (roomId: string, session: MatrixRTCSession) => void;
+};
+/**
+ * Holds all active MatrixRTC session objects and creates new ones as events arrive.
+ * One `MatrixRTCSessionManager` is required for each MatrixRTC sessionDescription (application, session id) that the client wants to support.
+ * If no application type is specified in the constructor, the default is "m.call".
+ *
+ * This interface is UNSTABLE and may change without warning.
+ */
+export declare class MatrixRTCSessionManager extends TypedEventEmitter<MatrixRTCSessionManagerEvents, EventHandlerMap> {
+    private client;
+    private readonly slotDescription;
+    private roomSessions;
+    private readonly logger;
+    constructor(rootLogger: Logger, client: MatrixClient, slotDescription?: SlotDescription);
+    start(): void;
+    stop(): void;
+    /**
+     * Gets the main MatrixRTC session for a room, or undefined if there is
+     * no current session
+     */
+    getActiveRoomSession(room: Room): MatrixRTCSession | undefined;
+    /**
+     * Gets the main MatrixRTC session for a room, returning an empty session
+     * if no members are currently participating
+     */
+    getRoomSession(room: Room): MatrixRTCSession;
+    private onRoom;
+    private readonly onEvent;
+    private readonly onRoomState;
+    private refreshRoom;
+}
+export {};
+//# sourceMappingURL=MatrixRTCSessionManager.d.ts.map

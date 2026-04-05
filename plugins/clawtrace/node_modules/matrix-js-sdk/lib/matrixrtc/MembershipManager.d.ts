@@ -1,0 +1,210 @@
+import { type ISendEventResponse, type SendDelayedEventResponse } from "../@types/requests.ts";
+import { type EmptyObject } from "../@types/common.ts";
+import type { MatrixClient } from "../client.ts";
+import { type Logger } from "../logger.ts";
+import { type Room } from "../models/room.ts";
+import { type CallMembership } from "./CallMembership.ts";
+import { type Transport, type RTCCallIntent, Status, type SlotDescription } from "./types.ts";
+import { type MembershipConfig, type SessionConfig } from "./MatrixRTCSession.ts";
+import { type ActionUpdate } from "./MembershipManagerActionScheduler.ts";
+import { TypedEventEmitter } from "../models/typed-event-emitter.ts";
+import { MembershipManagerEvent, type IMembershipManager, type MembershipManagerEventHandlerMap } from "./IMembershipManager.ts";
+import { type RtcMembershipData, type SessionMembershipData } from "./membershipData/index.ts";
+/**
+ * The different types of actions the MembershipManager can take.
+ * @internal
+ */
+export declare enum MembershipActionType {
+    SendDelayedEvent = "SendDelayedEvent",
+    SendJoinEvent = "SendJoinEvent",
+    RestartDelayedEvent = "RestartDelayedEvent",
+    UpdateExpiry = "UpdateExpiry",
+    SendScheduledDelayedLeaveEvent = "SendScheduledDelayedLeaveEvent",
+    SendLeaveEvent = "SendLeaveEvent"
+}
+/**
+ * @internal
+ */
+export interface MembershipManagerState {
+    /** The delayId we got when successfully sending the delayed leave event.
+     * Gets set to undefined if the server claims it cannot find the delayed event anymore. */
+    delayId?: string;
+    /** Stores how often we have update the `expires` field.
+     * `expireUpdateIterations` * `membershipEventExpiryTimeout` resolves to the value the expires field should contain next */
+    expireUpdateIterations: number;
+    /** The time at which we send the first state event. The time the call started from the DAG point of view.
+     * This is used to compute the local sleep timestamps when to next update the member event with a new expires value. */
+    startTime: number;
+    /** The manager is in the state where its actually connected to the session. */
+    hasMemberStateEvent: boolean;
+    /** Retry counter for rate limits */
+    rateLimitRetries: Map<MembershipActionType, number>;
+    /** Retry counter for other errors */
+    networkErrorRetries: Map<MembershipActionType, number>;
+    /** The time at which we expect the server to send the delayed leave event. */
+    expectedServerDelayLeaveTs?: number;
+    /** This is used to track if the client expects the scheduled delayed leave event to have
+     * been sent because restarting failed during the available time.
+     * Once we resend the delayed event or successfully restarted it will get unset. */
+    probablyLeft: boolean;
+}
+type MembershipManagerClient = Pick<MatrixClient, "getUserId" | "getDeviceId" | "sendStateEvent" | "_unstable_sendDelayedStateEvent" | "_unstable_updateDelayedEvent" | "_unstable_cancelScheduledDelayedEvent" | "_unstable_restartScheduledDelayedEvent" | "_unstable_sendScheduledDelayedEvent">;
+/**
+ * This class is responsible for sending all events relating to the own membership of a matrixRTC call.
+ * It has the following tasks:
+ *  - Send the users leave delayed event before sending the membership
+ *  - Send the users membership if the state machine is started
+ *  - Check if the delayed event was canceled due to sending the membership
+ *  - update the delayed event (`restart`)
+ *  - Update the state event every ~5h = `DEFAULT_EXPIRE_DURATION` (so it does not get treated as expired)
+ *  - When the state machine is stopped:
+ *   - Disconnect the member
+ *   - Stop the timer for the delay refresh
+ *   - Stop the timer for updating the state event
+ */
+export declare class MembershipManager extends TypedEventEmitter<MembershipManagerEvent, MembershipManagerEventHandlerMap> implements IMembershipManager {
+    private readonly joinConfig;
+    protected readonly room: Pick<Room, "roomId" | "getVersion">;
+    protected readonly client: MembershipManagerClient;
+    readonly slotDescription: SlotDescription;
+    private activated;
+    private readonly logger;
+    protected callIntent: RTCCallIntent | undefined;
+    isActivated(): boolean;
+    isJoined(): boolean;
+    /**
+     * Puts the MembershipManager in a state where it tries to be joined.
+     * It will send delayed events and membership events
+     * @param fociPreferred the list of preferred foci to use in the joined RTC membership event.
+     * If multiSfuFocus is set, this is only needed if this client wants to publish to multiple transports simultaneously.
+     * @param multiSfuFocus the active focus to use in the joined RTC membership event. Setting this implies the
+     * membership manager will operate in a multi-SFU connection mode. If `undefined`, an `oldest_membership`
+     * transport selection will be used instead.
+     * @param onError This will be called once the membership manager encounters an unrecoverable error.
+     * This should bubble up the the frontend to communicate that the call does not work in the current environment.
+     */
+    join(fociPreferred: Transport[], multiSfuFocus?: Transport, onError?: (error: unknown) => void): void;
+    /**
+     * Leave from the call (Send an rtc session event with content: `{}`)
+     * @param timeout the maximum duration this promise will take to resolve
+     * @returns true if it managed to leave and false if the timeout condition happened.
+     */
+    leave(timeout?: number): Promise<boolean>;
+    private leavePromiseResolvers?;
+    onRTCSessionMemberUpdate(memberships: CallMembership[]): Promise<void>;
+    updateCallIntent(callIntent: RTCCallIntent): Promise<void>;
+    /**
+     * @throws if the client does not return user or device id.
+     * @param joinConfig
+     * @param room
+     * @param client
+     */
+    constructor(joinConfig: (SessionConfig & MembershipConfig) | undefined, room: Pick<Room, "roomId" | "getVersion">, client: MembershipManagerClient, slotDescription: SlotDescription, parentLogger?: Logger);
+    private _ownMembership?;
+    get ownMembership(): CallMembership | undefined;
+    private oldStatus?;
+    private scheduler;
+    private state;
+    private static get defaultState();
+    protected deviceId: string;
+    protected userId: string;
+    protected stateKey: string;
+    protected rtcTransport?: Transport;
+    /** @deprecated This will be removed in favor or rtcTransport becoming a list of actively used transports */
+    private fociPreferred?;
+    private delayedLeaveEventDelayMsOverride?;
+    private get networkErrorRetryMs();
+    private get membershipEventExpiryMs();
+    private get membershipEventExpiryHeadroomMs();
+    private computeNextExpiryActionTs;
+    protected get delayedLeaveEventDelayMs(): number;
+    private get delayedLeaveEventRestartMs();
+    private get maximumRateLimitRetryCount();
+    private get maximumNetworkErrorRetryCount();
+    private get delayedLeaveEventRestartLocalTimeoutMs();
+    private membershipLoopHandler;
+    protected clientSendDelayedDisconnectMembership: () => Promise<SendDelayedEventResponse>;
+    private sendOrResendDelayedLeaveEvent;
+    private cancelKnownDelayIdBeforeSendDelayedEvent;
+    private setAndEmitProbablyLeft;
+    private setAndEmitDelayId;
+    private restartDelayedEvent;
+    private sendScheduledDelayedLeaveEventOrFallbackToSendLeaveEvent;
+    protected clientSendMembership: (myMembership: RtcMembershipData | SessionMembershipData | EmptyObject) => Promise<ISendEventResponse>;
+    private sendJoinEvent;
+    private updateExpiryOnJoinedEvent;
+    private sendFallbackLeaveEvent;
+    /**
+     * this creates `${localUserId}_${localDeviceId}_${this.slotDescription.application}${this.slotDescription.id}`
+     * which is not compatible with membershipID of session type member events. They have to be `${localUserId}:${localDeviceId}`
+     */
+    private makeMembershipStateKey;
+    /**
+     * Constructs our own membership
+     * @returns Only returns `SessionMembershipData`
+     */
+    protected makeMyMembership(expires: number): SessionMembershipData | RtcMembershipData;
+    /**
+     * Check if its a NOT_FOUND error
+     * @param error the error causing this handler check/execution
+     * @returns true if its a not found error
+     */
+    private isNotFoundError;
+    /**
+     * Check if this is a DelayExceeded timeout and update the TimeoutOverride for the next try
+     * @param error the error causing this handler check/execution
+     * @returns true if its a delay exceeded error and we updated the local TimeoutOverride
+     */
+    private manageMaxDelayExceededSituation;
+    protected actionUpdateFromErrors(error: unknown, type: MembershipActionType, method: string): ActionUpdate | undefined;
+    /**
+     * Check if we have a rate limit error and schedule the same action again if we dont exceed the rate limit retry count yet.
+     * @param error the error causing this handler check/execution
+     * @param method the method used for the throw message
+     * @param type which MembershipActionType we reschedule because of a rate limit.
+     * @throws If it is a rate limit error and the retry count got exceeded
+     * @returns Returns true if we handled the error by rescheduling the correct next action.
+     * Returns false if it is not a network error.
+     */
+    private actionUpdateFromRateLimitError;
+    /**
+     * FIXME Don't Check the error and retry the same MembershipAction again in the configured time and for the configured retry count.
+     * @param error the error causing this handler check/execution
+     * @param type the action type that we need to repeat because of the error
+     * @throws If it is a network error and the retry count got exceeded
+     * @returns
+     * Returns true if we handled the error by rescheduling the correct next action.
+     * Returns false if it is not a network error.
+     */
+    private actionUpdateFromNetworkErrorRetry;
+    /**
+     * Check if its an UnsupportedDelayedEventsEndpointError and which implies that we cannot do any delayed event logic
+     * @param error The error to check
+     * @returns true it its an UnsupportedDelayedEventsEndpointError
+     */
+    private isUnsupportedDelayedEndpoint;
+    private resetRateLimitCounter;
+    get status(): Status;
+    get probablyLeft(): boolean;
+    get delayId(): string | undefined;
+}
+/**
+ * Implementation of the Membership manager that uses sticky events
+ * rather than state events.
+ */
+export declare class StickyEventMembershipManager extends MembershipManager {
+    private readonly clientWithSticky;
+    private readonly memberId;
+    constructor(joinConfig: (SessionConfig & MembershipConfig) | undefined, room: Pick<Room, "getLiveTimeline" | "roomId" | "getVersion">, clientWithSticky: MembershipManagerClient & Pick<MatrixClient, "_unstable_sendStickyEvent" | "_unstable_sendStickyDelayedEvent">, sessionDescription: SlotDescription, memberId: string, parentLogger?: Logger);
+    protected clientSendDelayedDisconnectMembership: () => Promise<SendDelayedEventResponse>;
+    protected clientSendMembership: (myMembership: RtcMembershipData | SessionMembershipData | EmptyObject) => Promise<ISendEventResponse>;
+    private static nameMap;
+    protected actionUpdateFromErrors(e: unknown, t: MembershipActionType, m: string): ActionUpdate | undefined;
+    /**
+     *
+     * @returns Only returns `RtcMembershipData`
+     */
+    protected makeMyMembership(): RtcMembershipData;
+}
+export {};
+//# sourceMappingURL=MembershipManager.d.ts.map

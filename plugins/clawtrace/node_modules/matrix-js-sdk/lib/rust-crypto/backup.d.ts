@@ -1,0 +1,278 @@
+import { type OlmMachine } from "@matrix-org/matrix-sdk-crypto-wasm";
+import * as RustSdkCryptoJs from "@matrix-org/matrix-sdk-crypto-wasm";
+import { type BackupTrustInfo, type KeyBackupCheck, type KeyBackupInfo, type KeyBackupSession, type Curve25519SessionData, type KeyBackupRestoreOpts, type KeyBackupRestoreResult, type KeyBackupRoomSessions } from "../crypto-api/keybackup.ts";
+import { type Logger } from "../logger.ts";
+import { type IHttpOpts, type MatrixHttpApi } from "../http-api/index.ts";
+import { TypedEventEmitter } from "../models/typed-event-emitter.ts";
+import { type OutgoingRequestProcessor } from "./OutgoingRequestProcessor.ts";
+import { type BackupDecryptor } from "../common-crypto/CryptoBackend.ts";
+import { type ImportRoomKeysOpts, CryptoEvent } from "../crypto-api/index.ts";
+import { type AESEncryptedSecretStoragePayload } from "../@types/AESEncryptedSecretStoragePayload.ts";
+import { type IMegolmSessionData } from "../@types/crypto.ts";
+/** Authentification of the backup info, depends on algorithm */
+type AuthData = KeyBackupInfo["auth_data"];
+/**
+ * Holds information of a created keybackup.
+ * Useful to get the generated private key material and save it securely somewhere.
+ */
+interface KeyBackupCreationInfo {
+    version: string;
+    algorithm: string;
+    authData: AuthData;
+    decryptionKey: RustSdkCryptoJs.BackupDecryptionKey;
+}
+/**
+ * @internal
+ */
+export declare class RustBackupManager extends TypedEventEmitter<RustBackupCryptoEvents, RustBackupCryptoEventMap> {
+    private readonly logger;
+    private readonly olmMachine;
+    private readonly http;
+    private readonly outgoingRequestProcessor;
+    /** Have we checked if there is a backup on the server which we can use */
+    private checkedForBackup;
+    /**
+     * The latest backup version on the server, when we last checked.
+     *
+     * If there was no backup on the server, `null`. If our attempt to check resulted in an error, `undefined`.
+     *
+     * Note that the backup was not necessarily verified.
+     */
+    private serverBackupInfo;
+    private activeBackupVersion;
+    private stopped;
+    /** whether {@link backupKeysLoop} is currently running */
+    private backupKeysLoopRunning;
+    constructor(logger: Logger, olmMachine: OlmMachine, http: MatrixHttpApi<IHttpOpts & {
+        onlyData: true;
+    }>, outgoingRequestProcessor: OutgoingRequestProcessor);
+    /**
+     * Tells the RustBackupManager to stop.
+     * The RustBackupManager is scheduling background uploads of keys to the backup, this
+     * call allows to cancel the process when the client is stoppped.
+     */
+    stop(): void;
+    /**
+     * Get the backup version we are currently backing up to, if any
+     */
+    getActiveBackupVersion(): Promise<string | null>;
+    /**
+     * Return the details of the latest backup on the server, when we last checked.
+     *
+     * This normally returns a cached value, but if we haven't yet made a request to the server, it will fire one off.
+     * It will always return the details of the active backup if key backup is enabled.
+     *
+     * If there was no backup on the server, `null`. If our attempt to check resulted in an error, `undefined`.
+     */
+    getServerBackupInfo(): Promise<KeyBackupInfo | null | undefined>;
+    /**
+     * Determine if a key backup can be trusted.
+     *
+     * @param info - key backup info dict from {@link CryptoApi.getKeyBackupInfo}.
+     */
+    isKeyBackupTrusted(info: KeyBackupInfo): Promise<BackupTrustInfo>;
+    /**
+     * Re-check the key backup and enable/disable it as appropriate.
+     *
+     * @param force - whether we should force a re-check even if one has already happened.
+     */
+    checkKeyBackupAndEnable(force: boolean): Promise<KeyBackupCheck | null>;
+    /**
+     * Handles a backup secret received event and store it if it matches the current backup version.
+     *
+     * @param secret - The secret as received from a `m.secret.send` event for secret `m.megolm_backup.v1`.
+     * @returns true if the secret is valid and has been stored, false otherwise.
+     */
+    handleBackupSecretReceived(secret: string): Promise<boolean>;
+    saveBackupDecryptionKey(backupDecryptionKey: RustSdkCryptoJs.BackupDecryptionKey, version: string): Promise<void>;
+    /**
+     * Import a list of room keys previously exported by exportRoomKeys
+     *
+     * @param keys - a list of session export objects
+     * @param opts - options object
+     * @returns a promise which resolves once the keys have been imported
+     */
+    importRoomKeys(keys: IMegolmSessionData[], opts?: ImportRoomKeysOpts): Promise<void>;
+    /**
+     * Import a list of room keys previously exported by exportRoomKeysAsJson
+     *
+     * @param jsonKeys - a JSON string encoding a list of session export objects,
+     *    each of which is an IMegolmSessionData
+     * @param opts - options object
+     * @returns a promise which resolves once the keys have been imported
+     */
+    importRoomKeysAsJson(jsonKeys: string, opts?: ImportRoomKeysOpts): Promise<void>;
+    /**
+     * Implementation of {@link CryptoBackend#importBackedUpRoomKeys}.
+     */
+    importBackedUpRoomKeys(keys: IMegolmSessionData[], backupVersion: string, opts?: ImportRoomKeysOpts): Promise<void>;
+    private keyBackupCheckInProgress;
+    /** Helper for `checkKeyBackup` */
+    private doCheckKeyBackup;
+    private enableKeyBackup;
+    /**
+     * Restart the backup key loop if there is an active trusted backup.
+     * Doesn't try to check the backup server side. To be called when a new
+     * megolm key is known locally.
+     */
+    maybeUploadKey(): Promise<void>;
+    private disableKeyBackup;
+    private backupKeysLoop;
+    /**
+     * Utility method to count the number of keys in a backup request, in order to update the remaining keys count.
+     * This should be the chunk size of the backup request for all requests but the last, but we don't have access to it
+     * (it's static in the Rust SDK).
+     * @param batch - The backup request to count the keys from.
+     *
+     * @returns The number of keys in the backup request.
+     */
+    private keysCountInBatch;
+    /**
+     * Get information about a key backup from the server
+     * - If version is provided, get information about that backup version.
+     * - If no version is provided, get information about the latest backup.
+     *
+     * @param version - The version of the backup to get information about.
+     * @returns Information object from API or null if there is no active backup.
+     */
+    requestKeyBackupVersion(version?: string): Promise<KeyBackupInfo | null>;
+    /**
+     * Creates a new key backup by generating a new random private key.
+     *
+     * If there is an existing backup server side it will be deleted and replaced
+     * by the new one.
+     *
+     * @param signObject - Method that should sign the backup with existing device and
+     * existing identity.
+     * @returns a KeyBackupCreationInfo - All information related to the backup.
+     */
+    setupKeyBackup(signObject: (authData: AuthData) => Promise<void>): Promise<KeyBackupCreationInfo>;
+    /**
+     * Deletes all key backups.
+     *
+     * Will call the API to delete active backup until there is no more present.
+     */
+    deleteAllKeyBackupVersions(): Promise<void>;
+    /**
+     * Deletes the given key backup.
+     *
+     * @param version - The backup version to delete.
+     */
+    deleteKeyBackupVersion(version: string): Promise<void>;
+    /**
+     * Creates a new backup decryptor for the given private key.
+     * @param decryptionKey - The private key to use for decryption.
+     */
+    createBackupDecryptor(decryptionKey: RustSdkCryptoJs.BackupDecryptionKey): BackupDecryptor;
+    /**
+     * Restore a key backup.
+     *
+     * @param backupVersion - The version of the backup to restore.
+     * @param backupDecryptor - The backup decryptor to use to decrypt the keys.
+     * @param opts - Options for the restore.
+     * @returns The total number of keys and the total imported.
+     */
+    restoreKeyBackup(backupVersion: string, backupDecryptor: BackupDecryptor, opts?: KeyBackupRestoreOpts): Promise<KeyBackupRestoreResult>;
+    /**
+     * Download and import the keys for a given room from the current backup version.
+     *
+     * @param roomId - The room in question.
+     */
+    downloadLatestRoomKeyBackup(roomId: string): Promise<void>;
+    /**
+     * Call `/room_keys/keys` to download the key backup (room keys) for the given backup version.
+     * https://spec.matrix.org/v1.12/client-server-api/#get_matrixclientv3room_keyskeys
+     *
+     * @param backupVersion
+     * @returns The key backup response.
+     */
+    private downloadKeyBackup;
+    /**
+     * Call `/room/keys/keys/{roomId}` to download the key backup (room keys) for a given backup version and room ID.
+     * @param backupVersion - The version to download.
+     * @param roomId - The ID of the room.
+     * @returns The key backup response.
+     */
+    private downloadRoomKeyBackup;
+    /**
+     * Import the room keys from a `/room_keys/keys` call.
+     * Calls `opts.progressCallback` with the progress of the import.
+     *
+     * @param keyBackup - The response from the server containing the keys to import.
+     * @param backupVersion - The version of the backup info.
+     * @param backupDecryptor - The backup decryptor to use to decrypt the keys.
+     * @param opts - Options for the import.
+     *
+     * @returns The total number of keys and the total imported.
+     *
+     * @private
+     */
+    private importKeyBackup;
+    /**
+     * Checks if the provided backup info matches the given private key.
+     *
+     * @param info - The backup info to check.
+     * @param backupDecryptionKey - The `BackupDecryptionKey` private key to check against.
+     * @returns `true` if the private key can decrypt the backup, `false` otherwise.
+     */
+    private backupInfoMatchesBackupDecryptionKey;
+}
+/**
+ * Implementation of {@link BackupDecryptor} for the rust crypto backend.
+ */
+export declare class RustBackupDecryptor implements BackupDecryptor {
+    private readonly logger;
+    private decryptionKey;
+    sourceTrusted: boolean;
+    constructor(logger: Logger, decryptionKey: RustSdkCryptoJs.BackupDecryptionKey);
+    /**
+     * Implements {@link BackupDecryptor#decryptSessions}
+     */
+    decryptSessions(ciphertexts: Record<string, KeyBackupSession<Curve25519SessionData | AESEncryptedSecretStoragePayload>>): Promise<IMegolmSessionData[]>;
+    /**
+     * Implements {@link BackupDecryptor#free}
+     */
+    free(): void;
+}
+/**
+ * Fetch a key backup info from the server.
+ *
+ * If `version` is provided, calls `GET /room_keys/version/$version` and gets the backup info for that version.
+ * See https://spec.matrix.org/v1.12/client-server-api/#get_matrixclientv3room_keysversionversion.
+ *
+ * If not, calls `GET /room_keys/version` and gets the latest backup info.
+ * See https://spec.matrix.org/v1.12/client-server-api/#get_matrixclientv3room_keysversion
+ *
+ * @param http
+ * @param version - the specific version of the backup info to fetch
+ * @returns The key backup info or null if there is no backup.
+ */
+export declare function requestKeyBackupVersion(http: MatrixHttpApi<IHttpOpts & {
+    onlyData: true;
+}>, version?: string): Promise<KeyBackupInfo | null>;
+/**
+ * Checks if the provided decryption key matches the public key of the key backup info.
+ *
+ * @param decryptionKey - The decryption key to check.
+ * @param keyBackupInfo - The key backup info to check against.
+ * @returns `true` if the decryption key matches the key backup info, `false` otherwise.
+ */
+export declare function decryptionKeyMatchesKeyBackupInfo(decryptionKey: RustSdkCryptoJs.BackupDecryptionKey, keyBackupInfo: KeyBackupInfo): boolean;
+export type RustBackupCryptoEvents = CryptoEvent.KeyBackupStatus | CryptoEvent.KeyBackupSessionsRemaining | CryptoEvent.KeyBackupFailed | CryptoEvent.KeyBackupDecryptionKeyCached;
+export type RustBackupCryptoEventMap = {
+    [CryptoEvent.KeyBackupStatus]: (enabled: boolean) => void;
+    [CryptoEvent.KeyBackupSessionsRemaining]: (remaining: number) => void;
+    [CryptoEvent.KeyBackupFailed]: (errCode: string) => void;
+    [CryptoEvent.KeyBackupDecryptionKeyCached]: (version: string) => void;
+};
+/**
+ * Response from GET `/room_keys/keys` endpoint.
+ * See https://spec.matrix.org/latest/client-server-api/#get_matrixclientv3room_keyskeys
+ */
+export interface KeyBackup {
+    rooms: Record<string, {
+        sessions: KeyBackupRoomSessions;
+    }>;
+}
+export {};
+//# sourceMappingURL=backup.d.ts.map

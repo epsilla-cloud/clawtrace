@@ -1,0 +1,1 @@
+export { buildFeishuConversationId, createFeishuThreadBindingManager, feishuSessionBindingAdapterChannels, feishuThreadBindingTesting, parseFeishuDirectConversationId, parseFeishuConversationId, parseFeishuTargetId, } from "../../extensions/feishu/api.js";

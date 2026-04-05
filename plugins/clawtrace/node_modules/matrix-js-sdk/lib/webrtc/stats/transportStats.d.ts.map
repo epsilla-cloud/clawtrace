@@ -1,0 +1,1 @@
+{"version":3,"file":"transportStats.d.ts","sourceRoot":"","sources":["../../../src/webrtc/stats/transportStats.ts"],"names":[],"mappings":"AAgBA,MAAM,WAAW,cAAc;IAC3B,EAAE,EAAE,MAAM,CAAC;IACX,IAAI,EAAE,MAAM,CAAC;IACb,OAAO,EAAE,MAAM,CAAC;IAChB,OAAO,EAAE,OAAO,CAAC;IACjB,kBAAkB,EAAE,MAAM,CAAC;IAC3B,mBAAmB,EAAE,MAAM,CAAC;IAC5B,WAAW,EAAE,MAAM,CAAC;IACpB,GAAG,EAAE,MAAM,CAAC;CACf"}

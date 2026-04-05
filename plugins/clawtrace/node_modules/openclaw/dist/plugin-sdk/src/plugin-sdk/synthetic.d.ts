@@ -1,0 +1,1 @@
+export { applySyntheticConfig, applySyntheticProviderConfig, buildSyntheticModelDefinition, buildSyntheticProvider, SYNTHETIC_BASE_URL, SYNTHETIC_DEFAULT_MODEL_REF, SYNTHETIC_MODEL_CATALOG, } from "../../extensions/synthetic/api.js";

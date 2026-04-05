@@ -1,0 +1,182 @@
+import { type WidgetApi } from "matrix-widget-api";
+import { MatrixEvent } from "./models/event.ts";
+import { type ISendEventResponse, type SendDelayedEventRequestOpts, type SendDelayedEventResponse, UpdateDelayedEventAction } from "./@types/requests.ts";
+import { type StateEvents } from "./@types/event.ts";
+import { MatrixClient, type IMatrixClientCreateOpts, type IStartClientOpts, type SendToDeviceContentMap, type IOpenIDToken } from "./client.ts";
+import { SyncState } from "./sync.ts";
+import { type Room } from "./models/room.ts";
+import { type ToDeviceBatch, type ToDevicePayload } from "./models/ToDeviceMessage.ts";
+import { type QueryDict } from "./utils.ts";
+import { type EmptyObject } from "./matrix.ts";
+interface IStateEventRequest {
+    eventType: string;
+    stateKey?: string;
+}
+export interface ICapabilities {
+    /**
+     * Event types that this client expects to send.
+     */
+    sendEvent?: string[];
+    /**
+     * Event types that this client expects to receive.
+     */
+    receiveEvent?: string[];
+    /**
+     * Message types that this client expects to send, or true for all message
+     * types.
+     */
+    sendMessage?: string[] | true;
+    /**
+     * Message types that this client expects to receive, or true for all
+     * message types.
+     */
+    receiveMessage?: string[] | true;
+    /**
+     * Types of state events that this client expects to send.
+     */
+    sendState?: IStateEventRequest[];
+    /**
+     * Types of state events that this client expects to receive.
+     */
+    receiveState?: IStateEventRequest[];
+    /**
+     * To-device event types that this client expects to send.
+     */
+    sendToDevice?: string[];
+    /**
+     * To-device event types that this client expects to receive.
+     */
+    receiveToDevice?: string[];
+    /**
+     * Whether this client needs access to TURN servers.
+     * @defaultValue false
+     */
+    turnServers?: boolean;
+    /**
+     * Whether this client needs to be able to send delayed events.
+     * @experimental Part of MSC4140 & MSC4157
+     * @defaultValue false
+     */
+    sendDelayedEvents?: boolean;
+    /**
+     * Whether this client needs to be able to update delayed events.
+     * @experimental Part of MSC4140 & MSC4157
+     * @defaultValue false
+     */
+    updateDelayedEvents?: boolean;
+    /**
+     * Whether this client needs to be able to send sticky events.
+     * @experimental Part of MSC4354 & MSC4407
+     * @defaultValue false
+     */
+    sendSticky?: boolean;
+    /**
+     * Whether this client needs to be able to receive sticky events.
+     * @experimental Part of MSC4354 & MSC4407
+     * @defaultValue false
+     */
+    receiveSticky?: boolean;
+}
+export declare enum RoomWidgetClientEvent {
+    PendingEventsChanged = "PendingEvent.pendingEventsChanged"
+}
+export type EventHandlerMap = {
+    [RoomWidgetClientEvent.PendingEventsChanged]: () => void;
+};
+/**
+ * A MatrixClient that routes its requests through the widget API instead of the
+ * real CS API.
+ * @experimental This class is considered unstable!
+ */
+export declare class RoomWidgetClient extends MatrixClient {
+    private readonly widgetApi;
+    private readonly capabilities;
+    private readonly roomId;
+    private room?;
+    private readonly widgetApiReady;
+    private readonly roomStateSynced;
+    private lifecycle?;
+    private syncState;
+    private pendingSendingEventsTxId;
+    private eventEmitter;
+    /**
+     *
+     * @param widgetApi - The widget api to use for communication.
+     * @param capabilities - The capabilities the widget client will request.
+     * @param roomId - The room id the widget is associated with.
+     * @param opts - The configuration options for this client.
+     * @param sendContentLoaded - Whether to send a content loaded widget action immediately after initial setup.
+     *   Set to `false` if the widget uses `waitForIFrameLoad=true` (in this case the client does not expect a content loaded action at all),
+     *   or if the the widget wants to send the `ContentLoaded` action at a later point in time after the initial setup.
+     */
+    constructor(widgetApi: WidgetApi, capabilities: ICapabilities, roomId: string, opts: IMatrixClientCreateOpts, sendContentLoaded: boolean);
+    private requestInitialCapabilities;
+    supportUpdateState(): Promise<boolean>;
+    private readonly syncApiResolver;
+    startClient(opts?: IStartClientOpts): Promise<void>;
+    stopClient(): void;
+    joinRoom(roomIdOrAlias: string): Promise<Room>;
+    protected encryptAndSendEvent(room: Room, event: MatrixEvent, queryDict?: QueryDict): Promise<ISendEventResponse>;
+    protected encryptAndSendEvent(room: Room, event: MatrixEvent, delayOpts: SendDelayedEventRequestOpts, queryDict?: QueryDict): Promise<ISendEventResponse>;
+    sendStateEvent(roomId: string, eventType: string, content: any, stateKey?: string): Promise<ISendEventResponse>;
+    /**
+     * @experimental This currently relies on an unstable MSC (MSC4140).
+     */
+    _unstable_sendDelayedStateEvent<K extends keyof StateEvents>(roomId: string, delayOpts: SendDelayedEventRequestOpts, eventType: K, content: StateEvents[K], stateKey?: string): Promise<SendDelayedEventResponse>;
+    private validateSendDelayedEventResponse;
+    /**
+     * @experimental This currently relies on an unstable MSC (MSC4140).
+     * @deprecated Instead use one of:
+     * - {@link _unstable_cancelScheduledDelayedEvent}
+     * - {@link _unstable_restartScheduledDelayedEvent}
+     * - {@link _unstable_sendScheduledDelayedEvent}
+     */
+    _unstable_updateDelayedEvent(delayId: string, action: UpdateDelayedEventAction): Promise<EmptyObject>;
+    /**
+     * @experimental This currently relies on an unstable MSC (MSC4140).
+     */
+    _unstable_cancelScheduledDelayedEvent(delayId: string): Promise<EmptyObject>;
+    /**
+     * @experimental This currently relies on an unstable MSC (MSC4140).
+     */
+    _unstable_restartScheduledDelayedEvent(delayId: string): Promise<EmptyObject>;
+    /**
+     * @experimental This currently relies on an unstable MSC (MSC4140).
+     */
+    _unstable_sendScheduledDelayedEvent(delayId: string): Promise<EmptyObject>;
+    /**
+     * by {@link MatrixClient.encryptAndSendToDevice}.
+     */
+    encryptAndSendToDevice(eventType: string, devices: {
+        userId: string;
+        deviceId: string;
+    }[], payload: ToDevicePayload): Promise<void>;
+    sendToDevice(eventType: string, contentMap: SendToDeviceContentMap): Promise<EmptyObject>;
+    getOpenIdToken(): Promise<IOpenIDToken>;
+    queueToDevice({ eventType, batch }: ToDeviceBatch): Promise<void>;
+    /**
+     * Send an event to a specific list of devices via the widget API. Optionally encrypts the event.
+     *
+     * If you are using a full MatrixClient you would be calling {@link MatrixClient.getCrypto().encryptToDeviceMessages()} followed
+     * by {@link MatrixClient.queueToDevice}.
+     *
+     * However, this is combined into a single step when running as an embedded widget client. So, we expose this method for those
+     * that need it.
+     *
+     * @param eventType - Type of the event to send.
+     * @param encrypted - Whether the event should be encrypted.
+     * @param contentMap - The content to send. Map from user_id to device_id to content object.
+     */
+    sendToDeviceViaWidgetApi(eventType: string, encrypted: boolean, contentMap: SendToDeviceContentMap): Promise<void>;
+    checkTurnServers(): Promise<boolean>;
+    getSyncState(): SyncState | null;
+    private setSyncState;
+    private ack;
+    private updateTxId;
+    private onEvent;
+    private onToDevice;
+    private onStateUpdate;
+    private watchTurnServers;
+}
+export {};
+//# sourceMappingURL=embedded.d.ts.map

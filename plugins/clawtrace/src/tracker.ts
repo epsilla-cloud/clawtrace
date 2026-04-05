@@ -582,6 +582,13 @@ export class HookEventTracker {
     const traceId = parentInfo?.traceId ?? runId;
     const rootParentSpanId = parentInfo?.parentSpanId ?? null;
 
+    // Clean up the previous run for this session (if any) to prevent stale
+    // state from long-lived sessions where onSessionEnd never fires.
+    const prevRunId = this.sessionToRunId.get(sessionKey);
+    if (prevRunId && prevRunId !== runId) {
+      this.activeRuns.delete(prevRunId);
+    }
+
     const rootSpanId = this.idFactory();
     const run: RunState = {
       traceId,

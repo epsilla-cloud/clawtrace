@@ -1,0 +1,38 @@
+export declare enum InvalidCryptoStoreState {
+    TooNew = "TOO_NEW"
+}
+export declare class InvalidCryptoStoreError extends Error {
+    readonly reason: InvalidCryptoStoreState;
+    static TOO_NEW: InvalidCryptoStoreState;
+    constructor(reason: InvalidCryptoStoreState);
+}
+export declare class KeySignatureUploadError extends Error {
+    readonly value: any;
+    constructor(message: string, value: any);
+}
+/**
+ * It is invalid to call most methods once {@link MatrixClient#stopClient} has been called.
+ *
+ * This error will be thrown if you attempt to do so.
+ *
+ * {@link MatrixClient#stopClient} itself is an exception to this: it may safely be called multiple times on the same
+ * instance.
+ */
+export declare class ClientStoppedError extends Error {
+    constructor();
+}
+/**
+ * This error is thrown when the Homeserver does not support the delayed events endpoints.
+ */
+export declare class UnsupportedDelayedEventsEndpointError extends Error {
+    clientEndpoint: "sendDelayedEvent" | "updateDelayedEvent" | "cancelScheduledDelayedEvent" | "restartScheduledDelayedEvent" | "sendScheduledDelayedEvent" | "sendDelayedStateEvent" | "getDelayedEvents";
+    constructor(message: string, clientEndpoint: "sendDelayedEvent" | "updateDelayedEvent" | "cancelScheduledDelayedEvent" | "restartScheduledDelayedEvent" | "sendScheduledDelayedEvent" | "sendDelayedStateEvent" | "getDelayedEvents");
+}
+/**
+ * This error is thrown when the Homeserver does not support the sticky events endpoints.
+ */
+export declare class UnsupportedStickyEventsEndpointError extends Error {
+    clientEndpoint: "sendStickyEvent" | "sendStickyStateEvent";
+    constructor(message: string, clientEndpoint: "sendStickyEvent" | "sendStickyStateEvent");
+}
+//# sourceMappingURL=errors.d.ts.map

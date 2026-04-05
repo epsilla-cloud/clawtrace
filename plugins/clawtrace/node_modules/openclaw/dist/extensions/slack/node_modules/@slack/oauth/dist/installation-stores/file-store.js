@@ -1,0 +1,116 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_os_1 = require("node:os");
+const node_path_1 = __importDefault(require("node:path"));
+class FileInstallationStore {
+    constructor({ baseDir = `${(0, node_os_1.homedir)()}/.bolt-js-app-installation`, clientId, historicalDataEnabled = true, } = {}) {
+        this.baseDir = clientId !== undefined ? node_path_1.default.join(baseDir, clientId) : baseDir;
+        this.historicalDataEnabled = historicalDataEnabled;
+    }
+    async storeInstallation(installation, logger) {
+        const { enterprise, team, user } = installation;
+        const installationData = JSON.stringify(installation);
+        const installationDir = this.getInstallationDir(enterprise === null || enterprise === void 0 ? void 0 : enterprise.id, team === null || team === void 0 ? void 0 : team.id);
+        if (logger !== undefined) {
+            const dataForLogging = {
+                enterprise,
+                team,
+                // user object can include token values
+                user: { id: user.id },
+            };
+            logger.info(`Storing installation in ${installationDir} for ${JSON.stringify(dataForLogging)}`);
+            logger.warn('FileInstallationStore is not intended for production purposes.');
+        }
+        // Create Installation Directory
+        node_fs_1.default.mkdirSync(installationDir, { recursive: true });
+        try {
+            writeToFile(node_path_1.default.join(installationDir, 'app-latest'), installationData);
+            writeToFile(node_path_1.default.join(installationDir, `user-${user.id}-latest`), installationData);
+            if (this.historicalDataEnabled) {
+                const currentUTC = Date.now();
+                writeToFile(node_path_1.default.join(installationDir, `app-${currentUTC}`), installationData);
+                writeToFile(node_path_1.default.join(installationDir, `user-${user.id}-${currentUTC}`), installationData);
+            }
+        }
+        catch (err) {
+            throw new Error(`Failed to save installation to FileInstallationStore (error: ${err})`);
+        }
+    }
+    async fetchInstallation(query, logger) {
+        const { enterpriseId, teamId, isEnterpriseInstall } = query;
+        const installationDir = this.getInstallationDir(enterpriseId, teamId, isEnterpriseInstall);
+        if (logger !== undefined) {
+            logger.info(`Retrieving installation from ${installationDir} with the following query: ${JSON.stringify(query)}`);
+        }
+        if (isEnterpriseInstall && enterpriseId === undefined) {
+            throw new Error('enterpriseId is required to fetch data of an enterprise installation');
+        }
+        try {
+            const data = node_fs_1.default.readFileSync(node_path_1.default.join(installationDir, 'app-latest'));
+            const installation = JSON.parse(data.toString());
+            if (query.userId && installation.user.id !== query.userId) {
+                try {
+                    const userData = node_fs_1.default.readFileSync(node_path_1.default.join(installationDir, `user-${query.userId}-latest`));
+                    if (userData !== undefined && userData !== null) {
+                        const userInstallation = JSON.parse(userData.toString());
+                        installation.user = userInstallation.user;
+                    }
+                }
+                catch (_err) {
+                    logger === null || logger === void 0 ? void 0 : logger.debug(`The user-token installation for the request user (user_id: ${query.userId}) was not found.`);
+                    installation.user.token = undefined;
+                    installation.user.refreshToken = undefined;
+                    installation.user.expiresAt = undefined;
+                    installation.user.scopes = undefined;
+                }
+            }
+            return installation;
+        }
+        catch (_err) {
+            throw new Error(`No installation data found (enterprise_id: ${query.enterpriseId}, team_id: ${query.teamId}, user_id: ${query.userId})`);
+        }
+    }
+    async deleteInstallation(query, logger) {
+        const { enterpriseId, teamId, userId } = query;
+        const installationDir = this.getInstallationDir(enterpriseId, teamId);
+        if (logger !== undefined) {
+            logger.info(`Deleting installations in ${installationDir} with the following query: ${JSON.stringify(query)}`);
+        }
+        let filesToDelete = [];
+        if (userId === undefined) {
+            const allFiles = node_fs_1.default.readdirSync(installationDir);
+            filesToDelete = filesToDelete.concat(allFiles);
+        }
+        else {
+            const userFiles = node_fs_1.default.readdirSync(installationDir).filter((file) => file.includes(`user-${userId}-`));
+            filesToDelete = filesToDelete.concat(userFiles);
+        }
+        try {
+            for (const filePath of filesToDelete) {
+                deleteFile(node_path_1.default.join(installationDir, filePath));
+            }
+        }
+        catch (err) {
+            throw new Error(`Failed to delete installation from FileInstallationStore (error: ${err})`);
+        }
+    }
+    getInstallationDir(enterpriseId = '', teamId = '', isEnterpriseInstall = false) {
+        let installDir = node_path_1.default.join(this.baseDir, enterpriseId);
+        if (teamId !== '' && !isEnterpriseInstall) {
+            installDir += enterpriseId !== '' ? `-${teamId}` : `${teamId}`;
+        }
+        return installDir;
+    }
+}
+exports.default = FileInstallationStore;
+function writeToFile(filePath, data) {
+    node_fs_1.default.writeFileSync(filePath, data);
+}
+function deleteFile(filePath) {
+    node_fs_1.default.unlinkSync(node_path_1.default.resolve(filePath));
+}
+//# sourceMappingURL=file-store.js.map

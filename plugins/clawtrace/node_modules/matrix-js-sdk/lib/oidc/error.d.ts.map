@@ -1,0 +1,1 @@
+{"version":3,"file":"error.d.ts","sourceRoot":"","sources":["../../src/oidc/error.ts"],"names":[],"mappings":"AAgBA;;;GAGG;AACH,oBAAY,SAAS;IACjB,YAAY,sCAAsC;IAClD,aAAa,0BAA0B;IACvC,OAAO,6CAA6C;IACpD,SAAS,2DAA2D;IACpE,+BAA+B,uCAAuC;IACtE,yBAAyB,gCAAgC;IACzD,0BAA0B,0CAA0C;IACpE,kBAAkB,sCAAsC;IACxD,0BAA0B,kCAAkC;IAC5D,cAAc,qBAAqB;IACnC,2BAA2B,iEAAiE;CAC/F"}

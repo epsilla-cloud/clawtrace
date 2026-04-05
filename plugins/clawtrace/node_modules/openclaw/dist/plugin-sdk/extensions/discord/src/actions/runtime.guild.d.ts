@@ -1,0 +1,24 @@
+import type { AgentToolResult } from "@mariozechner/pi-agent-core";
+import { type ActionGate, type DiscordActionConfig } from "../runtime-api.js";
+import { addRoleDiscord, createChannelDiscord, createScheduledEventDiscord, deleteChannelDiscord, editChannelDiscord, fetchChannelInfoDiscord, fetchMemberInfoDiscord, fetchRoleInfoDiscord, fetchVoiceStatusDiscord, listGuildChannelsDiscord, listGuildEmojisDiscord, listScheduledEventsDiscord, moveChannelDiscord, removeChannelPermissionDiscord, removeRoleDiscord, setChannelPermissionDiscord, uploadEmojiDiscord, uploadStickerDiscord } from "../send.js";
+export declare const discordGuildActionRuntime: {
+    addRoleDiscord: typeof addRoleDiscord;
+    createChannelDiscord: typeof createChannelDiscord;
+    createScheduledEventDiscord: typeof createScheduledEventDiscord;
+    deleteChannelDiscord: typeof deleteChannelDiscord;
+    editChannelDiscord: typeof editChannelDiscord;
+    fetchChannelInfoDiscord: typeof fetchChannelInfoDiscord;
+    fetchMemberInfoDiscord: typeof fetchMemberInfoDiscord;
+    fetchRoleInfoDiscord: typeof fetchRoleInfoDiscord;
+    fetchVoiceStatusDiscord: typeof fetchVoiceStatusDiscord;
+    listGuildChannelsDiscord: typeof listGuildChannelsDiscord;
+    listGuildEmojisDiscord: typeof listGuildEmojisDiscord;
+    listScheduledEventsDiscord: typeof listScheduledEventsDiscord;
+    moveChannelDiscord: typeof moveChannelDiscord;
+    removeChannelPermissionDiscord: typeof removeChannelPermissionDiscord;
+    removeRoleDiscord: typeof removeRoleDiscord;
+    setChannelPermissionDiscord: typeof setChannelPermissionDiscord;
+    uploadEmojiDiscord: typeof uploadEmojiDiscord;
+    uploadStickerDiscord: typeof uploadStickerDiscord;
+};
+export declare function handleDiscordGuildAction(action: string, params: Record<string, unknown>, isActionEnabled: ActionGate<DiscordActionConfig>): Promise<AgentToolResult<unknown>>;

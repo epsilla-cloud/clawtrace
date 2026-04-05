@@ -1,0 +1,117 @@
+import { type IMatrixApiError as IWidgetMatrixError } from "matrix-widget-api";
+import { type IUsageLimit } from "../@types/partials.ts";
+import { type MatrixEvent } from "../models/event.ts";
+import { NamespacedValue } from "../NamespacedValue.ts";
+interface IErrorJson extends Partial<IUsageLimit> {
+    [key: string]: any;
+    errcode?: string;
+    error?: string;
+}
+/**
+ * Construct a generic HTTP error. This is a JavaScript Error with additional information
+ * specific to HTTP responses.
+ * @param msg - The error message to include.
+ * @param httpStatus - The HTTP response status code.
+ * @param httpHeaders - The HTTP response headers.
+ */
+export declare class HTTPError extends Error {
+    readonly httpStatus?: number | undefined;
+    readonly httpHeaders?: Headers | undefined;
+    constructor(msg: string, httpStatus?: number | undefined, httpHeaders?: Headers | undefined);
+    /**
+     * Check if this error was due to rate-limiting on the server side (and should therefore be retried after a delay).
+     *
+     * If this returns `true`, {@link getRetryAfterMs} can be called to retrieve the server-side
+     * recommendation for the retry period.
+     *
+     * @returns Whether this error is due to rate-limiting.
+     */
+    isRateLimitError(): boolean;
+    /**
+     * @returns The recommended delay in milliseconds to wait before retrying
+     * the request that triggered this error, or null if no delay is recommended.
+     * @throws Error if the recommended delay is an invalid value.
+     * @see {@link safeGetRetryAfterMs} for a version of this check that doesn't throw.
+     */
+    getRetryAfterMs(): number | null;
+}
+export declare class MatrixError extends HTTPError {
+    url?: string | undefined;
+    event?: MatrixEvent | undefined;
+    readonly errcode?: string;
+    readonly error?: string;
+    data: IErrorJson;
+    /**
+     * Construct a Matrix error. This is a JavaScript Error with additional
+     * information specific to the standard Matrix error response.
+     * @param errorJson - The Matrix error JSON returned from the homeserver.
+     * @param httpStatus - The numeric HTTP status code given
+     * @param httpHeaders - The HTTP response headers given
+     */
+    constructor(errorJson?: IErrorJson, httpStatus?: number, url?: string | undefined, event?: MatrixEvent | undefined, httpHeaders?: Headers);
+    isRateLimitError(): boolean;
+    getRetryAfterMs(): number | null;
+    /**
+     * @returns this error expressed as a JSON payload
+     * for use by Widget API error responses.
+     */
+    asWidgetApiErrorData(): IWidgetMatrixError;
+    /**
+     * @returns a new {@link MatrixError} from a JSON payload
+     * received from Widget API error responses.
+     */
+    static fromWidgetApiErrorData(data: IWidgetMatrixError): MatrixError;
+}
+/**
+ * @returns The recommended delay in milliseconds to wait before retrying the request.
+ * @param error - The error to check for a retry delay.
+ * @param defaultMs - The delay to use if the error was not due to rate-limiting or if no valid delay is recommended.
+ */
+export declare function safeGetRetryAfterMs(error: unknown, defaultMs: number): number;
+/**
+ * Construct a ConnectionError. This is a JavaScript Error indicating
+ * that a request failed because of some error with the connection, either
+ * CORS was not correctly configured on the server, the server didn't response,
+ * the request timed out, or the internet connection on the client side went down.
+ */
+export declare class ConnectionError extends Error {
+    constructor(message: string, cause?: Error);
+    get name(): string;
+}
+/**
+ * Construct a TokenRefreshError. This indicates that a request failed due to the token being expired,
+ * and attempting to refresh said token also failed but in a way which was not indicative of token invalidation.
+ * Assumed to be a temporary failure.
+ */
+export declare class TokenRefreshError extends Error {
+    constructor(cause?: Error);
+    get name(): string;
+}
+/**
+ * Construct a TokenRefreshError. This indicates that a request failed due to the token being expired,
+ * and attempting to refresh said token failed in a way indicative of token invalidation.
+ */
+export declare class TokenRefreshLogoutError extends Error {
+    constructor(cause?: Error);
+    get name(): string;
+}
+export declare const MatrixSafetyErrorCode: NamespacedValue<string, "ORG.MATRIX.MSC4387_SAFETY">;
+/***
+ * This error is thrown when the homeserver refuses to handle an action due to a
+ * safety concern.
+ * @see https://github.com/matrix-org/matrix-spec-proposals/pull/4387
+ */
+export declare class MatrixSafetyError extends MatrixError {
+    /**
+     * The kinds of harms detected by the server.
+     * @see https://github.com/matrix-org/matrix-spec-proposals/pull/4387 for a list of spec defined harms.
+     */
+    readonly harms: Set<string>;
+    /**
+     * The date at which a request can be reattempted.
+     */
+    readonly expiry?: Date;
+    constructor(...props: ConstructorParameters<typeof MatrixError>);
+}
+export {};
+//# sourceMappingURL=errors.d.ts.map

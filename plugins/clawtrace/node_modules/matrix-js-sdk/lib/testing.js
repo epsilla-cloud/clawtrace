@@ -1,0 +1,205 @@
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+import _asyncToGenerator from "@babel/runtime/helpers/asyncToGenerator";
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+/*
+Copyright 2024 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/**
+ * This file is a secondary entrypoint for the js-sdk library, exposing utilities which might be useful for writing tests.
+ *
+ * In general, it should not be included in runtime applications.
+ *
+ * @packageDocumentation
+ */
+
+import { MatrixEvent } from "./models/event.js";
+import { EventType } from "./@types/event.js";
+import { DecryptionError } from "./common-crypto/CryptoBackend.js";
+import { OAuthGrantType } from "./oidc/index.js";
+
+/**
+ * Create a {@link MatrixEvent}.
+ *
+ * @param opts - Values for the event.
+ */
+export function mkMatrixEvent(opts) {
+  var _opts$eventId, _opts$ts;
+  var event = {
+    type: opts.type,
+    room_id: opts.roomId,
+    sender: opts.sender,
+    content: opts.content,
+    event_id: (_opts$eventId = opts.eventId) !== null && _opts$eventId !== void 0 ? _opts$eventId : "$" + Math.random() + "-" + Math.random(),
+    origin_server_ts: (_opts$ts = opts.ts) !== null && _opts$ts !== void 0 ? _opts$ts : 0,
+    unsigned: opts.unsigned
+  };
+  if (opts.stateKey !== undefined) {
+    event.state_key = opts.stateKey;
+  }
+  var mxEvent = new MatrixEvent(event);
+  mxEvent.sender = {
+    userId: opts.sender,
+    membership: "join",
+    name: opts.sender,
+    rawDisplayName: opts.sender,
+    roomId: opts.sender,
+    getAvatarUrl: () => {},
+    getMxcAvatarUrl: () => {}
+  };
+  return mxEvent;
+}
+
+/**
+ * Create a `MatrixEvent` representing a successfully-decrypted `m.room.encrypted` event.
+ *
+ * @param opts - Values for the event.
+ */
+export function mkEncryptedMatrixEvent(_x) {
+  return _mkEncryptedMatrixEvent.apply(this, arguments);
+}
+
+/**
+ * Create a `MatrixEvent` representing a `m.room.encrypted` event which could not be decrypted.
+ *
+ * @param opts - Values for the event.
+ */
+function _mkEncryptedMatrixEvent() {
+  _mkEncryptedMatrixEvent = _asyncToGenerator(function* (opts) {
+    var mxEvent = mkMatrixEvent({
+      type: EventType.RoomMessageEncrypted,
+      roomId: opts.roomId,
+      sender: opts.sender,
+      content: {
+        algorithm: "m.megolm.v1.aes-sha2"
+      },
+      eventId: opts.eventId
+    });
+    yield decryptExistingEvent(mxEvent, {
+      plainType: opts.plainType,
+      plainContent: opts.plainContent
+    });
+    return mxEvent;
+  });
+  return _mkEncryptedMatrixEvent.apply(this, arguments);
+}
+export function mkDecryptionFailureMatrixEvent(_x2) {
+  return _mkDecryptionFailureMatrixEvent.apply(this, arguments);
+}
+
+/**
+ * Given an event previously returned by {@link mkDecryptionFailureMatrixEvent}, simulate a successful re-decryption
+ * attempt.
+ *
+ * @param mxEvent - The event that will be decrypted.
+ * @param opts - New data for the successful decryption.
+ */
+function _mkDecryptionFailureMatrixEvent() {
+  _mkDecryptionFailureMatrixEvent = _asyncToGenerator(function* (opts) {
+    var mxEvent = mkMatrixEvent({
+      type: EventType.RoomMessageEncrypted,
+      roomId: opts.roomId,
+      sender: opts.sender,
+      content: {
+        algorithm: "m.megolm.v1.aes-sha2"
+      },
+      eventId: opts.eventId
+    });
+    var mockCrypto = {
+      decryptEvent: function () {
+        var _decryptEvent = _asyncToGenerator(function* (_ev) {
+          throw new DecryptionError(opts.code, opts.msg);
+        });
+        function decryptEvent(_x5) {
+          return _decryptEvent.apply(this, arguments);
+        }
+        return decryptEvent;
+      }()
+    };
+    yield mxEvent.attemptDecryption(mockCrypto);
+    return mxEvent;
+  });
+  return _mkDecryptionFailureMatrixEvent.apply(this, arguments);
+}
+export function decryptExistingEvent(_x3, _x4) {
+  return _decryptExistingEvent.apply(this, arguments);
+}
+
+/**
+ * Makes a valid OidcClientConfig with minimum valid values
+ * @param issuer used as the base for all other urls
+ * @param additionalGrantTypes to add to the default grant types
+ * @returns OidcClientConfig
+ * @experimental
+ */
+function _decryptExistingEvent() {
+  _decryptExistingEvent = _asyncToGenerator(function* (mxEvent, opts) {
+    var decryptionResult = {
+      claimedEd25519Key: "",
+      clearEvent: {
+        type: opts.plainType,
+        content: opts.plainContent
+      },
+      senderCurve25519Key: ""
+    };
+    var mockCrypto = {
+      decryptEvent: function () {
+        var _decryptEvent2 = _asyncToGenerator(function* (_ev) {
+          return decryptionResult;
+        });
+        function decryptEvent(_x6) {
+          return _decryptEvent2.apply(this, arguments);
+        }
+        return decryptEvent;
+      }()
+    };
+    yield mxEvent.attemptDecryption(mockCrypto);
+  });
+  return _decryptExistingEvent.apply(this, arguments);
+}
+export var makeDelegatedAuthConfig = function makeDelegatedAuthConfig() {
+  var issuer = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "https://auth.org/";
+  var additionalGrantTypes = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
+  var metadata = mockOpenIdConfiguration(issuer, additionalGrantTypes);
+  return _objectSpread(_objectSpread({}, metadata), {}, {
+    signingKeys: null
+  });
+};
+
+/**
+ * Useful for mocking <issuer>/.well-known/openid-configuration
+ * @param issuer used as the base for all other urls
+ * @param additionalGrantTypes to add to the default grant types
+ * @returns ValidatedAuthMetadata
+ * @experimental
+ */
+export var mockOpenIdConfiguration = function mockOpenIdConfiguration() {
+  var issuer = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : "https://auth.org/";
+  var additionalGrantTypes = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : [];
+  return {
+    issuer,
+    revocation_endpoint: issuer + "revoke",
+    token_endpoint: issuer + "token",
+    authorization_endpoint: issuer + "auth",
+    registration_endpoint: issuer + "registration",
+    device_authorization_endpoint: issuer + "device",
+    jwks_uri: issuer + "jwks",
+    response_types_supported: ["code"],
+    grant_types_supported: [OAuthGrantType.AuthorizationCode, OAuthGrantType.RefreshToken, ...additionalGrantTypes],
+    code_challenge_methods_supported: ["S256"]
+  };
+};
+//# sourceMappingURL=testing.js.map

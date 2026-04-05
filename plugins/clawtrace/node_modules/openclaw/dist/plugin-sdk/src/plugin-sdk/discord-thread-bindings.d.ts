@@ -1,0 +1,2 @@
+export { __testing, autoBindSpawnedDiscordSubagent, createThreadBindingManager, getThreadBindingManager, listThreadBindingsBySessionKey, resolveThreadBindingIdleTimeoutMs, resolveThreadBindingInactivityExpiresAt, resolveThreadBindingMaxAgeExpiresAt, resolveThreadBindingMaxAgeMs, setThreadBindingIdleTimeoutBySessionKey, setThreadBindingMaxAgeBySessionKey, unbindThreadBindingsBySessionKey, } from "../../extensions/discord/runtime-api.js";
+export type { ThreadBindingManager, ThreadBindingRecord, ThreadBindingTargetKind, } from "../../extensions/discord/runtime-api.js";

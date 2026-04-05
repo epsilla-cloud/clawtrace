@@ -1,0 +1,1 @@
+{"version":3,"file":"prefix.d.ts","sourceRoot":"","sources":["../../src/http-api/prefix.ts"],"names":[],"mappings":"AAgBA,oBAAY,YAAY;IACpB;;OAEG;IACH,EAAE,uBAAuB;IACzB;;OAEG;IACH,EAAE,uBAAuB;IACzB;;OAEG;IACH,QAAQ,6BAA6B;CACxC;AAED,oBAAY,cAAc;IACtB;;OAEG;IACH,EAAE,yBAAyB;CAC9B;AAED,oBAAY,WAAW;IACnB;;OAEG;IACH,EAAE,sBAAsB;IACxB;;OAEG;IACH,EAAE,sBAAsB;CAC3B"}

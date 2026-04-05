@@ -1,0 +1,343 @@
+import { TypedEventEmitter } from "../models/typed-event-emitter.ts";
+import { type Room } from "../models/room.ts";
+import { type MatrixClient } from "../client.ts";
+import { CallMembership } from "./CallMembership.ts";
+import { type CallMembershipIdentityParts } from "./EncryptionManager.ts";
+import type { Statistics, RTCNotificationType, Status, IRTCNotificationContent, RTCCallIntent, Transport, SlotDescription } from "./types.ts";
+import { MembershipManagerEvent, type MembershipManagerEventHandlerMap } from "./IMembershipManager.ts";
+/**
+ * Events emitted by MatrixRTCSession
+ */
+export declare enum MatrixRTCSessionEvent {
+    MembershipsChanged = "memberships_changed",
+    JoinStateChanged = "join_state_changed",
+    EncryptionKeyChanged = "encryption_key_changed",
+    /** The membership manager had to shut down caused by an unrecoverable error */
+    MembershipManagerError = "membership_manager_error",
+    /** The RTCSession did send a call notification caused by joining the call as the first member */
+    DidSendCallNotification = "did_send_call_notification"
+}
+export type MatrixRTCSessionEventHandlerMap = {
+    [MatrixRTCSessionEvent.MembershipsChanged]: (oldMemberships: CallMembership[], newMemberships: CallMembership[]) => void;
+    [MatrixRTCSessionEvent.JoinStateChanged]: (isJoined: boolean) => void;
+    [MatrixRTCSessionEvent.EncryptionKeyChanged]: (key: Uint8Array<ArrayBuffer>, encryptionKeyIndex: number, membership: CallMembershipIdentityParts, rtcBackendIdentity: string) => void;
+    [MatrixRTCSessionEvent.MembershipManagerError]: (error: unknown) => void;
+    [MatrixRTCSessionEvent.DidSendCallNotification]: (notificationContentNew: {
+        event_id: string;
+    } & IRTCNotificationContent) => void;
+};
+export interface SessionConfig {
+    /**
+     * What kind of notification to send when starting the session.
+     * @default `undefined` (no notification)
+     */
+    notificationType?: RTCNotificationType;
+    /**
+     * Determines the kind of call this will be.
+     */
+    callIntent?: RTCCallIntent;
+}
+export interface MembershipConfig {
+    /**
+     * The timeout (in milliseconds) after we joined the call, that our membership should expire
+     * unless we have explicitly updated it.
+     *
+     * This is what goes into the m.rtc.member event expiry field and is typically set to a number of hours.
+     */
+    membershipEventExpiryMs?: number;
+    /**
+     * The time in (in milliseconds) which the manager will prematurely send the updated state event before the membership `expires` time to make sure it
+     * sends the updated state event early enough.
+     *
+     * A headroom of 1000ms and a `membershipExpiryTimeout` of 10000ms would result in the first membership event update after 9s and
+     * a membership event that would be considered expired after 10s.
+     *
+     * This value does not have an effect on the value of `SessionMembershipData.expires`.
+     */
+    membershipEventExpiryHeadroomMs?: number;
+    /**
+     * The timeout (in milliseconds) with which the deleayed leave event on the server is configured.
+     * After this time the server will set the event to the disconnected stat if it has not received a keep-alive from the client.
+     */
+    delayedLeaveEventDelayMs?: number;
+    /**
+     * The interval (in milliseconds) in which the client will send membership keep-alives to the server.
+     */
+    delayedLeaveEventRestartMs?: number;
+    /**
+     * The maximum number of retries that the manager will do for delayed event sending/updating and state event sending when a server rate limit has been hit.
+     */
+    maximumRateLimitRetryCount?: number;
+    /**
+     * The maximum number of retries that the manager will do for delayed event sending/updating and state event sending when a network error occurs.
+     */
+    maximumNetworkErrorRetryCount?: number;
+    /**
+     * The time (in milliseconds) after which we will retry a http request if it
+     * failed to send due to a network error. (send membership event, send delayed event, restart delayed event...)
+     */
+    networkErrorRetryMs?: number;
+    /**
+     * The time (in milliseconds) after which a we consider a delayed event restart http request to have failed.
+     * Setting this to a lower value will result in more frequent retries but also a higher chance of failiour.
+     *
+     * In the presence of network packet loss (hurting TCP connections), the custom delayedEventRestartLocalTimeoutMs
+     * helps by keeping more delayed event reset candidates in flight,
+     * improving the chances of a successful reset. (its is equivalent to the js-sdk `localTimeout` configuration,
+     * but only applies to calls to the `_unstable_restartScheduledDelayedEvent` endpoint
+     * or the `_unstable_updateDelayedEvent` endpoint with a body of `{action:"restart"}`.)
+     */
+    delayedLeaveEventRestartLocalTimeoutMs?: number;
+    /**
+     * Send membership using sticky events rather than state events.
+     * This also make the client use the new m.rtc.member MSC4354 event format. (instead of m.call.member)
+     *
+     * **WARNING**: This is an unstable feature and not all clients will support it.
+     */
+    unstableSendStickyEvents?: boolean;
+}
+export interface EncryptionConfig {
+    /**
+     *  If true, generate and share a media key for this participant,
+     *  and emit MatrixRTCSessionEvent.EncryptionKeyChanged when
+     *  media keys for other participants become available.
+     */
+    manageMediaKeys?: boolean;
+    /**
+     * The minimum time (in milliseconds) between each attempt to send encryption key(s).
+     * e.g. if this is set to 1000, then we will send at most one key event every second.
+     * @deprecated - Not used by the new encryption manager.
+     */
+    updateEncryptionKeyThrottle?: number;
+    /**
+     * Sometimes it is necessary to rotate the encryption key after a membership update.
+     * For performance reasons we might not want to rotate the key immediately but allow future memberships to use the same key.
+     * If 5 people join in a row in less than 5 seconds, we don't want to rotate the key for each of them.
+     * If 5 people leave in a row in less than 5 seconds, we don't want to rotate the key for each of them.
+     * So we do share the key which was already used live for <5s to new joiners.
+     * This does result in a potential leak up to the configured time of call media.
+     * This has to be considered when choosing a value for this property.
+     */
+    keyRotationGracePeriodMs?: number;
+    /**
+     * The delay (in milliseconds) after a member leaves before we create and publish a new key, because people
+     * tend to leave calls at the same time.
+     * @deprecated - Not used by the new encryption manager.
+     */
+    makeKeyDelay?: number;
+    /**
+     * The delay (in milliseconds) between sending a new key and starting to encrypt with it. This
+     * gives others a chance to receive the new key to minimize the chance they get media they can't decrypt.
+     *
+     * The higher this value is, the better it is for existing members as they will have a smoother experience.
+     * But it impacts new joiners: They will always have to wait `useKeyDelay` before being able to decrypt the media
+     * (as it will be encrypted with the new key after the delay only), even if the key has already arrived before the delay.
+     */
+    useKeyDelay?: number;
+}
+export type JoinSessionConfig = SessionConfig & MembershipConfig & EncryptionConfig;
+interface SessionMembershipsForSlotOpts {
+    /**
+     * Listen for incoming sticky member events. If disabled, this session will
+     * ignore any incoming sticky events.
+     */
+    listenForStickyEvents: boolean;
+    /**
+     * Listen for incoming  member state events (legacy). If disabled, this session will
+     * ignore any incoming state events.
+     */
+    listenForMemberStateEvents: boolean;
+}
+/**
+ * A MatrixRTCSession manages the membership & properties of a MatrixRTC session.
+ * This class doesn't deal with media at all, just membership & properties of a session.
+ */
+export declare class MatrixRTCSession extends TypedEventEmitter<MatrixRTCSessionEvent | MembershipManagerEvent, MatrixRTCSessionEventHandlerMap & MembershipManagerEventHandlerMap> {
+    private readonly client;
+    private roomSubset;
+    readonly slotDescription: SlotDescription;
+    private readonly calculateMembershipsOpts?;
+    private membershipManager?;
+    private encryptionManager?;
+    private joinConfig?;
+    private logger;
+    private pendingNotificationToSend;
+    /**
+     * This timeout is responsible to track any expiration. We need to know when we have to start
+     * to ignore other call members. There is no callback for this. This timeout will always be configured to
+     * emit when the next membership expires.
+     */
+    private expiryTimeout?;
+    memberships: CallMembership[];
+    /**
+     * Resolves when the session has calculated the initial membership of the session.
+     */
+    readonly initialMembershipCalculated: Promise<void>;
+    /**
+     * Does membership need to be recalculated? This is set to false upon
+     * recalculation.
+     */
+    private membershipNeedsRecalculation;
+    /**
+     * The statistics for this session.
+     */
+    statistics: Statistics;
+    get membershipStatus(): Status | undefined;
+    get probablyLeft(): boolean | undefined;
+    get delayId(): string | undefined;
+    /**
+     * The callId (sessionId) of the call.
+     *
+     * It can be undefined since the callId is only known once the first membership joins.
+     * The callId is the property that, per definition, groups memberships into one call.
+     * @deprecated use `slotId` instead.
+     */
+    get callId(): string | undefined;
+    /**
+     * The slotId of the call.
+     * `{application}#{appSpecificId}`
+     * It can be undefined since the slotId is only known once the first membership joins.
+     * The slotId is the property that, per definition, groups memberships into one call.
+     */
+    get slotId(): string | undefined;
+    /**
+     * Returns all the call memberships for a room that match the provided `sessionDescription`,
+     * oldest first.
+     *
+     * By default, this will return *both* sticky and member state events.
+     */
+    static sessionMembershipsForSlot(room: Pick<Room, "getLiveTimeline" | "roomId" | "hasMembershipState" | "_unstable_getStickyEvents">, slotDescription: SlotDescription, options?: SessionMembershipsForSlotOpts): Promise<CallMembership[]>;
+    /**
+     * Return the MatrixRTC session for the room.
+     * This returned session can be used to find out if there are active sessions
+     * for the requested room and `slotDescription`.
+     */
+    static sessionForSlot(client: MatrixClient, room: Room, slotDescription: SlotDescription, opts?: SessionMembershipsForSlotOpts): MatrixRTCSession;
+    /**
+     * WARN: this can in theory only be a subset of the room with the properties required by
+     * this class.
+     * Outside of tests this most likely will be a full room, however.
+     * @deprecated Relying on a full Room object being available here is an anti-pattern. You should be tracking
+     * the room object in your own code and passing it in when needed.
+     */
+    get room(): Room;
+    /**
+     * This constructs a room session. When using MatrixRTC inside the js-sdk this is expected
+     * to be used with the MatrixRTCSessionManager exclusively.
+     *
+     * In cases where you don't use the js-sdk but build on top of another Matrix stack this class can be used standalone
+     * to manage a joined MatrixRTC session.
+     *
+     * @param client A subset of the {@link MatrixClient} that lets the session interact with the Matrix room.
+     * @param roomSubset The room this session is attached to. A subset of a js-sdk Room that the session needs.
+     * @param slotDescription The slot description is a virtual address where participants are allowed to meet.
+     * This session will only manage memberships that match this slot description.Sessions are distinct if any of
+     * those properties are distinct: `roomSubset.roomId`, `slotDescription.application`, `slotDescription.id`.
+     * @param calculateMembershipsOpts - Options to configure how memberships are calculated for this session.
+     */
+    constructor(client: Pick<MatrixClient, "getUserId" | "getDeviceId" | "sendEvent" | "sendStateEvent" | "_unstable_sendDelayedStateEvent" | "_unstable_updateDelayedEvent" | "_unstable_cancelScheduledDelayedEvent" | "_unstable_restartScheduledDelayedEvent" | "_unstable_sendScheduledDelayedEvent" | "_unstable_sendStickyEvent" | "_unstable_sendStickyDelayedEvent" | "cancelPendingEvent" | "encryptAndSendToDevice" | "off" | "on" | "decryptEventIfNeeded">, roomSubset: Pick<Room, "getLiveTimeline" | "roomId" | "getVersion" | "hasMembershipState" | "on" | "off" | "_unstable_getStickyEvents">, slotDescription: SlotDescription, calculateMembershipsOpts?: SessionMembershipsForSlotOpts | undefined);
+    isJoined(): boolean;
+    /**
+     * Performs cleanup & removes timers for client shutdown
+     */
+    stop(): Promise<void>;
+    private reEmitter;
+    /**
+     * Announces this user and device as joined to the MatrixRTC session,
+     * and continues to update the membership event to keep it valid until
+     * leaveRoomSession() is called
+     * This will not subscribe to updates: remember to call subscribe() separately if
+     * desired.
+     * This method will return immediately and the session will be joined in the background.
+     * @param ownMembershipIdentity the identity of the user and device joining the session.
+     * This will be put into the content.member.
+     * @param fociPreferred the list of preferred foci to use in the joined RTC membership event.
+     * If multiSfuFocus is set, this is only needed if this client wants to publish to multiple transports simultaneously.
+     * @param multiSfuFocus the active focus to use in the joined RTC membership event. Setting this implies the
+     * membership manager will operate in a multi-SFU connection mode. If `undefined`, an `oldest_membership`
+     * transport selection will be used instead.
+     * @param joinConfig - Additional configuration for the joined session.
+     */
+    joinRTCSession(ownMembershipIdentity: CallMembershipIdentityParts, fociPreferred: Transport[], multiSfuFocus?: Transport, joinConfig?: JoinSessionConfig): void;
+    /**
+     *
+     * @param fociPreferred
+     * @param multiSfuFocus
+     * @param joinConfig
+     * @deprecated use the joinRTCSession method instead
+     */
+    joinRoomSession(fociPreferred: Transport[], multiSfuFocus?: Transport, joinConfig?: JoinSessionConfig): void;
+    /**
+     * Announces this user and device as having left the MatrixRTC session
+     * and stops scheduled updates.
+     * This will not unsubscribe from updates: remember to call unsubscribe() separately if
+     * desired.
+     * The membership update required to leave the session will retry if it fails.
+     * Without network connection the promise will never resolve.
+     * A timeout can be provided so that there is a guarantee for the promise to resolve.
+     * @returns Whether the membership update was attempted and did not time out.
+     */
+    leaveRoomSession(timeout?: number | undefined): Promise<boolean>;
+    /**
+     * This returns the focus in use by the oldest membership.
+     * Do not use since this might be just the focus for the oldest membership. others might use a different focus.
+     * @deprecated use `member.getTransport(session.getOldestMembership())` instead for the specific member you want to get the focus for.
+     */
+    getFocusInUse(): Transport | undefined;
+    getOldestMembership(): CallMembership | undefined;
+    /**
+     * Get the call intent for the current call, based on what members are advertising. If one or more
+     * members disagree on the current call intent, or nobody specifies one then `undefined` is returned.
+     *
+     * If all members that specify a call intent agree, that value is returned.
+     * @returns A call intent, or `undefined` if no consensus or not given.
+     */
+    getConsensusCallIntent(): RTCCallIntent | undefined;
+    updateCallIntent(callIntent: RTCCallIntent): Promise<void>;
+    /**
+     * Re-emit an EncryptionKeyChanged event for each tracked encryption key. This can be used to export
+     * the keys.
+     */
+    reemitEncryptionKeys(): void;
+    /**
+     * Sets a timer for the soonest membership expiry
+     */
+    private setExpiryTimer;
+    /**
+     * Sends notification events to indiciate the call has started.
+     * Note: This does not return a promise, instead scheduling the notification events to be sent.
+     * @param parentEventId Event id linking to your RTC call membership event.
+     * @param notificationType The type of notification to send
+     * @param callIntent The type of call this is (e.g. "audio").
+     */
+    private sendCallNotify;
+    /**
+     * Call this when the Matrix room members have changed.
+     */
+    private readonly onRoomMemberUpdate;
+    /**
+     * Call this when a sticky event update has occured.
+     */
+    private readonly onStickyEventUpdate;
+    /**
+     * Call this when something changed that may impacts the current MatrixRTC members in this session.
+     */
+    _onRTCSessionMemberUpdate: () => Promise<void>;
+    private recalculateSessionMembersPromise;
+    /**
+     * Ensures that membership is recalculated when the state of the session may have changed.
+     * Also ensures that only one recalculation is made at a time.
+     * @returns A promise resolving when the state has been recalculated.
+     */
+    private ensureRecalculateSessionMembers;
+    /**
+     * Call this when anything that could impact rtc memberships has changed: Room Members or RTC members.
+     *
+     * Examines the latest call memberships and handles any encryption key sending or rotation that is needed.
+     *
+     * This function should be called when the room members or call memberships might have changed.
+     */
+    private readonly recalculateSessionMembers;
+}
+export {};
+//# sourceMappingURL=MatrixRTCSession.d.ts.map

@@ -1,0 +1,72 @@
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+/*
+Copyright 2025-2026 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { getEncryptionKeyMapKey } from "./EncryptionManager.js";
+/**
+ * Detects when a key for a given index is outdated.
+ */
+export class OutdatedKeyFilter {
+  constructor() {
+    // Map of participantId -> keyIndex -> timestamp
+    _defineProperty(this, "tsBuffer", new Map());
+  }
+
+  /**
+   * Check if there is a recent key with the same keyId (index) and then use the creationTS to decide what to
+   * do with the key. If the key received is older than the one already in the buffer, it is ignored.
+   * @param participantId
+   * @param item
+   */
+  isOutdated(membership, item) {
+    var _this$tsBuffer$get;
+    var mapKey = getEncryptionKeyMapKey(membership);
+    if (!this.tsBuffer.has(mapKey)) {
+      this.tsBuffer.set(mapKey, new Map());
+    }
+    var latestTimestamp = (_this$tsBuffer$get = this.tsBuffer.get(mapKey)) === null || _this$tsBuffer$get === void 0 ? void 0 : _this$tsBuffer$get.get(item.keyIndex);
+    if (latestTimestamp && latestTimestamp > item.creationTS) {
+      // The existing key is more recent, ignore this one
+      return true;
+    }
+    this.tsBuffer.get(mapKey).set(item.keyIndex, item.creationTS);
+    return false;
+  }
+}
+
+/**
+ * Converts a slot ID into it's component application and ID portions.
+ * @param slotId e.g. `m.call#call_id`
+ * @throws If the format of `slotId` is invalid.
+ */
+export function slotIdToDescription(slotId) {
+  var [application, id, ...unexpectedAdditionalValues] = slotId.split("#");
+  if (unexpectedAdditionalValues.length) {
+    throw Error("MatrixRTC Slot IDs *must* only contain two components seperated by one '#'. Additional '#' characters detected.");
+  }
+  return {
+    application,
+    id
+  };
+}
+
+/**
+ * Converts a SlotDescription into it's slot ID format.
+ */
+export function computeSlotId(slotDescription) {
+  return "".concat(slotDescription.application, "#").concat(slotDescription.id);
+}
+//# sourceMappingURL=utils.js.map

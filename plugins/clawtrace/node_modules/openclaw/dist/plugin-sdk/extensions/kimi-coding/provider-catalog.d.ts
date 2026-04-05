@@ -1,0 +1,10 @@
+import type { ModelProviderConfig } from "openclaw/plugin-sdk/provider-model-shared";
+export declare const KIMI_BASE_URL = "https://api.kimi.com/coding/";
+export declare const KIMI_DEFAULT_MODEL_ID = "kimi-code";
+export declare const KIMI_UPSTREAM_MODEL_ID = "kimi-for-coding";
+export declare const KIMI_LEGACY_MODEL_ID = "k2p5";
+export declare function buildKimiCodingProvider(): ModelProviderConfig;
+export declare const KIMI_CODING_BASE_URL = "https://api.kimi.com/coding/";
+export declare const KIMI_CODING_DEFAULT_MODEL_ID = "kimi-code";
+export declare const KIMI_CODING_LEGACY_MODEL_ID = "k2p5";
+export declare const buildKimiProvider: typeof buildKimiCodingProvider;

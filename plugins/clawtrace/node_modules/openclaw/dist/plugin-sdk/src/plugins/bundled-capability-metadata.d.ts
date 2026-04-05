@@ -1,0 +1,21 @@
+export type BundledPluginContractSnapshot = {
+    pluginId: string;
+    cliBackendIds: string[];
+    providerIds: string[];
+    speechProviderIds: string[];
+    mediaUnderstandingProviderIds: string[];
+    imageGenerationProviderIds: string[];
+    webSearchProviderIds: string[];
+    toolNames: string[];
+};
+export declare const BUNDLED_PLUGIN_CONTRACT_SNAPSHOTS: readonly BundledPluginContractSnapshot[];
+export declare const BUNDLED_PROVIDER_PLUGIN_IDS: readonly string[];
+export declare const BUNDLED_SPEECH_PLUGIN_IDS: readonly string[];
+export declare const BUNDLED_MEDIA_UNDERSTANDING_PLUGIN_IDS: readonly string[];
+export declare const BUNDLED_IMAGE_GENERATION_PLUGIN_IDS: readonly string[];
+export declare const BUNDLED_RUNTIME_CONTRACT_PLUGIN_IDS: string[];
+export declare const BUNDLED_WEB_SEARCH_PLUGIN_IDS: readonly string[];
+export declare const BUNDLED_WEB_SEARCH_PROVIDER_PLUGIN_IDS: Readonly<Record<string, string>>;
+export declare const BUNDLED_PROVIDER_PLUGIN_ID_ALIASES: Readonly<Record<string, string>>;
+export declare const BUNDLED_LEGACY_PLUGIN_ID_ALIASES: Readonly<Record<string, string>>;
+export declare const BUNDLED_AUTO_ENABLE_PROVIDER_PLUGIN_IDS: Readonly<Record<string, string>>;

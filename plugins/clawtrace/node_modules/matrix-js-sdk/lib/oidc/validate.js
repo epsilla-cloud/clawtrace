@@ -1,0 +1,181 @@
+/*
+Copyright 2023 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { jwtDecode } from "jwt-decode";
+import { logger } from "../logger.js";
+import { OidcError } from "./error.js";
+import { OAuthGrantType } from "./index.js";
+
+/**
+ * Metadata from OAuth 2.0 client authentication API as per
+ * https://spec.matrix.org/v1.17/client-server-api/#get_matrixclientv1auth_metadata
+ * With validated properties required in type
+ */
+
+var isRecord = value => !!value && typeof value === "object" && !Array.isArray(value);
+var requiredStringProperty = (wellKnown, key) => {
+  if (!wellKnown[key] || !optionalStringProperty(wellKnown, key)) {
+    logger.error("Missing or invalid property: ".concat(key));
+    return false;
+  }
+  return true;
+};
+var optionalStringProperty = (wellKnown, key) => {
+  if (!!wellKnown[key] && typeof wellKnown[key] !== "string") {
+    logger.error("Invalid property: ".concat(key));
+    return false;
+  }
+  return true;
+};
+var optionalStringArrayProperty = (wellKnown, key) => {
+  if (!!wellKnown[key] && (!Array.isArray(wellKnown[key]) || !wellKnown[key].every(v => typeof v === "string"))) {
+    logger.error("Invalid property: ".concat(key));
+    return false;
+  }
+  return true;
+};
+var requiredArrayValue = (wellKnown, key, value) => {
+  var array = wellKnown[key];
+  if (!array || !Array.isArray(array) || !array.includes(value)) {
+    logger.error("Invalid property: ".concat(key, ". ").concat(value, " is required."));
+    return false;
+  }
+  return true;
+};
+
+/**
+ * Validates OAuth 2.0 auth metadata as defined by
+ * https://spec.matrix.org/v1.17/client-server-api/#get_matrixclientv1auth_metadata
+ * is compatible with Element's OAuth/OIDC flow
+ * @param authMetadata - json object
+ * @returns valid issuer config
+ * @throws Error - when issuer config is not found or is invalid
+ */
+export var validateAuthMetadata = authMetadata => {
+  if (!isRecord(authMetadata)) {
+    logger.error("Issuer configuration not found or malformed");
+    throw new Error(OidcError.OpSupport);
+  }
+  var isInvalid = [requiredStringProperty(authMetadata, "issuer"), requiredStringProperty(authMetadata, "authorization_endpoint"), requiredStringProperty(authMetadata, "token_endpoint"), requiredStringProperty(authMetadata, "revocation_endpoint"), optionalStringProperty(authMetadata, "registration_endpoint"), optionalStringProperty(authMetadata, "account_management_uri"), optionalStringProperty(authMetadata, "device_authorization_endpoint"), optionalStringArrayProperty(authMetadata, "account_management_actions_supported"), requiredArrayValue(authMetadata, "response_types_supported", "code"), requiredArrayValue(authMetadata, "grant_types_supported", OAuthGrantType.AuthorizationCode), requiredArrayValue(authMetadata, "code_challenge_methods_supported", "S256"), optionalStringArrayProperty(authMetadata, "prompt_values_supported")].some(isValid => !isValid);
+  if (!isInvalid) {
+    return authMetadata;
+  }
+  logger.error("Issuer configuration not valid");
+  throw new Error(OidcError.OpSupport);
+};
+export var decodeIdToken = token => {
+  try {
+    return jwtDecode(token);
+  } catch (error) {
+    logger.error("Could not decode id_token", error);
+    throw error;
+  }
+};
+
+/**
+ * Validate idToken
+ * https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
+ * @param idToken - id token from token endpoint
+ * @param issuer - issuer for the OP as found during discovery
+ * @param clientId - this client's id as registered with the OP
+ * @param nonce - nonce used in the authentication request
+ * @throws when id token is invalid
+ */
+export var validateIdToken = (idToken, issuer, clientId, nonce) => {
+  try {
+    if (!idToken) {
+      throw new Error("No ID token");
+    }
+    var claims = decodeIdToken(idToken);
+
+    // The Issuer Identifier for the OpenID Provider MUST exactly match the value of the iss (issuer) Claim.
+    if (claims.iss !== issuer) {
+      throw new Error("Invalid issuer");
+    }
+    /**
+     * The Client MUST validate that the aud (audience) Claim contains its client_id value registered at the Issuer identified by the iss (issuer) Claim as an audience.
+     * The aud (audience) Claim MAY contain an array with more than one element.
+     * The ID Token MUST be rejected if the ID Token does not list the Client as a valid audience, or if it contains additional audiences not trusted by the Client.
+     * EW: Don't accept tokens with other untrusted audiences
+     * */
+    var sanitisedAuds = typeof claims.aud === "string" ? [claims.aud] : claims.aud;
+    if (!sanitisedAuds.includes(clientId)) {
+      throw new Error("Invalid audience");
+    }
+
+    /**
+     * If a nonce value was sent in the Authentication Request, a nonce Claim MUST be present and its value checked
+     * to verify that it is the same value as the one that was sent in the Authentication Request.
+     */
+    if (nonce !== undefined && claims.nonce !== nonce) {
+      throw new Error("Invalid nonce");
+    }
+
+    /**
+     * The current time MUST be before the time represented by the exp Claim.
+     *  exp is an epoch timestamp in seconds
+     * */
+    if (!claims.exp || Date.now() > claims.exp * 1000) {
+      throw new Error("Invalid expiry");
+    }
+  } catch (error) {
+    logger.error("Invalid ID token", error);
+    throw new Error(OidcError.InvalidIdToken);
+  }
+};
+
+/**
+ * State we ask OidcClient to store when starting oidc authorization flow (in `generateOidcAuthorizationUrl`)
+ * so that we can access it on return from the OP and complete login
+ */
+
+/**
+ * Validate stored user state exists and is valid
+ * @param userState - userState returned by oidcClient.processSigninResponse
+ * @throws when userState is invalid
+ */
+export function validateStoredUserState(userState) {
+  if (!isRecord(userState)) {
+    logger.error("Stored user state not found");
+    throw new Error(OidcError.MissingOrInvalidStoredState);
+  }
+  var isInvalid = [requiredStringProperty(userState, "homeserverUrl"), requiredStringProperty(userState, "nonce"), optionalStringProperty(userState, "identityServerUrl")].some(isValid => !isValid);
+  if (isInvalid) {
+    throw new Error(OidcError.MissingOrInvalidStoredState);
+  }
+}
+
+/**
+ * The expected response type from the token endpoint during authorization code flow
+ * Normalized to always use capitalized 'Bearer' for token_type
+ *
+ * See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.4,
+ * https://openid.net/specs/openid-connect-basic-1_0.html#TokenOK.
+ */
+
+/**
+ * Make required properties required in type
+ */
+
+var isValidBearerTokenResponse = response => isRecord(response) && requiredStringProperty(response, "token_type") &&
+// token_type is case insensitive, some OPs return `token_type: "bearer"`
+response["token_type"].toLowerCase() === "bearer" && requiredStringProperty(response, "access_token") && requiredStringProperty(response, "refresh_token") && (!("expires_in" in response) || typeof response["expires_in"] === "number");
+export function validateBearerTokenResponse(response) {
+  if (!isValidBearerTokenResponse(response)) {
+    throw new Error(OidcError.InvalidBearerTokenResponse);
+  }
+}
+//# sourceMappingURL=validate.js.map

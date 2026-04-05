@@ -1,0 +1,78 @@
+import { type IdTokenClaims, type OidcMetadata, type SigninResponse } from "oidc-client-ts";
+/**
+ * Metadata from OAuth 2.0 client authentication API as per
+ * https://spec.matrix.org/v1.17/client-server-api/#get_matrixclientv1auth_metadata
+ * With validated properties required in type
+ */
+export type ValidatedAuthMetadata = Partial<OidcMetadata> & Pick<OidcMetadata, "issuer" | "authorization_endpoint" | "token_endpoint" | "revocation_endpoint" | "response_types_supported" | "grant_types_supported" | "code_challenge_methods_supported"> & {
+    account_management_uri?: string;
+    account_management_actions_supported?: string[];
+    prompt_values_supported?: string[];
+    device_authorization_endpoint?: string;
+};
+/**
+ * Validates OAuth 2.0 auth metadata as defined by
+ * https://spec.matrix.org/v1.17/client-server-api/#get_matrixclientv1auth_metadata
+ * is compatible with Element's OAuth/OIDC flow
+ * @param authMetadata - json object
+ * @returns valid issuer config
+ * @throws Error - when issuer config is not found or is invalid
+ */
+export declare const validateAuthMetadata: (authMetadata: unknown) => ValidatedAuthMetadata;
+export declare const decodeIdToken: (token: string) => IdTokenClaims;
+/**
+ * Validate idToken
+ * https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
+ * @param idToken - id token from token endpoint
+ * @param issuer - issuer for the OP as found during discovery
+ * @param clientId - this client's id as registered with the OP
+ * @param nonce - nonce used in the authentication request
+ * @throws when id token is invalid
+ */
+export declare const validateIdToken: (idToken: string | undefined, issuer: string, clientId: string, nonce: string | undefined) => void;
+/**
+ * State we ask OidcClient to store when starting oidc authorization flow (in `generateOidcAuthorizationUrl`)
+ * so that we can access it on return from the OP and complete login
+ */
+export type UserState = {
+    /**
+     * Remember which server we were trying to login to
+     */
+    homeserverUrl: string;
+    identityServerUrl?: string;
+    /**
+     * Used to validate id token
+     */
+    nonce: string;
+};
+/**
+ * Validate stored user state exists and is valid
+ * @param userState - userState returned by oidcClient.processSigninResponse
+ * @throws when userState is invalid
+ */
+export declare function validateStoredUserState(userState: unknown): asserts userState is UserState;
+/**
+ * The expected response type from the token endpoint during authorization code flow
+ * Normalized to always use capitalized 'Bearer' for token_type
+ *
+ * See https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.4,
+ * https://openid.net/specs/openid-connect-basic-1_0.html#TokenOK.
+ */
+export type BearerTokenResponse = {
+    token_type: "Bearer";
+    access_token: string;
+    scope: string;
+    refresh_token?: string;
+    expires_in?: number;
+    expires_at?: number;
+    id_token: string;
+};
+/**
+ * Make required properties required in type
+ */
+type ValidSignInResponse = SigninResponse & BearerTokenResponse & {
+    token_type: "Bearer" | "bearer";
+};
+export declare function validateBearerTokenResponse(response: unknown): asserts response is ValidSignInResponse;
+export {};
+//# sourceMappingURL=validate.d.ts.map

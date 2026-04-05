@@ -1,0 +1,1 @@
+{"version":3,"file":"utilities.d.ts","sourceRoot":"","sources":["../../src/extensible_events_v1/utilities.ts"],"names":[],"mappings":"AAgBA,OAAO,EAAE,KAAK,QAAQ,EAAE,MAAM,mBAAmB,CAAC;AAElD;;;;GAIG;AACH,wBAAgB,UAAU,CAAC,CAAC,EAAE,CAAC,EAAE,QAAQ,CAAC,CAAC,CAAC,GAAG,CAAC,IAAI,CAAC,CAEpD;AAED;;;;GAIG;AACH,wBAAgB,iBAAiB,CAAC,CAAC,EAAE,QAAQ,CAAC,MAAM,CAAC,GAAG,CAAC,IAAI,MAAM,CAElE"}

@@ -1,0 +1,182 @@
+import _asyncToGenerator from "@babel/runtime/helpers/asyncToGenerator";
+/*
+Copyright 2022 - 2024 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { parse as parseContentType } from "content-type";
+import { logger } from "../logger.js";
+import { sleep } from "../utils.js";
+import { ConnectionError, HTTPError, MatrixError, MatrixSafetyError, MatrixSafetyErrorCode, safeGetRetryAfterMs } from "./errors.js";
+
+// Ponyfill for https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout
+export function timeoutSignal(ms) {
+  var controller = new AbortController();
+  setTimeout(() => {
+    controller.abort();
+  }, ms);
+  return controller.signal;
+}
+export function anySignal(signals) {
+  var controller = new AbortController();
+  function cleanup() {
+    for (var signal of signals) {
+      signal.removeEventListener("abort", onAbort);
+    }
+  }
+  function onAbort() {
+    controller.abort();
+    cleanup();
+  }
+  for (var signal of signals) {
+    if (signal.aborted) {
+      onAbort();
+      break;
+    }
+    signal.addEventListener("abort", onAbort);
+  }
+  return {
+    signal: controller.signal,
+    cleanup
+  };
+}
+
+/**
+ * Attempt to turn an HTTP error response into a Javascript Error.
+ *
+ * If it is a JSON response, we will parse it into a MatrixError. Otherwise
+ * we return a generic Error.
+ *
+ * @param response - response object
+ * @param body - raw body of the response
+ * @returns
+ */
+export function parseErrorResponse(response, body) {
+  var _contentType, _contentType2;
+  var httpHeaders = isXhr(response) ? new Headers(response.getAllResponseHeaders().trim().split(/[\r\n]+/).map(header => {
+    var colonIdx = header.indexOf(":");
+    return [header.substring(0, colonIdx), header.substring(colonIdx + 1)];
+  })) : response.headers;
+  var contentType;
+  try {
+    contentType = getResponseContentType(httpHeaders);
+  } catch (e) {
+    return e;
+  }
+  if (((_contentType = contentType) === null || _contentType === void 0 ? void 0 : _contentType.type) === "application/json" && body) {
+    var errorBody = JSON.parse(body);
+    if (errorBody.errcode && MatrixSafetyErrorCode.matches(errorBody.errcode)) {
+      return new MatrixSafetyError(errorBody, response.status, isXhr(response) ? response.responseURL : response.url, undefined, httpHeaders);
+    }
+    return new MatrixError(errorBody, response.status, isXhr(response) ? response.responseURL : response.url, undefined, httpHeaders);
+  }
+  if (((_contentType2 = contentType) === null || _contentType2 === void 0 ? void 0 : _contentType2.type) === "text/plain") {
+    return new HTTPError("Server returned ".concat(response.status, " error: ").concat(body), response.status, httpHeaders);
+  }
+  return new HTTPError("Server returned ".concat(response.status, " error"), response.status, httpHeaders);
+}
+function isXhr(response) {
+  return "getResponseHeader" in response;
+}
+
+/**
+ * extract the Content-Type header from response headers, and
+ * parse it to a `{type, parameters}` object.
+ *
+ * returns null if no content-type header could be found.
+ *
+ * @param response - response object
+ * @returns parsed content-type header, or null if not found
+ */
+function getResponseContentType(headers) {
+  var contentType = headers.get("Content-Type");
+  if (contentType === null) return null;
+  try {
+    return parseContentType(contentType);
+  } catch (e) {
+    throw new Error("Error parsing Content-Type '".concat(contentType, "': ").concat(e));
+  }
+}
+
+/**
+ * Retries a network operation run in a callback.
+ * @param maxAttempts - maximum attempts to try
+ * @param callback - callback that returns a promise of the network operation. If rejected with ConnectionError, it will be retried by calling the callback again.
+ * @returns the result of the network operation
+ * @throws {@link ConnectionError} If after maxAttempts the callback still throws ConnectionError
+ */
+export function retryNetworkOperation(_x, _x2) {
+  return _retryNetworkOperation.apply(this, arguments);
+}
+
+/**
+ * Calculate the backoff time for a request retry attempt.
+ * This produces wait times of 2, 4, 8, and 16 seconds (30s total) after which we give up. If the
+ * failure was due to a rate limited request, the time specified in the error is returned.
+ *
+ * Returns -1 if the error is not retryable, or if we reach the maximum number of attempts.
+ *
+ * @param err - The error thrown by the http call
+ * @param attempts - The number of attempts made so far, including the one that just failed.
+ * @param retryConnectionError - Whether to retry on {@link ConnectionError} (CORS, connection is down, etc.)
+ */
+function _retryNetworkOperation() {
+  _retryNetworkOperation = _asyncToGenerator(function* (maxAttempts, callback) {
+    var attempts = 0;
+    var lastConnectionError = null;
+    while (attempts < maxAttempts) {
+      try {
+        if (attempts > 0) {
+          var timeout = 1000 * Math.pow(2, attempts);
+          logger.log("network operation failed ".concat(attempts, " times, retrying in ").concat(timeout, "ms..."));
+          yield sleep(timeout);
+        }
+        return yield callback();
+      } catch (err) {
+        if (err instanceof ConnectionError) {
+          attempts += 1;
+          lastConnectionError = err;
+        } else {
+          throw err;
+        }
+      }
+    }
+    throw lastConnectionError;
+  });
+  return _retryNetworkOperation.apply(this, arguments);
+}
+export function calculateRetryBackoff(err, attempts, retryConnectionError) {
+  if (attempts > 4) {
+    return -1; // give up
+  }
+  if (err instanceof ConnectionError && !retryConnectionError) {
+    return -1;
+  }
+  if (err.httpStatus && Math.floor(err.httpStatus / 100) === 4 && err.httpStatus !== 429) {
+    // client error; no amount of retrying will save you now (except for rate limiting which is handled below)
+    return -1;
+  }
+  if (err.name === "AbortError") {
+    // this is a client timeout, that is already very high 60s/80s
+    // we don't want to retry, as it could do it for very long
+    return -1;
+  }
+
+  // If we are trying to send an event (or similar) that is too large in any way, then retrying won't help
+  if (err.name === "M_TOO_LARGE") {
+    return -1;
+  }
+  return safeGetRetryAfterMs(err, 1000 * Math.pow(2, attempts));
+}
+//# sourceMappingURL=utils.js.map

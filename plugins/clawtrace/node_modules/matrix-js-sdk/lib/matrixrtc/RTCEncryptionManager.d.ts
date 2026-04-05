@@ -1,0 +1,110 @@
+import { type CallMembershipIdentityParts, type IEncryptionManager } from "./EncryptionManager.ts";
+import { type EncryptionConfig, type MembershipConfig } from "./MatrixRTCSession.ts";
+import type { CallMembership } from "./CallMembership.ts";
+import { type IKeyTransport, type KeyTransportEventListener } from "./IKeyTransport.ts";
+import { type Logger } from "../logger.ts";
+import { type EncryptionKeyMapKey } from "./types.ts";
+/**
+ * RTCEncryptionManager is used to manage the encryption keys for a call.
+ *
+ * It is responsible for distributing the keys to the other participants and rotating the keys if needed.
+ *
+ * This manager when used with to-device transport will share the existing key only to new joiners, and rotate
+ * if there is a leaver.
+ *
+ * XXX In the future we want to distribute a ratcheted key not the current one for new joiners.
+ */
+export declare class RTCEncryptionManager implements IEncryptionManager {
+    private readonly ownMembership;
+    private getMemberships;
+    private transport;
+    private onEncryptionKeysChanged;
+    private manageMediaKeys;
+    private useHashedRtcBackendIdentity;
+    private ownRtcBackendIdentityCache;
+    /**
+     * Store the key rings for each participant.
+     * The encryption manager stores the keys because the application layer might not be ready yet to handle the keys.
+     * The keys are stored and can be retrieved later when the application layer is ready {@link RTCEncryptionManager#getEncryptionKeys}.
+     */
+    private readonly participantKeyRings;
+    private outboundSession;
+    /**
+     * Ensures that there is only one distribute operation at a time for that call.
+     */
+    private currentKeyDistributionPromise;
+    /**
+     * The time to wait before using the outbound session after it has been distributed.
+     * This is to ensure that the key is delivered to all participants before it is used.
+     * When creating the first key, this is set to 0 so that the key can be used immediately.
+     */
+    private useKeyDelay;
+    /**
+     * We want to avoid rolling out a new outbound key when the previous one was created less than `keyRotationGracePeriodMs` milliseconds ago.
+     * This is to avoid expensive key rotations when users quickly join the call in a row.
+     *
+     * This must be higher than `useKeyDelay` to have an effect.
+     * If it is lower, the current key will always be older than the grace period.
+     * @private
+     */
+    private keyRotationGracePeriodMs;
+    /**
+     * If a new key distribution is being requested while one is going on, we will set this flag to true.
+     * This will ensure that a new round is started after the current one.
+     * @private
+     */
+    private needToEnsureKeyAgain;
+    /**
+     * There is a possibility that keys arrive in the wrong order.
+     * For example, after a quick join/leave/join, there will be 2 keys of index 0 distributed, and
+     * if they are received in the wrong order, the stream won't be decryptable.
+     * For that reason we keep a small buffer of keys for a limited time to disambiguate.
+     * @private
+     */
+    private keyBuffer;
+    private logger;
+    private readonly rtcIdentityProvider;
+    /**
+     *
+     * @param ownMembership - our own membership info
+     * @param getMemberships - function to get current memberships
+     * @param transport - key transport (room or to-device)
+     * @param statistics - statistics collector
+     * @param onEncryptionKeysChanged - callback to notify the media layer of new keys
+     * @param parentLogger - optional parent logger
+     * @param rtcBackendIdProvider - A function to compute the rtc backend identity, exposed for testing purposes
+     */
+    constructor(ownMembership: CallMembershipIdentityParts, getMemberships: () => CallMembership[], transport: IKeyTransport, onEncryptionKeysChanged: (keyBin: Uint8Array<ArrayBuffer>, encryptionKeyIndex: number, membership: CallMembershipIdentityParts, rtcBackendIdentity: string) => void, parentLogger?: Logger, rtcBackendIdProvider?: (userId: string, deviceId: string, memberId: string) => Promise<string>);
+    private getOwnRtcBackendIdentity;
+    getEncryptionKeys(): ReadonlyMap<EncryptionKeyMapKey, ReadonlyArray<{
+        key: Uint8Array<ArrayBuffer>;
+        keyIndex: number;
+        membership: CallMembershipIdentityParts;
+        rtcBackendIdentity: string;
+    }>>;
+    private keysWithoutMatchingRTCMembership;
+    private checkKeysWithoutMatchingRTCMembership;
+    private addKeyToParticipant;
+    private addKeyToParticipantWithBackendIdentity;
+    join(joinConfig: (EncryptionConfig & MembershipConfig) | undefined): void;
+    leave(): void;
+    /**
+     * Will ensure that a new key is distributed and used to encrypt our media.
+     * If there is already a key distribution in progress, it will schedule a new distribution round just after the current one is completed.
+     * If this function is called repeatedly while a distribution is in progress,
+     * the calls will be coalesced to a single new distribution (that will start just after the current one has completed).
+     */
+    private ensureKeyDistribution;
+    onNewKeyReceived: KeyTransportEventListener;
+    /**
+     * Called when the ownMembership of the call changes.
+     * This encryption manager is very basic, it will rotate the key everytime this is called.
+     * @param oldMemberships - This parameter is not used here, but it is kept for compatibility with the interface.
+     */
+    onMembershipsUpdate(oldMemberships?: CallMembership[]): void;
+    private rolloutOutboundKey;
+    private createNewOutboundSession;
+    private nextKeyIndex;
+    private generateRandomKey;
+}
+//# sourceMappingURL=RTCEncryptionManager.d.ts.map

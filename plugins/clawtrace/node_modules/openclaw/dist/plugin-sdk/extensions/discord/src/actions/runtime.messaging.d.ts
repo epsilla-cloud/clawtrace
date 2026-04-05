@@ -1,0 +1,32 @@
+import type { AgentToolResult } from "@mariozechner/pi-agent-core";
+import { readDiscordComponentSpec } from "../components.js";
+import { type ActionGate, type DiscordActionConfig, type OpenClawConfig } from "../runtime-api.js";
+import { createThreadDiscord, deleteMessageDiscord, editMessageDiscord, fetchChannelPermissionsDiscord, fetchMessageDiscord, fetchReactionsDiscord, listPinsDiscord, listThreadsDiscord, pinMessageDiscord, reactMessageDiscord, readMessagesDiscord, removeOwnReactionsDiscord, removeReactionDiscord, searchMessagesDiscord, sendDiscordComponentMessage, sendMessageDiscord, sendPollDiscord, sendStickerDiscord, sendVoiceMessageDiscord, unpinMessageDiscord } from "../send.js";
+import { resolveDiscordChannelId } from "../targets.js";
+export declare const discordMessagingActionRuntime: {
+    createThreadDiscord: typeof createThreadDiscord;
+    deleteMessageDiscord: typeof deleteMessageDiscord;
+    editMessageDiscord: typeof editMessageDiscord;
+    fetchChannelPermissionsDiscord: typeof fetchChannelPermissionsDiscord;
+    fetchMessageDiscord: typeof fetchMessageDiscord;
+    fetchReactionsDiscord: typeof fetchReactionsDiscord;
+    listPinsDiscord: typeof listPinsDiscord;
+    listThreadsDiscord: typeof listThreadsDiscord;
+    pinMessageDiscord: typeof pinMessageDiscord;
+    reactMessageDiscord: typeof reactMessageDiscord;
+    readDiscordComponentSpec: typeof readDiscordComponentSpec;
+    readMessagesDiscord: typeof readMessagesDiscord;
+    removeOwnReactionsDiscord: typeof removeOwnReactionsDiscord;
+    removeReactionDiscord: typeof removeReactionDiscord;
+    resolveDiscordChannelId: typeof resolveDiscordChannelId;
+    searchMessagesDiscord: typeof searchMessagesDiscord;
+    sendDiscordComponentMessage: typeof sendDiscordComponentMessage;
+    sendMessageDiscord: typeof sendMessageDiscord;
+    sendPollDiscord: typeof sendPollDiscord;
+    sendStickerDiscord: typeof sendStickerDiscord;
+    sendVoiceMessageDiscord: typeof sendVoiceMessageDiscord;
+    unpinMessageDiscord: typeof unpinMessageDiscord;
+};
+export declare function handleDiscordMessagingAction(action: string, params: Record<string, unknown>, isActionEnabled: ActionGate<DiscordActionConfig>, options?: {
+    mediaLocalRoots?: readonly string[];
+}, cfg?: OpenClawConfig): Promise<AgentToolResult<unknown>>;

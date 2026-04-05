@@ -1,0 +1,1 @@
+{"version":3,"file":"key-passphrase.d.ts","sourceRoot":"","sources":["../../src/common-crypto/key-passphrase.ts"],"names":[],"mappings":"AAmBA,UAAU,SAAS;IACf,gBAAgB,CAAC,EAAE,MAAM,CAAC;IAC1B,sBAAsB,CAAC,EAAE,MAAM,CAAC;IAChC,gBAAgB,CAAC,EAAE,MAAM,CAAC;CAC7B;AAED;;;;;GAKG;AACH,wBAAgB,eAAe,CAAC,QAAQ,EAAE,SAAS,EAAE,UAAU,EAAE,MAAM,GAAG,OAAO,CAAC,UAAU,CAAC,CAW5F"}

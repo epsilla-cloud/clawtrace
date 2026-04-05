@@ -1,0 +1,37 @@
+import type { ReactionTypeEmoji } from "@grammyjs/types";
+import { type StatusReactionController } from "openclaw/plugin-sdk/channel-feedback";
+import { buildTelegramInboundContextPayload } from "./bot-message-context.session.js";
+import type { BuildTelegramMessageContextParams } from "./bot-message-context.types.js";
+import { resolveTelegramThreadSpec } from "./bot/helpers.js";
+import { resolveTelegramConversationRoute } from "./conversation-route.js";
+export type { BuildTelegramMessageContextParams, TelegramMediaRef, } from "./bot-message-context.types.js";
+type TelegramMessageContextPayload = Awaited<ReturnType<typeof buildTelegramInboundContextPayload>>;
+type TelegramReactionApi = (chatId: BuildTelegramMessageContextParams["primaryCtx"]["message"]["chat"]["id"], messageId: number, reactions: Array<{
+    type: "emoji";
+    emoji: ReactionTypeEmoji["emoji"];
+}>) => Promise<unknown>;
+export type TelegramMessageContext = {
+    ctxPayload: TelegramMessageContextPayload["ctxPayload"];
+    primaryCtx: BuildTelegramMessageContextParams["primaryCtx"];
+    msg: BuildTelegramMessageContextParams["primaryCtx"]["message"];
+    chatId: BuildTelegramMessageContextParams["primaryCtx"]["message"]["chat"]["id"];
+    isGroup: boolean;
+    groupConfig?: ReturnType<BuildTelegramMessageContextParams["resolveTelegramGroupConfig"]>["groupConfig"];
+    resolvedThreadId?: number;
+    threadSpec: ReturnType<typeof resolveTelegramThreadSpec>;
+    replyThreadId?: number;
+    isForum: boolean;
+    historyKey?: string;
+    historyLimit: BuildTelegramMessageContextParams["historyLimit"];
+    groupHistories: BuildTelegramMessageContextParams["groupHistories"];
+    route: ReturnType<typeof resolveTelegramConversationRoute>["route"];
+    skillFilter: TelegramMessageContextPayload["skillFilter"];
+    sendTyping: () => Promise<void>;
+    sendRecordVoice: () => Promise<void>;
+    ackReactionPromise: Promise<boolean> | null;
+    reactionApi: TelegramReactionApi | null;
+    removeAckAfterReply: boolean;
+    statusReactionController: StatusReactionController | null;
+    accountId: string;
+};
+export declare const buildTelegramMessageContext: ({ primaryCtx, allMedia, replyMedia, storeAllowFrom, options, bot, cfg, account, historyLimit, groupHistories, dmPolicy, allowFrom, groupAllowFrom, ackReactionScope, logger, resolveGroupActivation, resolveGroupRequireMention, resolveTelegramGroupConfig, loadFreshConfig, upsertPairingRequest, sendChatActionHandler, }: BuildTelegramMessageContextParams) => Promise<TelegramMessageContext | null>;

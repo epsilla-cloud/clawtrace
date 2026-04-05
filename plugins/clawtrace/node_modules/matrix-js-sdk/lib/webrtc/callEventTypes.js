@@ -1,0 +1,13 @@
+// allow non-camelcase as these are events type that go onto the wire
+/* eslint-disable camelcase */
+
+import { NamespacedValue } from "../NamespacedValue.js";
+export var SDPStreamMetadataKey = new NamespacedValue("sdp_stream_metadata", "org.matrix.msc3077.sdp_stream_metadata");
+export var SDPStreamMetadataPurpose = /*#__PURE__*/function (SDPStreamMetadataPurpose) {
+  SDPStreamMetadataPurpose["Usermedia"] = "m.usermedia";
+  SDPStreamMetadataPurpose["Screenshare"] = "m.screenshare";
+  return SDPStreamMetadataPurpose;
+}({});
+
+/* eslint-enable camelcase */
+//# sourceMappingURL=callEventTypes.js.map

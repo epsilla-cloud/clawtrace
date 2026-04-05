@@ -1,0 +1,1600 @@
+import _asyncToGenerator from "@babel/runtime/helpers/asyncToGenerator";
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+/*
+Copyright 2015 - 2023 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/**
+ * This is an internal module. See {@link MatrixEvent} and {@link RoomEvent} for
+ * the public classes.
+ */
+
+import { ExtensibleEvents } from "matrix-events-sdk";
+import { logger } from "../logger.js";
+import { EVENT_VISIBILITY_CHANGE_TYPE, EventType, RelationType, ToDeviceMessageId, UNSIGNED_THREAD_ID_FIELD, UNSIGNED_MEMBERSHIP_FIELD } from "../@types/event.js";
+import { deepSortedObjectEntries, internaliseString } from "../utils.js";
+import { THREAD_RELATION_TYPE, ThreadEvent } from "./thread.js";
+import { TypedReEmitter } from "../ReEmitter.js";
+import { TypedEventEmitter } from "./typed-event-emitter.js";
+import { DecryptionError } from "../common-crypto/CryptoBackend.js";
+import { EventTimeline } from "./event-timeline.js";
+import { DecryptionFailureCode } from "../crypto-api/index.js";
+export { EventStatus } from "./event-status.js";
+
+/* eslint-disable camelcase */
+
+/**
+ * When an event is a visibility change event, as per MSC3531,
+ * the visibility change implied by the event.
+ */
+
+/* eslint-enable camelcase */
+
+/**
+ * Message hiding, as specified by https://github.com/matrix-org/matrix-doc/pull/3531.
+ */
+
+/**
+ * Variant of `MessageVisibility` for the case in which the message should be displayed.
+ */
+
+/**
+ * Variant of `MessageVisibility` for the case in which the message should be hidden.
+ */
+
+// A singleton implementing `IMessageVisibilityVisible`.
+var MESSAGE_VISIBLE = Object.freeze({
+  visible: true
+});
+export var MAX_STICKY_DURATION_MS = 3600000;
+export var MatrixEventEvent = /*#__PURE__*/function (MatrixEventEvent) {
+  /**
+   * An event has been decrypted, or we have failed to decrypt it.
+   *
+   * The payload consists of:
+   *
+   *  * `event` - The {@link MatrixEvent} which we attempted to decrypt.
+   *
+   *  * `err` - The error that occurred during decryption, or `undefined` if no error occurred.
+   *     Avoid use of this: {@link MatrixEvent.decryptionFailureReason} is more useful.
+   */
+  MatrixEventEvent["Decrypted"] = "Event.decrypted";
+  MatrixEventEvent["BeforeRedaction"] = "Event.beforeRedaction";
+  MatrixEventEvent["VisibilityChange"] = "Event.visibilityChange";
+  MatrixEventEvent["LocalEventIdReplaced"] = "Event.localEventIdReplaced";
+  MatrixEventEvent["Status"] = "Event.status";
+  MatrixEventEvent["Replaced"] = "Event.replaced";
+  MatrixEventEvent["RelationsCreated"] = "Event.relationsCreated";
+  MatrixEventEvent["SentinelUpdated"] = "Event.sentinelUpdated";
+  return MatrixEventEvent;
+}({});
+export class MatrixEvent extends TypedEventEmitter {
+  /**
+   * Update the sentinels and forwardLooking flag for this event.
+   * @param stateContext -  the room state to be queried
+   * @param toStartOfTimeline -  if true the event's forwardLooking flag is set false
+   * @internal
+   */
+  setMetadata(stateContext, toStartOfTimeline) {
+    var _this$sender, _this$target;
+    // If an event is an m.room.member state event then we should set the sentinels again in case setEventMetadata
+    // was already called before the state was applied and thus the sentinel points at the member from before this event.
+    var affectsSelf = this.isState() && this.getType() === EventType.RoomMember && this.getSender() === this.getStateKey();
+    var changed = false;
+    // When we try to generate a sentinel member before we have that member
+    // in the members object, we still generate a sentinel but it doesn't
+    // have a membership event, so test to see if events.member is set. We
+    // check this to avoid overriding non-sentinel members by sentinel ones
+    // when adding the event to a filtered timeline
+    if (affectsSelf || !((_this$sender = this.sender) !== null && _this$sender !== void 0 && (_this$sender = _this$sender.events) !== null && _this$sender !== void 0 && _this$sender.member)) {
+      var newSender = stateContext.getSentinelMember(this.getSender());
+      if (newSender !== this.sender) changed = true;
+      this.sender = newSender;
+    }
+    if (affectsSelf || !((_this$target = this.target) !== null && _this$target !== void 0 && (_this$target = _this$target.events) !== null && _this$target !== void 0 && _this$target.member) && this.getType() === EventType.RoomMember) {
+      var newTarget = stateContext.getSentinelMember(this.getStateKey());
+      if (newTarget !== this.target) changed = true;
+      this.target = newTarget;
+    }
+    if (this.isState()) {
+      // room state has no concept of 'old' or 'current', but we want the
+      // room state to regress back to previous values if toStartOfTimeline
+      // is set, which means inspecting prev_content if it exists. This
+      // is done by toggling the forwardLooking flag.
+      if (toStartOfTimeline) {
+        this.forwardLooking = false;
+      }
+    }
+    if (changed) {
+      this.emit(MatrixEventEvent.SentinelUpdated);
+    }
+  }
+
+  /**
+   * The sending status of the event.
+   * @privateRemarks
+   * Should be read-only
+   */
+
+  /**
+   * Construct a Matrix Event object
+   *
+   * @param event - The raw (possibly encrypted) event. <b>Do not access
+   * this property</b> directly unless you absolutely have to. Prefer the getter
+   * methods defined on this class. Using the getter methods shields your app
+   * from changes to event JSON between Matrix versions.
+   */
+  constructor() {
+    var _this$getTs;
+    var event = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    super();
+
+    // intern the values of matrix events to force share strings and reduce the
+    // amount of needless string duplication. This can save moderate amounts of
+    // memory (~10% on a 350MB heap).
+    // 'membership' at the event level (rather than the content level) is a legacy
+    // field that Element never otherwise looks at, but it will still take up a lot
+    // of space if we don't intern it.
+    this.event = event;
+    // applied push rule and action for this event
+    _defineProperty(this, "pushDetails", {});
+    _defineProperty(this, "_replacingEvent", null);
+    _defineProperty(this, "_localRedactionEvent", null);
+    _defineProperty(this, "_isCancelled", false);
+    _defineProperty(this, "clearEvent", void 0);
+    /* Message hiding, as specified by https://github.com/matrix-org/matrix-doc/pull/3531.
+     Note: We're returning this object, so any value stored here MUST be frozen.
+    */
+    _defineProperty(this, "visibility", MESSAGE_VISIBLE);
+    // Not all events will be extensible-event compatible, so cache a flag in
+    // addition to a falsy cached event value. We check the flag later on in
+    // a public getter to decide if the cache is valid.
+    _defineProperty(this, "_hasCachedExtEv", false);
+    _defineProperty(this, "_cachedExtEv", undefined);
+    /** If we failed to decrypt this event, the reason for the failure. Otherwise, `null`. */
+    _defineProperty(this, "_decryptionFailureReason", null);
+    /* curve25519 key which we believe belongs to the sender of the event. See
+     * getSenderKey()
+     */
+    _defineProperty(this, "senderCurve25519Key", null);
+    /* ed25519 key which the sender of this event (for olm) or the creator of
+     * the megolm session (for megolm) claims to own. See getClaimedEd25519Key()
+     */
+    _defineProperty(this, "claimedEd25519Key", null);
+    /**
+     * If another user forwarded the key to this message
+     * (eg via [MSC4268](https://github.com/matrix-org/matrix-spec-proposals/pull/4268)),
+     * the ID of that user.
+     */
+    _defineProperty(this, "keyForwardedBy", void 0);
+    /* if we have a process decrypting this event, a Promise which resolves
+     * when it is finished. Normally null.
+     */
+    _defineProperty(this, "decryptionPromise", null);
+    /* flag to indicate if we should retry decrypting this event after the
+     * first attempt (eg, we have received new data which means that a second
+     * attempt may succeed)
+     */
+    _defineProperty(this, "retryDecryption", false);
+    /* The txnId with which this event was sent if it was during this session,
+     * allows for a unique ID which does not change when the event comes back down sync.
+     */
+    _defineProperty(this, "txnId", void 0);
+    /**
+     * A reference to the thread this event belongs to
+     */
+    _defineProperty(this, "thread", void 0);
+    _defineProperty(this, "threadId", void 0);
+    /* Set an approximate timestamp for the event relative the local clock.
+     * This will inherently be approximate because it doesn't take into account
+     * the time between the server putting the 'age' field on the event as it sent
+     * it to us and the time we're now constructing this event, but that's better
+     * than assuming the local clock is in sync with the origin HS's clock.
+     */
+    _defineProperty(this, "localTimestamp", void 0);
+    /**
+     * The room member who sent this event, or null e.g.
+     * this is a presence event. This is only guaranteed to be set for events that
+     * appear in a timeline, ie. do not guarantee that it will be set on state
+     * events.
+     * @privateRemarks
+     * Should be read-only
+     */
+    _defineProperty(this, "sender", null);
+    /**
+     * The room member who is the target of this event, e.g.
+     * the invitee, the person being banned, etc.
+     * @privateRemarks
+     * Should be read-only
+     */
+    _defineProperty(this, "target", null);
+    _defineProperty(this, "status", null);
+    /**
+     * most recent error associated with sending the event, if any
+     * @privateRemarks
+     * Should be read-only. May not be a MatrixError.
+     */
+    _defineProperty(this, "error", null);
+    /**
+     * True if this event is 'forward looking', meaning
+     * that getDirectionalContent() will return event.content and not event.prev_content.
+     * Only state events may be backwards looking
+     * Default: true. <strong>This property is experimental and may change.</strong>
+     * @privateRemarks
+     * Should be read-only
+     */
+    _defineProperty(this, "forwardLooking", true);
+    _defineProperty(this, "reEmitter", void 0);
+    /**
+     * The timestamp for when this event should expire, in milliseconds.
+     * Prefers using the server-provided value, but will fall back to local calculation.
+     *
+     * This value is **safe** to use, as malicious start time and duration are appropriately capped.
+     *
+     * If the event is not a sticky event (or not supported by the server),
+     * then this returns `undefined`.
+     */
+    _defineProperty(this, "unstableStickyExpiresAt", void 0);
+    ["state_key", "type", "sender", "room_id", "membership"].forEach(prop => {
+      if (typeof event[prop] !== "string") return;
+      event[prop] = internaliseString(event[prop]);
+    });
+    ["membership", "avatar_url", "displayname"].forEach(prop => {
+      var _event$content;
+      if (typeof ((_event$content = event.content) === null || _event$content === void 0 ? void 0 : _event$content[prop]) !== "string") return;
+      event.content[prop] = internaliseString(event.content[prop]);
+    });
+    ["rel_type"].forEach(prop => {
+      var _event$content2;
+      if (typeof ((_event$content2 = event.content) === null || _event$content2 === void 0 || (_event$content2 = _event$content2["m.relates_to"]) === null || _event$content2 === void 0 ? void 0 : _event$content2[prop]) !== "string") return;
+      event.content["m.relates_to"][prop] = internaliseString(event.content["m.relates_to"][prop]);
+    });
+    this.txnId = event.txn_id;
+    // The localTimestamp is calculated using the age.
+    // Some events lack an `age` property, either because they are EDUs such as typing events,
+    // or due to server-side bugs such as https://github.com/matrix-org/synapse/issues/8429.
+    // The fallback in these cases will be to use the origin_server_ts.
+    // For EDUs, the origin_server_ts also is not defined so we use Date.now().
+    var age = this.getAge();
+    var now = Date.now();
+    this.localTimestamp = age !== undefined ? now - age : (_this$getTs = this.getTs()) !== null && _this$getTs !== void 0 ? _this$getTs : now;
+    this.reEmitter = new TypedReEmitter(this);
+    if (this.unstableStickyInfo) {
+      if (this.unstableStickyInfo.duration_ttl_ms) {
+        this.unstableStickyExpiresAt = now + this.unstableStickyInfo.duration_ttl_ms;
+      } else {
+        // Bound the timestamp so it doesn't come from the future.
+        this.unstableStickyExpiresAt = Math.min(now, this.getTs()) + this.unstableStickyInfo.duration_ms;
+      }
+    }
+  }
+
+  /**
+   * Unstable getter to try and get an extensible event. Note that this might
+   * return a falsy value if the event could not be parsed as an extensible
+   * event.
+   *
+   * @deprecated Use stable functions where possible.
+   */
+  get unstableExtensibleEvent() {
+    if (!this._hasCachedExtEv) {
+      var _ExtensibleEvents$par;
+      this._cachedExtEv = (_ExtensibleEvents$par = ExtensibleEvents.parse(this.getEffectiveEvent())) !== null && _ExtensibleEvents$par !== void 0 ? _ExtensibleEvents$par : undefined;
+    }
+    return this._cachedExtEv;
+  }
+  invalidateExtensibleEvent() {
+    // just reset the flag - that'll trick the getter into parsing a new event
+    this._hasCachedExtEv = false;
+  }
+
+  /**
+   * Gets the event as it would appear if it had been sent unencrypted.
+   *
+   * If the event is encrypted, we attempt to mock up an event as it would have looked had the sender not encrypted it.
+   * If the event is not encrypted, a copy of it is simply returned as-is.
+   *
+   * @returns A shallow copy of the event, in wire format, as it would have been had it not been encrypted.
+   */
+  getEffectiveEvent() {
+    var content = Object.assign({}, this.getContent()); // clone for mutation
+
+    if (this.getWireType() === EventType.RoomMessageEncrypted) {
+      // Encrypted events sometimes aren't symmetrical on the `content` so we'll copy
+      // that over too, but only for missing properties. We don't copy over mismatches
+      // between the plain and decrypted copies of `content` because we assume that the
+      // app is relying on the decrypted version, so we want to expose that as a source
+      // of truth here too.
+      for (var [_key, value] of Object.entries(this.getWireContent())) {
+        // Skip fields from the encrypted event schema though - we don't want to leak
+        // these.
+        if (["algorithm", "ciphertext", "device_id", "sender_key", "session_id"].includes(_key)) {
+          continue;
+        }
+        if (content[_key] === undefined) content[_key] = value;
+      }
+    }
+
+    // clearEvent doesn't have all the fields, so we'll copy what we can from this.event.
+    // We also copy over our "fixed" content key.
+    return Object.assign({}, this.event, this.clearEvent, {
+      content
+    });
+  }
+
+  /**
+   * Get the event_id for this event.
+   * @returns The event ID, e.g. <code>$143350589368169JsLZx:localhost
+   * </code>
+   */
+  getId() {
+    return this.event.event_id;
+  }
+
+  /**
+   * Get the user_id for this event.
+   * @returns The user ID, e.g. `@alice:matrix.org`
+   */
+  getSender() {
+    return this.event.sender; // v2 / v1
+  }
+
+  /**
+   * Get the (decrypted, if necessary) type of event.
+   *
+   * @returns The event type, e.g. `m.room.message`
+   */
+  getType() {
+    if (this.clearEvent) {
+      return this.clearEvent.type;
+    }
+    return this.event.type;
+  }
+
+  /**
+   * Get the (possibly encrypted) type of the event that will be sent to the
+   * homeserver.
+   *
+   * @returns The event type.
+   */
+  getWireType() {
+    return this.event.type;
+  }
+
+  /**
+   * Get the room_id for this event. This will return `undefined`
+   * for `m.presence` events.
+   * @returns The room ID, e.g. <code>!cURbafjkfsMDVwdRDQ:matrix.org
+   * </code>
+   */
+  getRoomId() {
+    return this.event.room_id;
+  }
+
+  /**
+   * Get the timestamp of this event.
+   * @returns The event timestamp, e.g. `1433502692297`
+   */
+  getTs() {
+    return this.event.origin_server_ts;
+  }
+
+  /**
+   * Get the timestamp of this event, as a Date object.
+   * @returns The event date, e.g. `new Date(1433502692297)`
+   */
+  getDate() {
+    return this.event.origin_server_ts ? new Date(this.event.origin_server_ts) : null;
+  }
+
+  /**
+   * Get a string containing details of this event
+   *
+   * This is intended for logging, to help trace errors. Example output:
+   *
+   * @example
+   * ```
+   * id=$HjnOHV646n0SjLDAqFrgIjim7RCpB7cdMXFrekWYAn type=m.room.encrypted
+   * sender=@user:example.com room=!room:example.com ts=2022-10-25T17:30:28.404Z
+   * ```
+   */
+  getDetails() {
+    var room = this.getRoomId();
+    if (room) {
+      var _this$getDate;
+      // in-room event
+      return "id=".concat(this.getId(), " type=").concat(this.getWireType(), " sender=").concat(this.getSender(), " room=").concat(room, " ts=").concat((_this$getDate = this.getDate()) === null || _this$getDate === void 0 ? void 0 : _this$getDate.toISOString());
+    } else {
+      // to-device event
+      var msgid = this.getContent()[ToDeviceMessageId];
+      return "msgid=".concat(msgid, " type=").concat(this.getWireType(), " sender=").concat(this.getSender());
+    }
+  }
+
+  /**
+   * Get the (decrypted, if necessary) event content JSON, even if the event
+   * was replaced by another event.
+   *
+   * @returns The event content JSON, or an empty object.
+   */
+  getOriginalContent() {
+    var _this$event$content;
+    if (this._localRedactionEvent) {
+      return {};
+    }
+    if (this.clearEvent) {
+      var _this$clearEvent$cont;
+      return (_this$clearEvent$cont = this.clearEvent.content) !== null && _this$clearEvent$cont !== void 0 ? _this$clearEvent$cont : {};
+    }
+    return (_this$event$content = this.event.content) !== null && _this$event$content !== void 0 ? _this$event$content : {};
+  }
+
+  /**
+   * Get the (decrypted, if necessary) event content JSON,
+   * or the content from the replacing event, if any.
+   * See `makeReplaced`.
+   *
+   * @returns The event content JSON, or an empty object.
+   */
+  getContent() {
+    if (this._localRedactionEvent) {
+      return {};
+    } else if (this._replacingEvent) {
+      var _this$_replacingEvent;
+      return (_this$_replacingEvent = this._replacingEvent.getContent()["m.new_content"]) !== null && _this$_replacingEvent !== void 0 ? _this$_replacingEvent : {};
+    } else {
+      return this.getOriginalContent();
+    }
+  }
+
+  /**
+   * Get the (possibly encrypted) event content JSON that will be sent to the
+   * homeserver.
+   *
+   * @returns The event content JSON, or an empty object.
+   */
+  getWireContent() {
+    return this.event.content || {};
+  }
+
+  /**
+   * Get the event ID of the thread head
+   */
+  get threadRootId() {
+    var _this$getWireContent;
+    // don't allow state events to be threaded as per the spec
+    if (this.isState()) {
+      return undefined;
+    }
+    var relatesTo = (_this$getWireContent = this.getWireContent()) === null || _this$getWireContent === void 0 ? void 0 : _this$getWireContent["m.relates_to"];
+    if ((relatesTo === null || relatesTo === void 0 ? void 0 : relatesTo.rel_type) === THREAD_RELATION_TYPE.name) {
+      return relatesTo.event_id;
+    }
+    if (this.thread) {
+      return this.thread.id;
+    }
+    if (this.threadId !== undefined) {
+      return this.threadId;
+    }
+    var unsigned = this.getUnsigned();
+    if (typeof unsigned[UNSIGNED_THREAD_ID_FIELD.name] === "string") {
+      return unsigned[UNSIGNED_THREAD_ID_FIELD.name];
+    }
+    return undefined;
+  }
+
+  /**
+   * A helper to check if an event is a thread's head or not
+   */
+  get isThreadRoot() {
+    // don't allow state events to be threaded as per the spec
+    if (this.isState()) {
+      return false;
+    }
+    var threadDetails = this.getServerAggregatedRelation(THREAD_RELATION_TYPE.name);
+
+    // Bundled relationships only returned when the sync response is limited
+    // hence us having to check both bundled relation and inspect the thread
+    // model
+    return !!threadDetails || this.threadRootId === this.getId();
+  }
+  get replyEventId() {
+    var _this$getWireContent$;
+    return (_this$getWireContent$ = this.getWireContent()["m.relates_to"]) === null || _this$getWireContent$ === void 0 || (_this$getWireContent$ = _this$getWireContent$["m.in_reply_to"]) === null || _this$getWireContent$ === void 0 ? void 0 : _this$getWireContent$.event_id;
+  }
+  get relationEventId() {
+    var _this$getWireContent2;
+    return (_this$getWireContent2 = this.getWireContent()) === null || _this$getWireContent2 === void 0 || (_this$getWireContent2 = _this$getWireContent2["m.relates_to"]) === null || _this$getWireContent2 === void 0 ? void 0 : _this$getWireContent2.event_id;
+  }
+
+  /**
+   * Get the previous event content JSON. This will only return something for
+   * state events which exist in the timeline.
+   * @returns The previous event content JSON, or an empty object.
+   */
+  getPrevContent() {
+    // v2 then v1 then default
+    return this.getUnsigned().prev_content || {};
+  }
+
+  /**
+   * Get either 'content' or 'prev_content' depending on if this event is
+   * 'forward-looking' or not. This can be modified via event.forwardLooking.
+   * In practice, this means we get the chronologically earlier content value
+   * for this event (this method should surely be called getEarlierContent)
+   * <strong>This method is experimental and may change.</strong>
+   * @returns event.content if this event is forward-looking, else
+   * event.prev_content.
+   */
+  getDirectionalContent() {
+    return this.forwardLooking ? this.getContent() : this.getPrevContent();
+  }
+
+  /**
+   * Get the age of this event. This represents the age of the event when the
+   * event arrived at the device, and not the age of the event when this
+   * function was called.
+   * Can only be returned once the server has echo'ed back
+   * @returns The age of this event in milliseconds.
+   */
+  getAge() {
+    return this.getUnsigned().age;
+  }
+
+  /**
+   * Get the age of the event when this function was called.
+   * This is the 'age' field adjusted according to how long this client has
+   * had the event.
+   * @returns The age of this event in milliseconds.
+   */
+  getLocalAge() {
+    return Date.now() - this.localTimestamp;
+  }
+
+  /**
+   * Get the event state_key if it has one. If necessary, this will perform
+   * string-unpacking on the state key, as per MSC4362. This will return
+   * <code>undefined</code> for message events.
+   * @returns The event's `state_key`.
+   */
+  getStateKey() {
+    if (this.clearEvent) {
+      return this.clearEvent.state_key;
+    }
+    return this.event.state_key;
+  }
+
+  /**
+   * Get the raw event state_key if it has one. This may be string-packed as per
+   * MSC4362 if the state event is encrypted. This will return <code>undefined
+   * </code> for message events.
+   * @returns The event's `state_key`.
+   */
+  getWireStateKey() {
+    return this.event.state_key;
+  }
+
+  /**
+   * Check if this event is a state event.
+   * @returns True if this is a state event.
+   */
+  isState() {
+    return this.event.state_key !== undefined;
+  }
+
+  /**
+   * Get the user's room membership at the time the event was sent, as reported
+   * by the server.  This uses MSC4115.
+   *
+   * @returns The user's room membership, or `undefined` if the server does
+   *   not report it.
+   */
+  getMembershipAtEvent() {
+    var unsigned = this.getUnsigned();
+    return UNSIGNED_MEMBERSHIP_FIELD.findIn(unsigned);
+  }
+
+  /**
+   * Replace the content of this event with encrypted versions.
+   * (This is used when sending an event; it should not be used by applications).
+   *
+   * @internal
+   *
+   * @param cryptoType - type of the encrypted event - typically
+   * <tt>"m.room.encrypted"</tt>
+   *
+   * @param cryptoContent - raw 'content' for the encrypted event.
+   *
+   * @param senderCurve25519Key - curve25519 key to record for the
+   *   sender of this event.
+   *   See {@link MatrixEvent#getSenderKey}.
+   *
+   * @param claimedEd25519Key - claimed ed25519 key to record for the
+   *   sender if this event.
+   *   See {@link MatrixEvent#getClaimedEd25519Key}
+   */
+  makeEncrypted(cryptoType, cryptoContent, senderCurve25519Key, claimedEd25519Key) {
+    // keep the plain-text data for 'view source'
+    this.clearEvent = {
+      type: this.event.type,
+      content: this.event.content,
+      state_key: this.event.state_key
+    };
+    this.event.type = cryptoType;
+    this.event.content = cryptoContent;
+    this.senderCurve25519Key = senderCurve25519Key;
+    this.claimedEd25519Key = claimedEd25519Key;
+
+    // if this is a state event, pack cleartext type and statekey
+    if (this.isState()) {
+      this.event.state_key = "".concat(this.clearEvent.type, ":").concat(this.clearEvent.state_key);
+    }
+  }
+
+  /**
+   * Check if this event is currently being decrypted.
+   *
+   * @returns True if this event is currently being decrypted, else false.
+   */
+  isBeingDecrypted() {
+    return this.decryptionPromise != null;
+  }
+  getDecryptionPromise() {
+    return this.decryptionPromise;
+  }
+
+  /**
+   * Check if this event is an encrypted event which we failed to decrypt
+   *
+   * (This implies that we might retry decryption at some point in the future)
+   *
+   * @returns True if this event is an encrypted event which we
+   *     couldn't decrypt.
+   */
+  isDecryptionFailure() {
+    return this._decryptionFailureReason !== null;
+  }
+
+  /** If we failed to decrypt this event, the reason for the failure. Otherwise, `null`. */
+  get decryptionFailureReason() {
+    return this._decryptionFailureReason;
+  }
+  shouldAttemptDecryption() {
+    if (this.isRedacted()) return false;
+    if (this.isBeingDecrypted()) return false;
+    if (this.clearEvent) return false;
+    if (!this.isEncrypted()) return false;
+    return true;
+  }
+
+  /**
+   * Start the process of trying to decrypt this event.
+   *
+   * (This is used within the SDK: it isn't intended for use by applications)
+   *
+   * @internal
+   *
+   * @param crypto - crypto module
+   *
+   * @returns promise which resolves (to undefined) when the decryption
+   * attempt is completed.
+   */
+  attemptDecryption(crypto) {
+    var _arguments = arguments,
+      _this = this;
+    return _asyncToGenerator(function* () {
+      var options = _arguments.length > 1 && _arguments[1] !== undefined ? _arguments[1] : {};
+      // start with a couple of sanity checks.
+      if (!_this.isEncrypted()) {
+        throw new Error("Attempt to decrypt event which isn't encrypted");
+      }
+      var alreadyDecrypted = _this.clearEvent && !_this.isDecryptionFailure();
+      if (alreadyDecrypted) {
+        // we may want to just ignore this? let's start with rejecting it.
+        throw new Error("Attempt to decrypt event which has already been decrypted");
+      }
+
+      // if we already have a decryption attempt in progress, then it may
+      // fail because it was using outdated info. We now have reason to
+      // succeed where it failed before, but we don't want to have multiple
+      // attempts going at the same time, so just set a flag that says we have
+      // new info.
+      //
+      if (_this.decryptionPromise) {
+        logger.log("Event ".concat(_this.getId(), " already being decrypted; queueing a retry"));
+        _this.retryDecryption = true;
+        return _this.decryptionPromise;
+      }
+      _this.decryptionPromise = _this.decryptionLoop(crypto, options);
+      return _this.decryptionPromise;
+    })();
+  }
+
+  /**
+   * Calculate the recipients for keyshare requests.
+   *
+   * @param userId - the user who received this event.
+   *
+   * @returns array of recipients
+   */
+  getKeyRequestRecipients(userId) {
+    // send the request to all of our own devices
+    var recipients = [{
+      userId,
+      deviceId: "*"
+    }];
+    return recipients;
+  }
+  decryptionLoop(crypto) {
+    var _arguments2 = arguments,
+      _this2 = this;
+    return _asyncToGenerator(function* () {
+      var options = _arguments2.length > 1 && _arguments2[1] !== undefined ? _arguments2[1] : {};
+      // make sure that this method never runs completely synchronously.
+      // (doing so would mean that we would clear decryptionPromise *before*
+      // it is set in attemptDecryption - and hence end up with a stuck
+      // `decryptionPromise`).
+      yield Promise.resolve();
+
+      // eslint-disable-next-line no-constant-condition
+      while (true) {
+        _this2.retryDecryption = false;
+        var err = undefined;
+        try {
+          var res = yield crypto.decryptEvent(_this2);
+          if (options.isRetry === true) {
+            logger.info("Decrypted event on retry (".concat(_this2.getDetails(), ")"));
+          }
+          _this2.setClearData(res);
+          _this2._decryptionFailureReason = null;
+        } catch (e) {
+          var detailedError = e instanceof DecryptionError ? e.detailedString : String(e);
+          err = e;
+
+          // see if we have a retry queued.
+          //
+          // NB: make sure to keep this check in the same tick of the
+          //   event loop as `decryptionPromise = null` below - otherwise we
+          //   risk a race:
+          //
+          //   * A: we check retryDecryption here and see that it is
+          //        false
+          //   * B: we get a second call to attemptDecryption, which sees
+          //        that decryptionPromise is set so sets
+          //        retryDecryption
+          //   * A: we continue below, clear decryptionPromise, and
+          //        never do the retry.
+          //
+          if (_this2.retryDecryption) {
+            // decryption error, but we have a retry queued.
+            logger.log("Error decrypting event (".concat(_this2.getDetails(), "), but retrying: ").concat(detailedError));
+            continue;
+          }
+
+          // decryption error, no retries queued. Warn about the error and
+          // set it to m.bad.encrypted.
+          //
+          // the detailedString already includes the name and message of the error, and the stack isn't much use,
+          // so we don't bother to log `e` separately.
+          logger.warn("Error decrypting event (".concat(_this2.getDetails(), "): ").concat(detailedError));
+          _this2.setClearDataForDecryptionFailure(String(e));
+          _this2._decryptionFailureReason = e instanceof DecryptionError ? e.code : DecryptionFailureCode.UNKNOWN_ERROR;
+        }
+
+        // Make sure we clear 'decryptionPromise' before sending the 'Event.decrypted' event,
+        // otherwise the app will be confused to see `isBeingDecrypted` still set when
+        // there isn't an `Event.decrypted` on the way.
+        //
+        // see also notes on retryDecryption above.
+        //
+        _this2.decryptionPromise = null;
+        _this2.retryDecryption = false;
+
+        // Before we emit the event, clear the push actions so that they can be recalculated
+        // by relevant code. We do this because the clear event has now changed, making it
+        // so that existing rules can be re-run over the applicable properties. Stuff like
+        // highlighting when the user's name is mentioned rely on this happening. We also want
+        // to set the push actions before emitting so that any notification listeners don't
+        // pick up the wrong contents.
+        _this2.setPushDetails();
+        if (options.emit !== false) {
+          _this2.emit(MatrixEventEvent.Decrypted, _this2, err);
+        }
+        return;
+      }
+    })();
+  }
+
+  /**
+   * Update the cleartext data on this event.
+   *
+   * (This is used after decrypting an event; it should not be used by applications).
+   *
+   * @internal
+   *
+   * @param decryptionResult - the decryption result, including the plaintext and some key info
+   */
+  setClearData(decryptionResult) {
+    var _decryptionResult$sen, _decryptionResult$cla;
+    this.clearEvent = decryptionResult.clearEvent;
+    this.senderCurve25519Key = (_decryptionResult$sen = decryptionResult.senderCurve25519Key) !== null && _decryptionResult$sen !== void 0 ? _decryptionResult$sen : null;
+    this.claimedEd25519Key = (_decryptionResult$cla = decryptionResult.claimedEd25519Key) !== null && _decryptionResult$cla !== void 0 ? _decryptionResult$cla : null;
+    this.keyForwardedBy = decryptionResult.keyForwardedBy;
+    this.invalidateExtensibleEvent();
+  }
+
+  /**
+   * Update the cleartext data on this event after a decryption failure.
+   *
+   * @param reason - the textual reason for the failure
+   */
+  setClearDataForDecryptionFailure(reason) {
+    this.clearEvent = {
+      type: EventType.RoomMessage,
+      content: {
+        msgtype: "m.bad.encrypted",
+        body: "** Unable to decrypt: ".concat(reason, " **")
+      }
+    };
+    this.senderCurve25519Key = null;
+    this.claimedEd25519Key = null;
+    this.invalidateExtensibleEvent();
+  }
+
+  /**
+   * Gets the cleartext content for this event. If the event is not encrypted,
+   * or encryption has not been completed, this will return null.
+   *
+   * @returns The cleartext (decrypted) content for the event
+   */
+  getClearContent() {
+    return this.clearEvent ? this.clearEvent.content : null;
+  }
+
+  /**
+   * Check if the event is encrypted.
+   * @returns True if this event is encrypted.
+   */
+  isEncrypted() {
+    return this.event.type === EventType.RoomMessageEncrypted;
+  }
+
+  /**
+   * The curve25519 key for the device that we think sent this event
+   *
+   * For an Olm-encrypted event, this is inferred directly from the DH
+   * exchange at the start of the session: the curve25519 key is involved in
+   * the DH exchange, so only a device which holds the private part of that
+   * key can establish such a session.
+   *
+   * For a megolm-encrypted event, it is inferred from the Olm message which
+   * established the megolm session
+   */
+  getSenderKey() {
+    return this.senderCurve25519Key;
+  }
+
+  /**
+   * The additional keys the sender of this encrypted event claims to possess.
+   *
+   * Just a wrapper for #getClaimedEd25519Key (q.v.)
+   */
+  getKeysClaimed() {
+    if (!this.claimedEd25519Key) return {};
+    return {
+      ed25519: this.claimedEd25519Key
+    };
+  }
+
+  /**
+   * Get the ed25519 the sender of this event claims to own.
+   *
+   * For Olm messages, this claim is encoded directly in the plaintext of the
+   * event itself. For megolm messages, it is implied by the m.room_key event
+   * which established the megolm session.
+   *
+   * Until we download the device list of the sender, it's just a claim: the
+   * device list gives a proof that the owner of the curve25519 key used for
+   * this event (and returned by #getSenderKey) also owns the ed25519 key by
+   * signing the public curve25519 key with the ed25519 key.
+   *
+   * In general, applications should not use this method directly, but should
+   * instead use {@link crypto-api!CryptoApi#getEncryptionInfoForEvent}.
+   */
+  getClaimedEd25519Key() {
+    return this.claimedEd25519Key;
+  }
+
+  /**
+   *  Returns an empty array.
+   *
+   * Previously, this returned the chain of Curve25519 keys through which
+   * this session was forwarded, via `m.forwarded_room_key` events.
+   * However, that is not cryptographically reliable, and clients should not
+   * be using it.
+   *
+   * @see https://github.com/matrix-org/matrix-spec/issues/1089
+   * @deprecated
+   */
+  getForwardingCurve25519KeyChain() {
+    return [];
+  }
+
+  /**
+   * @deprecated always returns false
+   */
+  isKeySourceUntrusted() {
+    return false;
+  }
+
+  /**
+   * If another user forwarded the key to this message
+   * (eg via [MSC4268](https://github.com/matrix-org/matrix-spec-proposals/pull/4268)),
+   * get the ID of that user.
+   */
+  getKeyForwardingUser() {
+    return this.keyForwardedBy;
+  }
+  getUnsigned() {
+    return this.event.unsigned || {};
+  }
+  setUnsigned(unsigned) {
+    this.event.unsigned = unsigned;
+  }
+  unmarkLocallyRedacted() {
+    var value = this._localRedactionEvent;
+    this._localRedactionEvent = null;
+    if (this.event.unsigned) {
+      this.event.unsigned.redacted_because = undefined;
+    }
+    return !!value;
+  }
+  markLocallyRedacted(redactionEvent) {
+    if (this._localRedactionEvent) return;
+    this.emit(MatrixEventEvent.BeforeRedaction, this, redactionEvent);
+    this._localRedactionEvent = redactionEvent;
+    if (!this.event.unsigned) {
+      this.event.unsigned = {};
+    }
+    this.event.unsigned.redacted_because = redactionEvent.event;
+  }
+
+  /**
+   * Change the visibility of an event, as per https://github.com/matrix-org/matrix-doc/pull/3531 .
+   *
+   * @param visibilityChange - event holding a hide/unhide payload, or nothing
+   *   if the event is being reset to its original visibility (presumably
+   *   by a visibility event being redacted).
+   *
+   * @remarks
+   * Fires {@link MatrixEventEvent.VisibilityChange} if `visibilityEvent`
+   *   caused a change in the actual visibility of this event, either by making it
+   *   visible (if it was hidden), by making it hidden (if it was visible) or by
+   *   changing the reason (if it was hidden).
+   */
+  applyVisibilityEvent(visibilityChange) {
+    var _visibilityChange$vis, _visibilityChange$rea;
+    var visible = (_visibilityChange$vis = visibilityChange === null || visibilityChange === void 0 ? void 0 : visibilityChange.visible) !== null && _visibilityChange$vis !== void 0 ? _visibilityChange$vis : true;
+    var reason = (_visibilityChange$rea = visibilityChange === null || visibilityChange === void 0 ? void 0 : visibilityChange.reason) !== null && _visibilityChange$rea !== void 0 ? _visibilityChange$rea : null;
+    var change = false;
+    if (this.visibility.visible !== visible) {
+      change = true;
+    } else if (!this.visibility.visible && this.visibility["reason"] !== reason) {
+      change = true;
+    }
+    if (change) {
+      if (visible) {
+        this.visibility = MESSAGE_VISIBLE;
+      } else {
+        this.visibility = Object.freeze({
+          visible: false,
+          reason
+        });
+      }
+      this.emit(MatrixEventEvent.VisibilityChange, this, visible);
+    }
+  }
+
+  /**
+   * Return instructions to display or hide the message.
+   *
+   * @returns Instructions determining whether the message
+   * should be displayed.
+   */
+  messageVisibility() {
+    // Note: We may return `this.visibility` without fear, as
+    // this is a shallow frozen object.
+    return this.visibility;
+  }
+
+  /**
+   * Update the content of an event in the same way it would be by the server
+   * if it were redacted before it was sent to us
+   *
+   * @param redactionEvent - event causing the redaction
+   * @param room - the room in which the event exists
+   */
+  makeRedacted(redactionEvent, room) {
+    // quick sanity-check
+    if (!redactionEvent.event) {
+      throw new Error("invalid redactionEvent in makeRedacted");
+    }
+    this._localRedactionEvent = null;
+    this.emit(MatrixEventEvent.BeforeRedaction, this, redactionEvent);
+    this._replacingEvent = null;
+    // we attempt to replicate what we would see from the server if
+    // the event had been redacted before we saw it.
+    //
+    // The server removes (most of) the content of the event, and adds a
+    // "redacted_because" key to the unsigned section containing the
+    // redacted event.
+    if (!this.event.unsigned) {
+      this.event.unsigned = {};
+    }
+    this.event.unsigned.redacted_because = redactionEvent.event;
+    for (var _key2 in this.event) {
+      if (this.event.hasOwnProperty(_key2) && !REDACT_KEEP_KEYS.has(_key2)) {
+        delete this.event[_key2];
+      }
+    }
+
+    // If the event is encrypted prune the decrypted bits
+    if (this.isEncrypted()) {
+      this.clearEvent = undefined;
+    }
+    var keeps = this.getType() in REDACT_KEEP_CONTENT_MAP ? REDACT_KEEP_CONTENT_MAP[this.getType()] : {};
+    var content = this.getContent();
+    for (var _key3 in content) {
+      if (content.hasOwnProperty(_key3) && !keeps[_key3]) {
+        delete content[_key3];
+      }
+    }
+
+    // If the redacted event was in a thread (but not thread root), move it
+    // to the main timeline. This will change if MSC3389 is merged.
+    if (!this.isThreadRoot && this.threadRootId && this.threadRootId !== this.getId()) {
+      this.moveAllRelatedToMainTimeline(room);
+      redactionEvent.moveToMainTimeline(room);
+    }
+    this.invalidateExtensibleEvent();
+  }
+  moveAllRelatedToMainTimeline(room) {
+    var thread = this.thread;
+    this.moveToMainTimeline(room);
+
+    // If we dont have access to the thread, we can only move this
+    // event, not things related to it.
+    if (thread) {
+      for (var _event of thread.events) {
+        var _event$getRelation;
+        if (((_event$getRelation = _event.getRelation()) === null || _event$getRelation === void 0 ? void 0 : _event$getRelation.event_id) === this.getId()) {
+          _event.moveAllRelatedToMainTimeline(room);
+        }
+      }
+    }
+  }
+  moveToMainTimeline(room) {
+    var _this$thread;
+    // Remove it from its thread
+    (_this$thread = this.thread) === null || _this$thread === void 0 || _this$thread.timelineSet.removeEvent(this.getId());
+    this.setThread(undefined);
+
+    // And insert it into the main timeline
+    var timeline = room.getLiveTimeline();
+    // We use insertEventIntoTimeline to insert it in timestamp order,
+    // because we don't know where it should go (until we have MSC4033).
+    timeline.getTimelineSet().insertEventIntoTimeline(this, timeline, timeline.getState(EventTimeline.FORWARDS), false);
+  }
+
+  /**
+   * Check if this event has been redacted
+   *
+   * @returns True if this event has been redacted
+   */
+  isRedacted() {
+    return Boolean(this.getUnsigned().redacted_because);
+  }
+
+  /**
+   * Check if this event is a redaction of another event
+   *
+   * @returns True if this event is a redaction
+   */
+  isRedaction() {
+    return this.getType() === EventType.RoomRedaction;
+  }
+
+  /**
+   * Return the visibility change caused by this event,
+   * as per https://github.com/matrix-org/matrix-doc/pull/3531.
+   *
+   * @returns If the event is a well-formed visibility change event,
+   * an instance of `IVisibilityChange`, otherwise `null`.
+   */
+  asVisibilityChange() {
+    if (!EVENT_VISIBILITY_CHANGE_TYPE.matches(this.getType())) {
+      // Not a visibility change event.
+      return null;
+    }
+    var relation = this.getRelation();
+    if (!relation || relation.rel_type != "m.reference") {
+      // Ill-formed, ignore this event.
+      return null;
+    }
+    var eventId = relation.event_id;
+    if (!eventId) {
+      // Ill-formed, ignore this event.
+      return null;
+    }
+    var content = this.getWireContent();
+    var visible = !!content.visible;
+    var reason = content.reason;
+    if (reason && typeof reason != "string") {
+      // Ill-formed, ignore this event.
+      return null;
+    }
+    // Well-formed visibility change event.
+    return {
+      visible,
+      reason,
+      eventId
+    };
+  }
+
+  /**
+   * Check if this event alters the visibility of another event,
+   * as per https://github.com/matrix-org/matrix-doc/pull/3531.
+   *
+   * @returns True if this event alters the visibility
+   * of another event.
+   */
+  isVisibilityEvent() {
+    return EVENT_VISIBILITY_CHANGE_TYPE.matches(this.getType());
+  }
+
+  /**
+   * Get the (decrypted, if necessary) redaction event JSON
+   * if event was redacted
+   *
+   * @returns The redaction event JSON, or an empty object
+   */
+  getRedactionEvent() {
+    var _this$clearEvent, _this$event$unsigned;
+    if (!this.isRedacted()) return null;
+    if ((_this$clearEvent = this.clearEvent) !== null && _this$clearEvent !== void 0 && _this$clearEvent.unsigned) {
+      var _this$clearEvent$unsi, _this$clearEvent2;
+      return (_this$clearEvent$unsi = (_this$clearEvent2 = this.clearEvent) === null || _this$clearEvent2 === void 0 ? void 0 : _this$clearEvent2.unsigned.redacted_because) !== null && _this$clearEvent$unsi !== void 0 ? _this$clearEvent$unsi : null;
+    } else if ((_this$event$unsigned = this.event.unsigned) !== null && _this$event$unsigned !== void 0 && _this$event$unsigned.redacted_because) {
+      return this.event.unsigned.redacted_because;
+    } else {
+      return {};
+    }
+  }
+
+  /**
+   * Get the push actions, if known, for this event
+   *
+   * @returns push actions
+   */
+  getPushActions() {
+    return this.pushDetails.actions || null;
+  }
+
+  /**
+   * Get the push details, if known, for this event
+   *
+   * @returns push actions
+   */
+  getPushDetails() {
+    return this.pushDetails;
+  }
+
+  /**
+   * Set the push details for this event.
+   *
+   * @param pushActions - push actions
+   * @param rule - the executed push rule
+   */
+  setPushDetails(pushActions, rule) {
+    this.pushDetails = {
+      actions: pushActions,
+      rule
+    };
+  }
+
+  /**
+   * Replace the `event` property and recalculate any properties based on it.
+   * @param event - the object to assign to the `event` property
+   */
+  handleRemoteEcho(event) {
+    var _this$getAge;
+    var oldUnsigned = this.getUnsigned();
+    var oldId = this.getId();
+    this.event = event;
+    // if this event was redacted before it was sent, it's locally marked as redacted.
+    // At this point, we've received the remote echo for the event, but not yet for
+    // the redaction that we are sending ourselves. Preserve the locally redacted
+    // state by copying over redacted_because so we don't get a flash of
+    // redacted, not-redacted, redacted as remote echos come in
+    if (oldUnsigned.redacted_because) {
+      if (!this.event.unsigned) {
+        this.event.unsigned = {};
+      }
+      this.event.unsigned.redacted_because = oldUnsigned.redacted_because;
+    }
+    // successfully sent.
+    this.setStatus(null);
+    if (this.getId() !== oldId) {
+      // emit the event if it changed
+      this.emit(MatrixEventEvent.LocalEventIdReplaced, this);
+    }
+    this.localTimestamp = Date.now() - ((_this$getAge = this.getAge()) !== null && _this$getAge !== void 0 ? _this$getAge : 0);
+  }
+
+  /**
+   * Whether the event is in any phase of sending, send failure, waiting for
+   * remote echo, etc.
+   */
+  isSending() {
+    return !!this.status;
+  }
+
+  /**
+   * Update the event's sending status and emit an event as well.
+   *
+   * @param status - The new status
+   */
+  setStatus(status) {
+    this.status = status;
+    this.emit(MatrixEventEvent.Status, this, status);
+  }
+  replaceLocalEventId(eventId) {
+    this.event.event_id = eventId;
+    this.emit(MatrixEventEvent.LocalEventIdReplaced, this);
+  }
+
+  /**
+   * Get whether the event is a relation event, and of a given type if
+   * `relType` is passed in. State events cannot be relation events
+   *
+   * @param relType - if given, checks that the relation is of the
+   * given type
+   */
+  isRelation(relType) {
+    var _this$getWireContent3;
+    // Relation info is lifted out of the encrypted content when sent to
+    // encrypted rooms, so we have to check `getWireContent` for this.
+    var relation = (_this$getWireContent3 = this.getWireContent()) === null || _this$getWireContent3 === void 0 ? void 0 : _this$getWireContent3["m.relates_to"];
+    if (this.isState() && !!(relation !== null && relation !== void 0 && relation.rel_type) && [RelationType.Replace, RelationType.Thread].includes(relation.rel_type)) {
+      // State events cannot be m.replace or m.thread relations
+      return false;
+    }
+    return !!(relation !== null && relation !== void 0 && relation.rel_type && relation.event_id && (relType ? relation.rel_type === relType : true));
+  }
+
+  /**
+   * Get relation info for the event, if any.
+   */
+  getRelation() {
+    var _this$getWireContent$2;
+    if (!this.isRelation()) {
+      return null;
+    }
+    return (_this$getWireContent$2 = this.getWireContent()["m.relates_to"]) !== null && _this$getWireContent$2 !== void 0 ? _this$getWireContent$2 : null;
+  }
+
+  /**
+   * Set an event that replaces the content of this event, through an m.replace relation.
+   *
+   * @param newEvent - the event with the replacing content, if any.
+   *
+   * @remarks
+   * Fires {@link MatrixEventEvent.Replaced}
+   */
+  makeReplaced(newEvent) {
+    // don't allow redacted events to be replaced.
+    // if newEvent is null we allow to go through though,
+    // as with local redaction, the replacing event might get
+    // cancelled, which should be reflected on the target event.
+    if (this.isRedacted() && newEvent) {
+      return;
+    }
+    // don't allow state events to be replaced using this mechanism as per MSC2676
+    if (this.isState()) {
+      return;
+    }
+    if (this._replacingEvent !== newEvent) {
+      this._replacingEvent = newEvent !== null && newEvent !== void 0 ? newEvent : null;
+      this.emit(MatrixEventEvent.Replaced, this);
+      this.invalidateExtensibleEvent();
+    }
+  }
+
+  /**
+   * Returns the status of any associated edit or redaction
+   * (not for reactions/annotations as their local echo doesn't affect the original event),
+   * or else the status of the event.
+   */
+  getAssociatedStatus() {
+    if (this._replacingEvent) {
+      return this._replacingEvent.status;
+    } else if (this._localRedactionEvent) {
+      return this._localRedactionEvent.status;
+    }
+    return this.status;
+  }
+  getServerAggregatedRelation(relType) {
+    var _this$getUnsigned$mR;
+    return (_this$getUnsigned$mR = this.getUnsigned()["m.relations"]) === null || _this$getUnsigned$mR === void 0 ? void 0 : _this$getUnsigned$mR[relType];
+  }
+
+  /**
+   * Returns the event ID of the event replacing the content of this event, if any.
+   */
+  replacingEventId() {
+    var replaceRelation = this.getServerAggregatedRelation(RelationType.Replace);
+    if (replaceRelation) {
+      return replaceRelation.event_id;
+    } else if (this._replacingEvent) {
+      return this._replacingEvent.getId();
+    }
+  }
+
+  /**
+   * Returns the event replacing the content of this event, if any.
+   * Replacements are aggregated on the server, so this would only
+   * return an event in case it came down the sync, or for local echo of edits.
+   */
+  replacingEvent() {
+    return this._replacingEvent;
+  }
+
+  /**
+   * Returns the origin_server_ts of the event replacing the content of this event, if any.
+   */
+  replacingEventDate() {
+    var replaceRelation = this.getServerAggregatedRelation(RelationType.Replace);
+    if (replaceRelation) {
+      var ts = replaceRelation.origin_server_ts;
+      if (Number.isFinite(ts)) {
+        return new Date(ts);
+      }
+    } else if (this._replacingEvent) {
+      var _this$_replacingEvent2;
+      return (_this$_replacingEvent2 = this._replacingEvent.getDate()) !== null && _this$_replacingEvent2 !== void 0 ? _this$_replacingEvent2 : undefined;
+    }
+  }
+
+  /**
+   * Returns the event that wants to redact this event, but hasn't been sent yet.
+   * @returns the event
+   */
+  localRedactionEvent() {
+    return this._localRedactionEvent;
+  }
+
+  /**
+   * For relations and redactions, returns the event_id this event is referring to.
+   */
+  getAssociatedId() {
+    var relation = this.getRelation();
+    if (this.replyEventId) {
+      return this.replyEventId;
+    } else if (relation) {
+      return relation.event_id;
+    } else if (this.isRedaction()) {
+      return this.event.redacts;
+    }
+  }
+
+  /**
+   * Checks if this event is associated with another event. See `getAssociatedId`.
+   */
+  hasAssociation() {
+    return !!this.getAssociatedId();
+  }
+
+  /**
+   * Update the related id with a new one.
+   *
+   * Used to replace a local id with remote one before sending
+   * an event with a related id.
+   *
+   * @param eventId - the new event id
+   */
+  updateAssociatedId(eventId) {
+    var relation = this.getRelation();
+    if (relation) {
+      relation.event_id = eventId;
+    } else if (this.isRedaction()) {
+      this.event.redacts = eventId;
+    }
+  }
+
+  /**
+   * Flags an event as cancelled due to future conditions. For example, a verification
+   * request event in the same sync transaction may be flagged as cancelled to warn
+   * listeners that a cancellation event is coming down the same pipe shortly.
+   * @param cancelled - Whether the event is to be cancelled or not.
+   */
+  flagCancelled() {
+    var cancelled = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : true;
+    this._isCancelled = cancelled;
+  }
+
+  /**
+   * Gets whether or not the event is flagged as cancelled. See flagCancelled() for
+   * more information.
+   * @returns True if the event is cancelled, false otherwise.
+   */
+  isCancelled() {
+    return this._isCancelled;
+  }
+
+  /**
+   * Get a copy/snapshot of this event. The returned copy will be loosely linked
+   * back to this instance, though will have "frozen" event information. Other
+   * properties of this MatrixEvent instance will be copied verbatim, which can
+   * mean they are in reference to this instance despite being on the copy too.
+   * The reference the snapshot uses does not change, however members aside from
+   * the underlying event will not be deeply cloned, thus may be mutated internally.
+   * For example, the sender profile will be copied over at snapshot time, and
+   * the sender profile internally may mutate without notice to the consumer.
+   *
+   * This is meant to be used to snapshot the event details themselves, not the
+   * features (such as sender) surrounding the event.
+   * @returns A snapshot of this event.
+   */
+  toSnapshot() {
+    var ev = new MatrixEvent(JSON.parse(JSON.stringify(this.event)));
+    for (var [p, v] of Object.entries(this)) {
+      if (p !== "event") {
+        // exclude the thing we just cloned
+        // @ts-ignore - XXX: this is just nasty
+        ev[p] = v;
+      }
+    }
+    return ev;
+  }
+
+  /**
+   * Determines if this event is equivalent to the given event. This only checks
+   * the event object itself, not the other properties of the event. Intended for
+   * use with toSnapshot() to identify events changing.
+   * @param otherEvent - The other event to check against.
+   * @returns True if the events are the same, false otherwise.
+   */
+  isEquivalentTo(otherEvent) {
+    if (!otherEvent) return false;
+    if (otherEvent === this) return true;
+    var myProps = deepSortedObjectEntries(this.event);
+    var theirProps = deepSortedObjectEntries(otherEvent.event);
+    return JSON.stringify(myProps) === JSON.stringify(theirProps);
+  }
+
+  /**
+   * Summarise the event as JSON.
+   *
+   * If encrypted, include both the decrypted and encrypted view of the event.
+   *
+   * This is named `toJSON` for use with `JSON.stringify` which checks objects
+   * for functions named `toJSON` and will call them to customise the output
+   * if they are defined.
+   *
+   * **WARNING** Do not log the result of this method; otherwise, it will end up
+   * in rageshakes, leading to a privacy violation.
+   *
+   * @deprecated Prefer to use {@link MatrixEvent#getEffectiveEvent} or similar.
+   * This method will be removed soon; it is too easy to use it accidentally
+   * and cause a privacy violation (cf https://github.com/vector-im/element-web/issues/26380).
+   * In any case, the value it returns is not a faithful serialization of the object.
+   */
+  toJSON() {
+    var event = this.getEffectiveEvent();
+    if (!this.isEncrypted()) {
+      return event;
+    }
+    return {
+      decrypted: event,
+      encrypted: this.event
+    };
+  }
+  setTxnId(txnId) {
+    this.txnId = txnId;
+  }
+  getTxnId() {
+    return this.txnId;
+  }
+
+  /**
+   * Set the instance of a thread associated with the current event
+   * @param thread - the thread
+   */
+  setThread(thread) {
+    // don't allow state events to be threaded as per the spec
+    if (this.isState()) {
+      return;
+    }
+    if (this.thread) {
+      this.reEmitter.stopReEmitting(this.thread, [ThreadEvent.Update]);
+    }
+    this.thread = thread;
+    this.setThreadId(thread === null || thread === void 0 ? void 0 : thread.id);
+    if (thread) {
+      this.reEmitter.reEmit(thread, [ThreadEvent.Update]);
+    }
+  }
+
+  /**
+   * Get the instance of the thread associated with the current event
+   */
+  getThread() {
+    return this.thread;
+  }
+  setThreadId(threadId) {
+    this.threadId = threadId;
+  }
+
+  /**
+   * Unstable getter to try and get the sticky information for the event.
+   * If the event is not a sticky event (or not supported by the server),
+   * then this returns `undefined`.
+   *
+   * `duration_ms` is safely bounded to a hour.
+   */
+  get unstableStickyInfo() {
+    var _this$event$msc4354_s, _this$event$unsigned2;
+    if (!((_this$event$msc4354_s = this.event.msc4354_sticky) !== null && _this$event$msc4354_s !== void 0 && _this$event$msc4354_s.duration_ms)) {
+      return undefined;
+    }
+    return {
+      duration_ms: Math.min(MAX_STICKY_DURATION_MS, this.event.msc4354_sticky.duration_ms),
+      // This is assumed to be bounded server-side.
+      duration_ttl_ms: (_this$event$unsigned2 = this.event.unsigned) === null || _this$event$unsigned2 === void 0 ? void 0 : _this$event$unsigned2.msc4354_sticky_duration_ttl_ms
+    };
+  }
+}
+
+/* REDACT_KEEP_KEYS gives the keys we keep when an event is redacted
+ *
+ * This is specified here:
+ *  http://matrix.org/speculator/spec/HEAD/client_server/latest.html#redactions
+ *
+ * Also:
+ *  - We keep 'unsigned' since that is created by the local server
+ *  - We keep user_id for backwards-compat with v1
+ */
+var REDACT_KEEP_KEYS = new Set(["event_id", "type", "room_id", "user_id", "sender", "state_key", "prev_state", "content", "unsigned", "origin_server_ts"]);
+
+// a map from state event type to the .content keys we keep when an event is redacted
+var REDACT_KEEP_CONTENT_MAP = {
+  [EventType.RoomMember]: {
+    membership: 1
+  },
+  [EventType.RoomJoinRules]: {
+    join_rule: 1
+  },
+  [EventType.RoomPowerLevels]: {
+    ban: 1,
+    events: 1,
+    events_default: 1,
+    kick: 1,
+    redact: 1,
+    state_default: 1,
+    users: 1,
+    users_default: 1
+  }
+};
+//# sourceMappingURL=event.js.map

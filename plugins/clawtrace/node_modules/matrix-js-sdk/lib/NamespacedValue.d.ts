@@ -1,0 +1,32 @@
+/**
+ * Represents a simple Matrix namespaced value. This will assume that if a stable prefix
+ * is provided that the stable prefix should be used when representing the identifier.
+ */
+export declare class NamespacedValue<S extends string, U extends string> {
+    readonly stable: S | null;
+    readonly unstable: U | null;
+    constructor(stable: S, unstable: U);
+    constructor(stable: S, unstable: U | null);
+    constructor(stable: null, unstable: U);
+    get name(): U | S;
+    get altName(): U | S | null | undefined;
+    get names(): (U | S)[];
+    matches(val: string): boolean;
+    findIn<V>(obj: Partial<Record<NonNullable<S | U>, V>>): V | undefined;
+    includedIn(arr: any[]): boolean;
+}
+export declare class ServerControlledNamespacedValue<S extends string, U extends string> extends NamespacedValue<S, U> {
+    private preferUnstable;
+    setPreferUnstable(preferUnstable: boolean): void;
+    get name(): U | S;
+}
+/**
+ * Represents a namespaced value which prioritizes the unstable value over the stable
+ * value.
+ */
+export declare class UnstableValue<S extends string, U extends string> extends NamespacedValue<S, U> {
+    constructor(stable: S, unstable: U);
+    get name(): U;
+    get altName(): S;
+}
+//# sourceMappingURL=NamespacedValue.d.ts.map

@@ -1,0 +1,26 @@
+import { GatewayCloseCodes as DiscordGatewayCloseCodes, GatewayOpcodes as DiscordGatewayOpcodes, GatewayIntentBits } from "discord-api-types/v10";
+import { ListenerEvent } from "../../types/listeners.js";
+export const listenerEvents = new Set(Object.values(ListenerEvent));
+export const fatalGatewayCloseCodes = new Set([
+    DiscordGatewayCloseCodes.AuthenticationFailed,
+    DiscordGatewayCloseCodes.InvalidShard,
+    DiscordGatewayCloseCodes.ShardingRequired,
+    DiscordGatewayCloseCodes.InvalidAPIVersion,
+    DiscordGatewayCloseCodes.InvalidIntents,
+    DiscordGatewayCloseCodes.DisallowedIntents
+]);
+export const nonResumableGatewayCloseCodes = new Set([
+    DiscordGatewayCloseCodes.InvalidSeq,
+    DiscordGatewayCloseCodes.SessionTimedOut,
+    DiscordGatewayCloseCodes.NotAuthenticated,
+    DiscordGatewayCloseCodes.AlreadyAuthenticated
+]);
+export const reconnectDefaults = {
+    baseDelay: 1000,
+    maxDelay: 30000,
+    maxAttempts: 5
+};
+export const GatewayOpcodes = DiscordGatewayOpcodes;
+export const GatewayCloseCodes = DiscordGatewayCloseCodes;
+export const GatewayIntents = GatewayIntentBits;
+//# sourceMappingURL=types.js.map

@@ -1,0 +1,10 @@
+import type { ChannelSetupAdapter } from "openclaw/plugin-sdk/channel-setup";
+import type { DmPolicy } from "openclaw/plugin-sdk/config-runtime";
+import type { CoreConfig, IrcAccountConfig, IrcNickServConfig } from "./types.js";
+export declare function parsePort(raw: string, fallback: number): number;
+export declare function updateIrcAccountConfig(cfg: CoreConfig, accountId: string, patch: Partial<IrcAccountConfig>): CoreConfig;
+export declare function setIrcDmPolicy(cfg: CoreConfig, dmPolicy: DmPolicy): CoreConfig;
+export declare function setIrcAllowFrom(cfg: CoreConfig, allowFrom: string[]): CoreConfig;
+export declare function setIrcNickServ(cfg: CoreConfig, accountId: string, nickserv?: IrcNickServConfig): CoreConfig;
+export declare function setIrcGroupAccess(cfg: CoreConfig, accountId: string, policy: "open" | "allowlist" | "disabled", entries: string[], normalizeGroupEntry: (raw: string) => string | null): CoreConfig;
+export declare const ircSetupAdapter: ChannelSetupAdapter;

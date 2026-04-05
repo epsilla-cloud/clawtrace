@@ -1,0 +1,13 @@
+{
+  "id": "microsoft",
+  "contracts": {
+    "speechProviders": [
+      "microsoft"
+    ]
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

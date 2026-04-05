@@ -1,0 +1,245 @@
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+/*
+Copyright 2022 - 2024 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { NamespacedValue } from "../NamespacedValue.js";
+/**
+ * Construct a generic HTTP error. This is a JavaScript Error with additional information
+ * specific to HTTP responses.
+ * @param msg - The error message to include.
+ * @param httpStatus - The HTTP response status code.
+ * @param httpHeaders - The HTTP response headers.
+ */
+export class HTTPError extends Error {
+  constructor(msg, httpStatus, httpHeaders) {
+    super(msg);
+    this.httpStatus = httpStatus;
+    this.httpHeaders = httpHeaders;
+  }
+
+  /**
+   * Check if this error was due to rate-limiting on the server side (and should therefore be retried after a delay).
+   *
+   * If this returns `true`, {@link getRetryAfterMs} can be called to retrieve the server-side
+   * recommendation for the retry period.
+   *
+   * @returns Whether this error is due to rate-limiting.
+   */
+  isRateLimitError() {
+    return this.httpStatus === 429;
+  }
+
+  /**
+   * @returns The recommended delay in milliseconds to wait before retrying
+   * the request that triggered this error, or null if no delay is recommended.
+   * @throws Error if the recommended delay is an invalid value.
+   * @see {@link safeGetRetryAfterMs} for a version of this check that doesn't throw.
+   */
+  getRetryAfterMs() {
+    var _this$httpHeaders;
+    var retryAfter = (_this$httpHeaders = this.httpHeaders) === null || _this$httpHeaders === void 0 ? void 0 : _this$httpHeaders.get("Retry-After");
+    if (retryAfter != null) {
+      if (/^\d+$/.test(retryAfter)) {
+        var ms = Number.parseInt(retryAfter) * 1000;
+        if (!Number.isFinite(ms)) {
+          throw new Error("Retry-After header integer value is too large");
+        }
+        return ms;
+      }
+      var date = new Date(retryAfter);
+      if (date.toUTCString() !== retryAfter) {
+        throw new Error("Retry-After header value is not a valid HTTP-date or non-negative decimal integer");
+      }
+      return date.getTime() - Date.now();
+    }
+    return null;
+  }
+}
+export class MatrixError extends HTTPError {
+  /**
+   * Construct a Matrix error. This is a JavaScript Error with additional
+   * information specific to the standard Matrix error response.
+   * @param errorJson - The Matrix error JSON returned from the homeserver.
+   * @param httpStatus - The numeric HTTP status code given
+   * @param httpHeaders - The HTTP response headers given
+   */
+  constructor() {
+    var errorJson = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    var httpStatus = arguments.length > 1 ? arguments[1] : undefined;
+    var url = arguments.length > 2 ? arguments[2] : undefined;
+    var event = arguments.length > 3 ? arguments[3] : undefined;
+    var httpHeaders = arguments.length > 4 ? arguments[4] : undefined;
+    var message = errorJson.error || "Unknown message";
+    if (httpStatus) {
+      message = "[".concat(httpStatus, "] ").concat(message);
+    }
+    if (url) {
+      message = "".concat(message, " (").concat(url, ")");
+    }
+    super("MatrixError: ".concat(message), httpStatus, httpHeaders);
+    this.url = url;
+    this.event = event;
+    // The Matrix 'errcode' value, e.g. "M_FORBIDDEN".
+    _defineProperty(this, "errcode", void 0);
+    // The Matrix 'error' value.
+    _defineProperty(this, "error", void 0);
+    // The raw Matrix error JSON used to construct this object.
+    _defineProperty(this, "data", void 0);
+    this.errcode = errorJson.errcode;
+    this.error = errorJson.error;
+    this.name = errorJson.errcode || "Unknown error code";
+    this.data = errorJson;
+  }
+  isRateLimitError() {
+    return this.errcode === "M_LIMIT_EXCEEDED" || (this.errcode === "M_UNKNOWN" || this.errcode === undefined) && super.isRateLimitError();
+  }
+  getRetryAfterMs() {
+    var headerValue = super.getRetryAfterMs();
+    if (headerValue !== null) {
+      return headerValue;
+    }
+    // Note: retry_after_ms is deprecated as of spec version v1.10
+    if (this.errcode === "M_LIMIT_EXCEEDED" && "retry_after_ms" in this.data) {
+      if (!Number.isInteger(this.data.retry_after_ms)) {
+        throw new Error("retry_after_ms is not an integer");
+      }
+      return this.data.retry_after_ms;
+    }
+    return null;
+  }
+
+  /**
+   * @returns this error expressed as a JSON payload
+   * for use by Widget API error responses.
+   */
+  asWidgetApiErrorData() {
+    var _this$httpStatus, _this$url, _this$errcode, _this$data$error;
+    var headers = {};
+    if (this.httpHeaders) {
+      for (var [name, value] of this.httpHeaders) {
+        headers[name] = value;
+      }
+    }
+    return {
+      http_status: (_this$httpStatus = this.httpStatus) !== null && _this$httpStatus !== void 0 ? _this$httpStatus : 400,
+      http_headers: headers,
+      url: (_this$url = this.url) !== null && _this$url !== void 0 ? _this$url : "",
+      response: _objectSpread({
+        errcode: (_this$errcode = this.errcode) !== null && _this$errcode !== void 0 ? _this$errcode : "M_UNKNOWN",
+        error: (_this$data$error = this.data.error) !== null && _this$data$error !== void 0 ? _this$data$error : "Unknown message"
+      }, this.data)
+    };
+  }
+
+  /**
+   * @returns a new {@link MatrixError} from a JSON payload
+   * received from Widget API error responses.
+   */
+  static fromWidgetApiErrorData(data) {
+    return new MatrixError(data.response, data.http_status, data.url, undefined, new Headers(data.http_headers));
+  }
+}
+
+/**
+ * @returns The recommended delay in milliseconds to wait before retrying the request.
+ * @param error - The error to check for a retry delay.
+ * @param defaultMs - The delay to use if the error was not due to rate-limiting or if no valid delay is recommended.
+ */
+export function safeGetRetryAfterMs(error, defaultMs) {
+  if (!(error instanceof HTTPError) || !error.isRateLimitError()) {
+    return defaultMs;
+  }
+  try {
+    var _error$getRetryAfterM;
+    return (_error$getRetryAfterM = error.getRetryAfterMs()) !== null && _error$getRetryAfterM !== void 0 ? _error$getRetryAfterM : defaultMs;
+  } catch (_unused) {
+    return defaultMs;
+  }
+}
+
+/**
+ * Construct a ConnectionError. This is a JavaScript Error indicating
+ * that a request failed because of some error with the connection, either
+ * CORS was not correctly configured on the server, the server didn't response,
+ * the request timed out, or the internet connection on the client side went down.
+ */
+export class ConnectionError extends Error {
+  constructor(message, cause) {
+    super(message + (cause ? ": ".concat(cause.message) : ""));
+  }
+  get name() {
+    return "ConnectionError";
+  }
+}
+
+/**
+ * Construct a TokenRefreshError. This indicates that a request failed due to the token being expired,
+ * and attempting to refresh said token also failed but in a way which was not indicative of token invalidation.
+ * Assumed to be a temporary failure.
+ */
+export class TokenRefreshError extends Error {
+  constructor(cause) {
+    var _cause$message;
+    super((_cause$message = cause === null || cause === void 0 ? void 0 : cause.message) !== null && _cause$message !== void 0 ? _cause$message : "");
+  }
+  get name() {
+    return "TokenRefreshError";
+  }
+}
+
+/**
+ * Construct a TokenRefreshError. This indicates that a request failed due to the token being expired,
+ * and attempting to refresh said token failed in a way indicative of token invalidation.
+ */
+export class TokenRefreshLogoutError extends Error {
+  constructor(cause) {
+    var _cause$message2;
+    super((_cause$message2 = cause === null || cause === void 0 ? void 0 : cause.message) !== null && _cause$message2 !== void 0 ? _cause$message2 : "");
+  }
+  get name() {
+    return "TokenRefreshLogoutError";
+  }
+}
+export var MatrixSafetyErrorCode = new NamespacedValue(null, "ORG.MATRIX.MSC4387_SAFETY");
+
+/***
+ * This error is thrown when the homeserver refuses to handle an action due to a
+ * safety concern.
+ * @see https://github.com/matrix-org/matrix-spec-proposals/pull/4387
+ */
+export class MatrixSafetyError extends MatrixError {
+  constructor() {
+    super(...arguments);
+    /**
+     * The kinds of harms detected by the server.
+     * @see https://github.com/matrix-org/matrix-spec-proposals/pull/4387 for a list of spec defined harms.
+     */
+    _defineProperty(this, "harms", void 0);
+    /**
+     * The date at which a request can be reattempted.
+     */
+    _defineProperty(this, "expiry", void 0);
+    var body = arguments.length <= 0 ? undefined : arguments[0];
+    this.harms = new Set(body && "harms" in body && Array.isArray(body.harms) ? body.harms : []);
+    this.message = "".concat(super.message, " (").concat([...this.harms].join(", "), ")");
+    if (body && "expiry" in body && typeof body.expiry === "number") {
+      this.expiry = new Date(body.expiry);
+    }
+  }
+}
+//# sourceMappingURL=errors.js.map

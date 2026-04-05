@@ -1,0 +1,178 @@
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+/*
+Copyright 2022 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { FetchHttpApi } from "./fetch.js";
+import { MediaPrefix } from "./prefix.js";
+import { removeElement } from "../utils.js";
+import * as callbacks from "../realtime-callbacks.js";
+import { Method } from "./method.js";
+import { ConnectionError } from "./errors.js";
+import { parseErrorResponse } from "./utils.js";
+export * from "./interface.js";
+export * from "./prefix.js";
+export * from "./errors.js";
+export * from "./method.js";
+export * from "./utils.js";
+export class MatrixHttpApi extends FetchHttpApi {
+  constructor() {
+    super(...arguments);
+    _defineProperty(this, "uploads", []);
+  }
+  /**
+   * Upload content to the homeserver
+   *
+   * @param file - The object to upload. On a browser, something that
+   *   can be sent to XMLHttpRequest.send (typically a File).  Under node.js,
+   *   a Buffer, String or ReadStream.
+   *
+   * @param opts - options object
+   *
+   * @returns Promise which resolves to response object, or rejects with an error (usually a MatrixError).
+   * @throws May throw a `MatrixSafetyError` if content is deemed unsafe.
+   * @see MatrixSafetyError
+   */
+  uploadContent(file) {
+    var _opts$includeFilename, _opts$abortController, _opts$type, _opts$name;
+    var opts = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {};
+    var includeFilename = (_opts$includeFilename = opts.includeFilename) !== null && _opts$includeFilename !== void 0 ? _opts$includeFilename : true;
+    var abortController = (_opts$abortController = opts.abortController) !== null && _opts$abortController !== void 0 ? _opts$abortController : new AbortController();
+
+    // If the file doesn't have a mime type, use a default since the HS errors if we don't supply one.
+    var contentType = ((_opts$type = opts.type) !== null && _opts$type !== void 0 ? _opts$type : file.type) || "application/octet-stream";
+    var fileName = (_opts$name = opts.name) !== null && _opts$name !== void 0 ? _opts$name : file.name;
+    var upload = {
+      loaded: 0,
+      total: 0,
+      abortController
+    };
+    var uploadResolvers = Promise.withResolvers();
+    if (globalThis.XMLHttpRequest) {
+      var xhr = new globalThis.XMLHttpRequest();
+      var timeoutFn = function timeoutFn() {
+        xhr.abort();
+        uploadResolvers.reject(new Error("Timeout"));
+      };
+
+      // set an initial timeout of 30s; we'll advance it each time we get a progress notification
+      var timeoutTimer = callbacks.setTimeout(timeoutFn, 30000);
+      xhr.onreadystatechange = function () {
+        switch (xhr.readyState) {
+          case globalThis.XMLHttpRequest.DONE:
+            callbacks.clearTimeout(timeoutTimer);
+            try {
+              if (xhr.status === 0) {
+                throw new DOMException(xhr.statusText, "AbortError"); // mimic fetch API
+              }
+              if (!xhr.responseText) {
+                throw new Error("No response body.");
+              }
+              if (xhr.status >= 400) {
+                uploadResolvers.reject(parseErrorResponse(xhr, xhr.responseText));
+              } else {
+                uploadResolvers.resolve(JSON.parse(xhr.responseText));
+              }
+            } catch (err) {
+              if (err.name === "AbortError") {
+                uploadResolvers.reject(err);
+                return;
+              }
+              uploadResolvers.reject(new ConnectionError("request failed", err));
+            }
+            break;
+        }
+      };
+      xhr.upload.onprogress = ev => {
+        var _opts$progressHandler;
+        callbacks.clearTimeout(timeoutTimer);
+        upload.loaded = ev.loaded;
+        upload.total = ev.total;
+        timeoutTimer = callbacks.setTimeout(timeoutFn, 30000);
+        (_opts$progressHandler = opts.progressHandler) === null || _opts$progressHandler === void 0 || _opts$progressHandler.call(opts, {
+          loaded: ev.loaded,
+          total: ev.total
+        });
+      };
+      var url = this.getUrl("/upload", undefined, MediaPrefix.V3);
+      if (includeFilename && fileName) {
+        url.searchParams.set("filename", encodeURIComponent(fileName));
+      }
+      if (!this.opts.useAuthorizationHeader && this.opts.accessToken) {
+        url.searchParams.set("access_token", encodeURIComponent(this.opts.accessToken));
+      }
+      xhr.open(Method.Post, url.href);
+      if (this.opts.useAuthorizationHeader && this.opts.accessToken) {
+        xhr.setRequestHeader("Authorization", "Bearer " + this.opts.accessToken);
+      }
+      xhr.setRequestHeader("Content-Type", contentType);
+      xhr.send(file);
+      abortController.signal.addEventListener("abort", () => {
+        xhr.abort();
+      });
+    } else {
+      var queryParams = {};
+      if (includeFilename && fileName) {
+        queryParams.filename = fileName;
+      }
+      var headers = {
+        "Content-Type": contentType
+      };
+      this.authedRequest(Method.Post, "/upload", queryParams, file, {
+        prefix: MediaPrefix.V3,
+        headers,
+        abortSignal: abortController.signal
+      }).then(uploadResolvers.resolve, uploadResolvers.reject);
+    }
+
+    // remove the upload from the list on completion
+    upload.promise = uploadResolvers.promise.finally(() => {
+      removeElement(this.uploads, elem => elem === upload);
+    });
+    abortController.signal.addEventListener("abort", () => {
+      removeElement(this.uploads, elem => elem === upload);
+      uploadResolvers.reject(new DOMException("Aborted", "AbortError"));
+    });
+    this.uploads.push(upload);
+    return upload.promise;
+  }
+  cancelUpload(promise) {
+    var upload = this.uploads.find(u => u.promise === promise);
+    if (upload) {
+      upload.abortController.abort();
+      return true;
+    }
+    return false;
+  }
+  getCurrentUploads() {
+    return this.uploads;
+  }
+
+  /**
+   * Get the content repository url with query parameters.
+   * @returns An object with a 'base', 'path' and 'params' for base URL,
+   *          path and query parameters respectively.
+   */
+  getContentUri() {
+    return {
+      base: this.opts.baseUrl,
+      path: MediaPrefix.V3 + "/upload",
+      params: {
+        access_token: this.opts.accessToken
+      }
+    };
+  }
+}
+//# sourceMappingURL=index.js.map

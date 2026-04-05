@@ -1,0 +1,111 @@
+import { type Static } from "@sinclair/typebox";
+export declare const FeishuDocSchema: import("@sinclair/typebox").TUnion<[import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"read">;
+    doc_token: import("@sinclair/typebox").TString;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"write">;
+    doc_token: import("@sinclair/typebox").TString;
+    content: import("@sinclair/typebox").TString;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"append">;
+    doc_token: import("@sinclair/typebox").TString;
+    content: import("@sinclair/typebox").TString;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"insert">;
+    doc_token: import("@sinclair/typebox").TString;
+    content: import("@sinclair/typebox").TString;
+    after_block_id: import("@sinclair/typebox").TString;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"create">;
+    title: import("@sinclair/typebox").TString;
+    folder_token: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    grant_to_requester: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TBoolean>;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"list_blocks">;
+    doc_token: import("@sinclair/typebox").TString;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"get_block">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"update_block">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+    content: import("@sinclair/typebox").TString;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"delete_block">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+}>, import("@sinclair/typebox").TObject<{
+    doc_token: import("@sinclair/typebox").TString;
+    parent_block_id: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    row_size: import("@sinclair/typebox").TInteger;
+    column_size: import("@sinclair/typebox").TInteger;
+    column_width: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TArray<import("@sinclair/typebox").TNumber>>;
+    action: import("@sinclair/typebox").TLiteral<"create_table">;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"write_table_cells">;
+    doc_token: import("@sinclair/typebox").TString;
+    table_block_id: import("@sinclair/typebox").TString;
+    values: import("@sinclair/typebox").TArray<import("@sinclair/typebox").TArray<import("@sinclair/typebox").TString>>;
+}>, import("@sinclair/typebox").TObject<{
+    values: import("@sinclair/typebox").TArray<import("@sinclair/typebox").TArray<import("@sinclair/typebox").TString>>;
+    doc_token: import("@sinclair/typebox").TString;
+    parent_block_id: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    row_size: import("@sinclair/typebox").TInteger;
+    column_size: import("@sinclair/typebox").TInteger;
+    column_width: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TArray<import("@sinclair/typebox").TNumber>>;
+    action: import("@sinclair/typebox").TLiteral<"create_table_with_values">;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"insert_table_row">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+    row_index: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TNumber>;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"insert_table_column">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+    column_index: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TNumber>;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"delete_table_rows">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+    row_start: import("@sinclair/typebox").TNumber;
+    row_count: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TNumber>;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"delete_table_columns">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+    column_start: import("@sinclair/typebox").TNumber;
+    column_count: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TNumber>;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"merge_table_cells">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+    row_start: import("@sinclair/typebox").TNumber;
+    row_end: import("@sinclair/typebox").TNumber;
+    column_start: import("@sinclair/typebox").TNumber;
+    column_end: import("@sinclair/typebox").TNumber;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"upload_image">;
+    doc_token: import("@sinclair/typebox").TString;
+    url: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    file_path: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    image: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    parent_block_id: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    filename: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    index: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TInteger>;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"upload_file">;
+    doc_token: import("@sinclair/typebox").TString;
+    url: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    file_path: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    parent_block_id: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+    filename: import("@sinclair/typebox").TOptional<import("@sinclair/typebox").TString>;
+}>, import("@sinclair/typebox").TObject<{
+    action: import("@sinclair/typebox").TLiteral<"color_text">;
+    doc_token: import("@sinclair/typebox").TString;
+    block_id: import("@sinclair/typebox").TString;
+    content: import("@sinclair/typebox").TString;
+}>]>;
+export type FeishuDocParams = Static<typeof FeishuDocSchema>;

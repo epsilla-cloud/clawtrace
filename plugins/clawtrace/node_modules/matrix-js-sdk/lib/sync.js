@@ -1,0 +1,1764 @@
+import _asyncToGenerator from "@babel/runtime/helpers/asyncToGenerator";
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+/*
+Copyright 2015 - 2023 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+/*
+ * TODO:
+ * This class mainly serves to take all the syncing logic out of client.js and
+ * into a separate file. It's all very fluid, and this class gut wrenches a lot
+ * of MatrixClient props (e.g. http). Given we want to support WebSockets as
+ * an alternative syncing API, we may want to have a proper syncing interface
+ * for HTTP and WS at some point.
+ */
+
+import { User } from "./models/user.js";
+import { NotificationCountType, Room, RoomEvent } from "./models/room.js";
+import { deepCopy, noUnsafeEventProps, unsafeProp } from "./utils.js";
+import { Filter } from "./filter.js";
+import { EventTimeline } from "./models/event-timeline.js";
+import { ClientEvent, PendingEventOrdering } from "./client.js";
+import { MatrixEvent } from "./models/event.js";
+import { Method } from "./http-api/index.js";
+import { EventType } from "./@types/event.js";
+import { RoomStateEvent } from "./models/room-state.js";
+import { RoomMemberEvent } from "./models/room-member.js";
+import { BeaconEvent } from "./models/beacon.js";
+import { UNREAD_THREAD_NOTIFICATIONS } from "./@types/sync.js";
+import { Feature, ServerSupport } from "./feature.js";
+import { KnownMembership } from "./@types/membership.js";
+
+// /sync requests allow you to set a timeout= but the request may continue
+// beyond that and wedge forever, so we need to track how long we are willing
+// to keep open the connection. This constant is *ADDED* to the timeout= value
+// to determine the max time we're willing to wait.
+var BUFFER_PERIOD_MS = 80 * 1000;
+
+// Number of consecutive failed syncs that will lead to a syncState of ERROR as opposed
+// to RECONNECTING. This is needed to inform the client of server issues when the
+// keepAlive is successful but the server /sync fails.
+var FAILED_SYNC_ERROR_THRESHOLD = 3;
+export var SyncState = /*#__PURE__*/function (SyncState) {
+  /** Emitted after we try to sync more than `FAILED_SYNC_ERROR_THRESHOLD`
+   * times and are still failing. Or when we enounter a hard error like the
+   * token being invalid. */
+  SyncState["Error"] = "ERROR";
+  /** Emitted after the first sync events are ready (this could even be sync
+   * events from the cache) */
+  SyncState["Prepared"] = "PREPARED";
+  /** Emitted when the sync loop is no longer running */
+  SyncState["Stopped"] = "STOPPED";
+  /** Emitted after each sync request happens */
+  SyncState["Syncing"] = "SYNCING";
+  /** Emitted after a connectivity error and we're ready to start syncing again */
+  SyncState["Catchup"] = "CATCHUP";
+  /** Emitted for each time we try reconnecting. Will switch to `Error` after
+   * we reach the `FAILED_SYNC_ERROR_THRESHOLD`
+   */
+  SyncState["Reconnecting"] = "RECONNECTING";
+  return SyncState;
+}({});
+
+// Room versions where "insertion", "batch", and "marker" events are controlled
+// by power-levels. MSC2716 is supported in existing room versions but they
+// should only have special meaning when the room creator sends them.
+var MSC2716_ROOM_VERSIONS = ["org.matrix.msc2716v3"];
+function getFilterName(userId, suffix) {
+  // scope this on the user ID because people may login on many accounts
+  // and they all need to be stored!
+  return "FILTER_SYNC_".concat(userId) + (suffix ? "_" + suffix : "");
+}
+
+/**
+ * Options passed into the constructor of SyncApi by MatrixClient
+ */
+
+export var SetPresence = /*#__PURE__*/function (SetPresence) {
+  SetPresence["Offline"] = "offline";
+  SetPresence["Online"] = "online";
+  SetPresence["Unavailable"] = "unavailable";
+  return SetPresence;
+}({});
+/** add default settings to an IStoredClientOpts */
+export function defaultClientOpts(opts) {
+  return _objectSpread({
+    initialSyncLimit: 8,
+    resolveInvitesToProfiles: false,
+    pollTimeout: 30 * 1000,
+    pendingEventOrdering: PendingEventOrdering.Chronological,
+    threadSupport: false
+  }, opts);
+}
+export function defaultSyncApiOpts(syncOpts) {
+  return _objectSpread({
+    canResetEntireTimeline: _roomId => false
+  }, syncOpts);
+}
+export class SyncApi {
+  /**
+   * Construct an entity which is able to sync with a homeserver.
+   * @param client - The matrix client instance to use.
+   * @param opts - client config options
+   * @param syncOpts - sync-specific options passed by the client
+   * @internal
+   */
+  constructor(client, opts, syncOpts) {
+    var _this = this;
+    this.client = client;
+    _defineProperty(this, "opts", void 0);
+    _defineProperty(this, "syncOpts", void 0);
+    _defineProperty(this, "_peekRoom", null);
+    _defineProperty(this, "currentSyncRequest", void 0);
+    _defineProperty(this, "abortController", void 0);
+    _defineProperty(this, "syncState", null);
+    _defineProperty(this, "syncStateData", void 0);
+    // additional data (eg. error object for failed sync)
+    _defineProperty(this, "catchingUp", false);
+    _defineProperty(this, "running", false);
+    _defineProperty(this, "keepAliveTimer", void 0);
+    _defineProperty(this, "connectionReturnedResolvers", void 0);
+    _defineProperty(this, "notifEvents", []);
+    // accumulator of sync events in the current sync response
+    _defineProperty(this, "failedSyncCount", 0);
+    // Number of consecutive failed /sync requests
+    _defineProperty(this, "storeIsInvalid", false);
+    // flag set if the store needs to be cleared before we can start
+    _defineProperty(this, "presence", void 0);
+    _defineProperty(this, "getPushRules", /*#__PURE__*/_asyncToGenerator(function* () {
+      try {
+        _this.syncOpts.logger.debug("Getting push rules...");
+        var result = yield _this.client.getPushRules();
+        _this.syncOpts.logger.debug("Got push rules");
+        _this.client.pushRules = result;
+      } catch (err) {
+        _this.syncOpts.logger.error("Getting push rules failed", err);
+        if (_this.shouldAbortSync(err)) return;
+        // wait for saved sync to complete before doing anything else,
+        // otherwise the sync state will end up being incorrect
+        _this.syncOpts.logger.debug("Waiting for saved sync before retrying push rules...");
+        yield _this.recoverFromSyncStartupError(_this.savedSyncPromise, err);
+        return _this.getPushRules(); // try again
+      }
+    }));
+    _defineProperty(this, "buildDefaultFilter", () => {
+      var filter = new Filter(this.client.credentials.userId);
+      if (this.client.canSupport.get(Feature.ThreadUnreadNotifications) !== ServerSupport.Unsupported) {
+        filter.setUnreadThreadNotifications(true);
+      }
+      return filter;
+    });
+    _defineProperty(this, "prepareLazyLoadingForSync", /*#__PURE__*/_asyncToGenerator(function* () {
+      _this.syncOpts.logger.debug("Prepare lazy loading for sync...");
+      if (_this.client.isGuest()) {
+        _this.opts.lazyLoadMembers = false;
+      }
+      if (_this.opts.lazyLoadMembers) {
+        _this.syncOpts.logger.debug("Enabling lazy load on sync filter...");
+        if (!_this.opts.filter) {
+          _this.opts.filter = _this.buildDefaultFilter();
+        }
+        _this.opts.filter.setLazyLoadMembers(true);
+      }
+    }));
+    _defineProperty(this, "storeClientOptions", /*#__PURE__*/_asyncToGenerator(function* () {
+      try {
+        _this.syncOpts.logger.debug("Storing client options...");
+        yield _this.client.storeClientOptions();
+        _this.syncOpts.logger.debug("Stored client options");
+      } catch (err) {
+        _this.syncOpts.logger.error("Storing client options failed", err);
+        throw err;
+      }
+    }));
+    _defineProperty(this, "getFilter", /*#__PURE__*/_asyncToGenerator(function* () {
+      _this.syncOpts.logger.debug("Getting filter...");
+      var filter;
+      if (_this.opts.filter) {
+        filter = _this.opts.filter;
+      } else {
+        filter = _this.buildDefaultFilter();
+      }
+      var filterId;
+      try {
+        filterId = yield _this.client.getOrCreateFilter(getFilterName(_this.client.credentials.userId), filter);
+      } catch (err) {
+        _this.syncOpts.logger.error("Getting filter failed", err);
+        if (_this.shouldAbortSync(err)) return {};
+        // wait for saved sync to complete before doing anything else,
+        // otherwise the sync state will end up being incorrect
+        _this.syncOpts.logger.debug("Waiting for saved sync before retrying filter...");
+        yield _this.recoverFromSyncStartupError(_this.savedSyncPromise, err);
+        return _this.getFilter(); // try again
+      }
+      return {
+        filter,
+        filterId
+      };
+    }));
+    _defineProperty(this, "savedSyncPromise", void 0);
+    /**
+     * Event handler for the 'online' event
+     * This event is generally unreliable and precise behaviour
+     * varies between browsers, so we poll for connectivity too,
+     * but this might help us reconnect a little faster.
+     */
+    _defineProperty(this, "onOnline", () => {
+      this.syncOpts.logger.debug("Browser thinks we are back online");
+      this.startKeepAlives(0);
+    });
+    this.opts = defaultClientOpts(opts);
+    this.syncOpts = defaultSyncApiOpts(syncOpts);
+    if (client.getNotifTimelineSet()) {
+      client.reEmitter.reEmit(client.getNotifTimelineSet(), [RoomEvent.Timeline, RoomEvent.TimelineReset]);
+    }
+  }
+  createRoom(roomId) {
+    var room = _createAndReEmitRoom(this.client, roomId, this.opts);
+    room.on(RoomStateEvent.Marker, (markerEvent, markerFoundOptions) => {
+      this.onMarkerStateEvent(room, markerEvent, markerFoundOptions);
+    });
+    return room;
+  }
+
+  /** When we see the marker state change in the room, we know there is some
+   * new historical messages imported by MSC2716 `/batch_send` somewhere in
+   * the room and we need to throw away the timeline to make sure the
+   * historical messages are shown when we paginate `/messages` again.
+   * @param room - The room where the marker event was sent
+   * @param markerEvent - The new marker event
+   * @param setStateOptions - When `timelineWasEmpty` is set
+   * as `true`, the given marker event will be ignored
+   */
+  onMarkerStateEvent(room, markerEvent) {
+    var {
+      timelineWasEmpty
+    } = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    // We don't need to refresh the timeline if it was empty before the
+    // marker arrived. This could be happen in a variety of cases:
+    //  1. From the initial sync
+    //  2. If it's from the first state we're seeing after joining the room
+    //  3. Or whether it's coming from `syncFromCache`
+    if (timelineWasEmpty) {
+      this.syncOpts.logger.debug("MarkerState: Ignoring markerEventId=".concat(markerEvent.getId(), " in roomId=").concat(room.roomId, " ") + "because the timeline was empty before the marker arrived which means there is nothing to refresh.");
+      return;
+    }
+    var isValidMsc2716Event =
+    // Check whether the room version directly supports MSC2716, in
+    // which case, "marker" events are already auth'ed by
+    // power_levels
+    MSC2716_ROOM_VERSIONS.includes(room.getVersion()) ||
+    // MSC2716 is also supported in all existing room versions but
+    // special meaning should only be given to "insertion", "batch",
+    // and "marker" events when they come from the room creator
+    markerEvent.getSender() === room.getCreator();
+
+    // It would be nice if we could also specifically tell whether the
+    // historical messages actually affected the locally cached client
+    // timeline or not. The problem is we can't see the prev_events of
+    // the base insertion event that the marker was pointing to because
+    // prev_events aren't available in the client API's. In most cases,
+    // the history won't be in people's locally cached timelines in the
+    // client, so we don't need to bother everyone about refreshing
+    // their timeline. This works for a v1 though and there are use
+    // cases like initially bootstrapping your bridged room where people
+    // are likely to encounter the historical messages affecting their
+    // current timeline (think someone signing up for Beeper and
+    // importing their Whatsapp history).
+    if (isValidMsc2716Event) {
+      // Saw new marker event, let's let the clients know they should
+      // refresh the timeline.
+      this.syncOpts.logger.debug("MarkerState: Timeline needs to be refreshed because " + "a new markerEventId=".concat(markerEvent.getId(), " was sent in roomId=").concat(room.roomId));
+      room.setTimelineNeedsRefresh(true);
+      room.emit(RoomEvent.HistoryImportedWithinTimeline, markerEvent, room);
+    } else {
+      this.syncOpts.logger.debug("MarkerState: Ignoring markerEventId=".concat(markerEvent.getId(), " in roomId=").concat(room.roomId, " because ") + "MSC2716 is not supported in the room version or for any room version, the marker wasn't sent " + "by the room creator.");
+    }
+  }
+
+  /**
+   * Sync rooms the user has left.
+   * @returns Resolved when they've been added to the store.
+   */
+  syncLeftRooms() {
+    var _this2 = this;
+    return _asyncToGenerator(function* () {
+      var _data$rooms;
+      var client = _this2.client;
+
+      // grab a filter with limit=1 and include_leave=true
+      var filter = new Filter(_this2.client.credentials.userId);
+      filter.setTimelineLimit(1);
+      filter.setIncludeLeaveRooms(true);
+      var localTimeoutMs = _this2.opts.pollTimeout + BUFFER_PERIOD_MS;
+      var filterId = yield client.getOrCreateFilter(getFilterName(client.credentials.userId, "LEFT_ROOMS"), filter);
+      var qps = {
+        "timeout": 0,
+        // don't want to block since this is a single isolated req
+        "filter": filterId,
+        "org.matrix.msc4222.use_state_after": true
+      };
+      var data = yield client.http.authedRequest(Method.Get, "/sync", qps, undefined, {
+        localTimeoutMs
+      });
+      var leaveRooms = [];
+      if ((_data$rooms = data.rooms) !== null && _data$rooms !== void 0 && _data$rooms.leave) {
+        leaveRooms = _this2.mapSyncResponseToRoomArray(data.rooms.leave);
+      }
+      var rooms = yield Promise.all(leaveRooms.map(/*#__PURE__*/function () {
+        var _ref5 = _asyncToGenerator(function* (leaveObj) {
+          var room = leaveObj.room;
+          if (!leaveObj.isBrandNewRoom) {
+            // the intention behind syncLeftRooms is to add in rooms which were
+            // *omitted* from the initial /sync. Rooms the user were joined to
+            // but then left whilst the app is running will appear in this list
+            // and we do not want to bother with them since they will have the
+            // current state already (and may get dupe messages if we add
+            // yet more timeline events!), so skip them.
+            // NB: When we persist rooms to localStorage this will be more
+            //     complicated...
+            return;
+          }
+          leaveObj.timeline = leaveObj.timeline || {
+            prev_batch: null,
+            events: []
+          };
+
+          // set the back-pagination token. Do this *before* adding any
+          // events so that clients can start back-paginating.
+          room.getLiveTimeline().setPaginationToken(leaveObj.timeline.prev_batch, EventTimeline.BACKWARDS);
+          var {
+            timelineEvents
+          } = yield _this2.mapAndInjectRoomEvents(leaveObj);
+          room.recalculate();
+          client.store.storeRoom(room);
+          client.emit(ClientEvent.Room, room);
+          _this2.processEventsForNotifs(room, timelineEvents);
+          return room;
+        });
+        return function (_x) {
+          return _ref5.apply(this, arguments);
+        };
+      }()));
+      return rooms.filter(Boolean);
+    })();
+  }
+
+  /**
+   * Peek into a room. This will result in the room in question being synced so it
+   * is accessible via getRooms(). Live updates for the room will be provided.
+   * @param roomId - The room ID to peek into.
+   * @param limit - The number of timeline events to initially retrieve.
+   * @returns A promise which resolves once the room has been added to the
+   * store.
+   */
+  peek(roomId) {
+    var _this$_peekRoom;
+    var limit = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 20;
+    if (((_this$_peekRoom = this._peekRoom) === null || _this$_peekRoom === void 0 ? void 0 : _this$_peekRoom.roomId) === roomId) {
+      return Promise.resolve(this._peekRoom);
+    }
+    var client = this.client;
+    this._peekRoom = this.createRoom(roomId);
+    return this.client.roomInitialSync(roomId, limit).then(response => {
+      var _this$_peekRoom2;
+      if (((_this$_peekRoom2 = this._peekRoom) === null || _this$_peekRoom2 === void 0 ? void 0 : _this$_peekRoom2.roomId) !== roomId) {
+        throw new Error("Peeking aborted");
+      }
+
+      // make sure things are init'd
+      response.messages = response.messages || {
+        chunk: []
+      };
+      response.messages.chunk = response.messages.chunk || [];
+      response.state = response.state || [];
+
+      // FIXME: Mostly duplicated from injectRoomEvents but not entirely
+      // because "state" in this API is at the BEGINNING of the chunk
+      var oldStateEvents = deepCopy(response.state).map(client.getEventMapper());
+      var stateEvents = response.state.map(client.getEventMapper());
+      var messages = response.messages.chunk.map(client.getEventMapper());
+
+      // XXX: copypasted from /sync until we kill off this minging v1 API stuff)
+      // handle presence events (User objects)
+      if (Array.isArray(response.presence)) {
+        response.presence.map(client.getEventMapper()).forEach(function (presenceEvent) {
+          var user = client.store.getUser(presenceEvent.getContent().user_id);
+          if (user) {
+            user.setPresenceEvent(presenceEvent);
+          } else {
+            user = User.createUser(presenceEvent.getContent().user_id, client);
+            user.setPresenceEvent(presenceEvent);
+            client.store.storeUser(user);
+          }
+          client.emit(ClientEvent.Event, presenceEvent);
+        });
+      }
+
+      // set the pagination token before adding the events in case people
+      // fire off pagination requests in response to the Room.timeline
+      // events.
+      if (response.messages.start) {
+        this._peekRoom.oldState.paginationToken = response.messages.start;
+      }
+
+      // set the state of the room to as it was after the timeline executes
+      this._peekRoom.oldState.setStateEvents(oldStateEvents);
+      this._peekRoom.currentState.setStateEvents(stateEvents);
+      this.resolveInvites(this._peekRoom);
+      this._peekRoom.recalculate();
+
+      // roll backwards to diverge old state. addEventsToTimeline
+      // will overwrite the pagination token, so make sure it overwrites
+      // it with the right thing.
+      this._peekRoom.addEventsToTimeline(messages.reverse(), true, true, this._peekRoom.getLiveTimeline(), response.messages.start);
+      client.store.storeRoom(this._peekRoom);
+      client.emit(ClientEvent.Room, this._peekRoom);
+      this.peekPoll(this._peekRoom);
+      return this._peekRoom;
+    });
+  }
+
+  /**
+   * Stop polling for updates in the peeked room. NOPs if there is no room being
+   * peeked.
+   */
+  stopPeeking() {
+    this._peekRoom = null;
+  }
+
+  /**
+   * Do a peek room poll.
+   * @param token - from= token
+   */
+  peekPoll(peekRoom, token) {
+    var _this$abortController,
+      _this3 = this;
+    if (this._peekRoom !== peekRoom) {
+      this.syncOpts.logger.debug("Stopped peeking in room %s", peekRoom.roomId);
+      return;
+    }
+
+    // FIXME: gut wrenching; hard-coded timeout values
+    this.client.http.authedRequest(Method.Get, "/events", {
+      room_id: peekRoom.roomId,
+      timeout: String(30 * 1000),
+      from: token
+    }, undefined, {
+      localTimeoutMs: 50 * 1000,
+      abortSignal: (_this$abortController = this.abortController) === null || _this$abortController === void 0 ? void 0 : _this$abortController.signal
+    }).then(/*#__PURE__*/function () {
+      var _ref6 = _asyncToGenerator(function* (res) {
+        if (_this3._peekRoom !== peekRoom) {
+          _this3.syncOpts.logger.debug("Stopped peeking in room %s", peekRoom.roomId);
+          return;
+        }
+        // We have a problem that we get presence both from /events and /sync
+        // however, /sync only returns presence for users in rooms
+        // you're actually joined to.
+        // in order to be sure to get presence for all of the users in the
+        // peeked room, we handle presence explicitly here. This may result
+        // in duplicate presence events firing for some users, which is a
+        // performance drain, but such is life.
+        // XXX: copypasted from /sync until we can kill this minging v1 stuff.
+
+        res.chunk.filter(function (e) {
+          return e.type === "m.presence";
+        }).map(_this3.client.getEventMapper()).forEach(presenceEvent => {
+          var user = _this3.client.store.getUser(presenceEvent.getContent().user_id);
+          if (user) {
+            user.setPresenceEvent(presenceEvent);
+          } else {
+            user = User.createUser(presenceEvent.getContent().user_id, _this3.client);
+            user.setPresenceEvent(presenceEvent);
+            _this3.client.store.storeUser(user);
+          }
+          _this3.client.emit(ClientEvent.Event, presenceEvent);
+        });
+
+        // strip out events which aren't for the given room_id (e.g presence)
+        // and also ephemeral events (which we're assuming is anything without
+        // and event ID because the /events API doesn't separate them).
+        var events = res.chunk.filter(function (e) {
+          return e.room_id === peekRoom.roomId && e.event_id;
+        }).map(_this3.client.getEventMapper());
+        yield peekRoom.addLiveEvents(events, {
+          addToState: true
+        });
+        _this3.peekPoll(peekRoom, res.end);
+      });
+      return function (_x2) {
+        return _ref6.apply(this, arguments);
+      };
+    }(), err => {
+      this.syncOpts.logger.error("[%s] Peek poll failed: %s", peekRoom.roomId, err);
+      setTimeout(() => {
+        this.peekPoll(peekRoom, token);
+      }, 30 * 1000);
+    });
+  }
+
+  /**
+   * Returns the current state of this sync object
+   * @see MatrixClient#event:"sync"
+   */
+  getSyncState() {
+    return this.syncState;
+  }
+
+  /**
+   * Returns the additional data object associated with
+   * the current sync state, or null if there is no
+   * such data.
+   * Sync errors, if available, are put in the 'error' key of
+   * this object.
+   */
+  getSyncStateData() {
+    var _this$syncStateData;
+    return (_this$syncStateData = this.syncStateData) !== null && _this$syncStateData !== void 0 ? _this$syncStateData : null;
+  }
+  recoverFromSyncStartupError(savedSyncPromise, error) {
+    var _this4 = this;
+    return _asyncToGenerator(function* () {
+      // Wait for the saved sync to complete - we send the pushrules and filter requests
+      // before the saved sync has finished so they can run in parallel, but only process
+      // the results after the saved sync is done. Equivalently, we wait for it to finish
+      // before reporting failures from these functions.
+      yield savedSyncPromise;
+      var keepaliveProm = _this4.startKeepAlives();
+      _this4.updateSyncState(SyncState.Error, {
+        error
+      });
+      yield keepaliveProm;
+    })();
+  }
+  shouldAbortSync(error) {
+    if (error.errcode === "M_UNKNOWN_TOKEN") {
+      // The logout already happened, we just need to stop.
+      this.syncOpts.logger.warn("Token no longer valid - assuming logout");
+      this.stop();
+      this.updateSyncState(SyncState.Error, {
+        error
+      });
+      return true;
+    }
+    return false;
+  }
+  /**
+   * Main entry point
+   */
+  sync() {
+    var _this5 = this;
+    return _asyncToGenerator(function* () {
+      var _globalThis$window, _globalThis$window$ad;
+      _this5.running = true;
+      _this5.abortController = new AbortController();
+      (_globalThis$window = globalThis.window) === null || _globalThis$window === void 0 || (_globalThis$window$ad = _globalThis$window.addEventListener) === null || _globalThis$window$ad === void 0 || _globalThis$window$ad.call(_globalThis$window, "online", _this5.onOnline, false);
+      if (_this5.client.isGuest()) {
+        // no push rules for guests, no access to POST filter for guests.
+        return _this5.doSync({});
+      }
+
+      // Pull the saved sync token out first, before the worker starts sending
+      // all the sync data which could take a while. This will let us send our
+      // first incremental sync request before we've processed our saved data.
+      _this5.syncOpts.logger.debug("Getting saved sync token...");
+      var savedSyncTokenPromise = _this5.client.store.getSavedSyncToken().then(tok => {
+        _this5.syncOpts.logger.debug("Got saved sync token");
+        return tok;
+      });
+      _this5.savedSyncPromise = _this5.client.store.getSavedSync().then(savedSync => {
+        _this5.syncOpts.logger.debug("Got reply from saved sync, exists? ".concat(!!savedSync));
+        if (savedSync) {
+          return _this5.syncFromCache(savedSync);
+        }
+      }).catch(err => {
+        _this5.syncOpts.logger.error("Getting saved sync failed", err);
+      });
+
+      // We need to do one-off checks before we can begin the /sync loop.
+      // These are:
+      //   1) We need to get push rules so we can check if events should bing as we get
+      //      them from /sync.
+      //   2) We need to get/create a filter which we can use for /sync.
+      //   3) We need to prepare lazy loading for sync
+      //   4) We need to store the client options
+
+      // Now start the first incremental sync request: this can also
+      // take a while so if we set it going now, we can wait for it
+      // to finish while we process our saved sync data.
+      yield _this5.getPushRules();
+      yield _this5.prepareLazyLoadingForSync();
+      yield _this5.storeClientOptions();
+      var {
+        filterId,
+        filter
+      } = yield _this5.getFilter();
+      if (!filter) return; // bail, getFilter failed
+
+      // reset the notifications timeline to prepare it to paginate from
+      // the current point in time.
+      // The right solution would be to tie /sync pagination tokens into
+      // /notifications API somehow.
+      _this5.client.resetNotifTimelineSet();
+      if (!_this5.currentSyncRequest) {
+        var firstSyncFilter = filterId;
+        var savedSyncToken = yield savedSyncTokenPromise;
+        if (savedSyncToken) {
+          _this5.syncOpts.logger.debug("Sending first sync request...");
+        } else {
+          _this5.syncOpts.logger.debug("Sending initial sync request...");
+          var initialFilter = _this5.buildDefaultFilter();
+          initialFilter.setDefinition(filter.getDefinition());
+          initialFilter.setTimelineLimit(_this5.opts.initialSyncLimit);
+          // Use an inline filter, no point uploading it for a single usage
+          firstSyncFilter = JSON.stringify(initialFilter.getDefinition());
+        }
+
+        // Send this first sync request here so we can then wait for the saved
+        // sync data to finish processing before we process the results of this one.
+        _this5.currentSyncRequest = _this5.doSyncRequest({
+          filter: firstSyncFilter
+        }, savedSyncToken);
+      }
+
+      // Now wait for the saved sync to finish...
+      _this5.syncOpts.logger.debug("Waiting for saved sync before starting sync processing...");
+      yield _this5.savedSyncPromise;
+      // process the first sync request and continue syncing with the normal filterId
+      return _this5.doSync({
+        filter: filterId
+      });
+    })();
+  }
+
+  /**
+   * Stops the sync object from syncing.
+   */
+  stop() {
+    var _globalThis$window2, _globalThis$window2$r, _this$abortController2;
+    this.syncOpts.logger.debug("SyncApi.stop");
+    // It is necessary to check for the existance of
+    // globalThis.window AND globalThis.window.removeEventListener.
+    // Some platforms (e.g. React Native) register globalThis.window,
+    // but do not have globalThis.window.removeEventListener.
+    (_globalThis$window2 = globalThis.window) === null || _globalThis$window2 === void 0 || (_globalThis$window2$r = _globalThis$window2.removeEventListener) === null || _globalThis$window2$r === void 0 || _globalThis$window2$r.call(_globalThis$window2, "online", this.onOnline, false);
+    this.running = false;
+    (_this$abortController2 = this.abortController) === null || _this$abortController2 === void 0 || _this$abortController2.abort();
+    if (this.keepAliveTimer) {
+      clearTimeout(this.keepAliveTimer);
+      this.keepAliveTimer = undefined;
+    }
+  }
+
+  /**
+   * Retry a backed off syncing request immediately. This should only be used when
+   * the user <b>explicitly</b> attempts to retry their lost connection.
+   * @returns True if this resulted in a request being retried.
+   */
+  retryImmediately() {
+    if (!this.connectionReturnedResolvers) {
+      return false;
+    }
+    this.startKeepAlives(0);
+    return true;
+  }
+  /**
+   * Process a single set of cached sync data.
+   * @param savedSync - a saved sync that was persisted by a store. This
+   * should have been acquired via client.store.getSavedSync().
+   */
+  syncFromCache(savedSync) {
+    var _this6 = this;
+    return _asyncToGenerator(function* () {
+      _this6.syncOpts.logger.debug("sync(): not doing HTTP hit, instead returning stored /sync data");
+      var nextSyncToken = savedSync.nextBatch;
+
+      // Set sync token for future incremental syncing
+      _this6.client.store.setSyncToken(nextSyncToken);
+
+      // No previous sync, set old token to null
+      var syncEventData = {
+        nextSyncToken,
+        catchingUp: false,
+        fromCache: true
+      };
+      var data = {
+        next_batch: nextSyncToken,
+        rooms: savedSync.roomsData,
+        account_data: {
+          events: savedSync.accountData
+        }
+      };
+      try {
+        yield _this6.processSyncResponse(syncEventData, data);
+      } catch (e) {
+        _this6.syncOpts.logger.error("Error processing cached sync", e);
+      }
+
+      // Don't emit a prepared if we've bailed because the store is invalid:
+      // in this case the client will not be usable until stopped & restarted
+      // so this would be useless and misleading.
+      if (!_this6.storeIsInvalid) {
+        _this6.updateSyncState(SyncState.Prepared, syncEventData);
+      }
+    })();
+  }
+
+  /**
+   * Invoke me to do /sync calls
+   */
+  doSync(syncOptions) {
+    var _this7 = this;
+    return _asyncToGenerator(function* () {
+      while (_this7.running) {
+        var syncToken = _this7.client.store.getSyncToken();
+        var data = void 0;
+        try {
+          if (!_this7.currentSyncRequest) {
+            _this7.currentSyncRequest = _this7.doSyncRequest(syncOptions, syncToken);
+          }
+          data = yield _this7.currentSyncRequest;
+        } catch (e) {
+          var abort = yield _this7.onSyncError(e);
+          if (abort) return;
+          continue;
+        } finally {
+          _this7.currentSyncRequest = undefined;
+        }
+
+        // set the sync token NOW *before* processing the events. We do this so
+        // if something barfs on an event we can skip it rather than constantly
+        // polling with the same token.
+        _this7.client.store.setSyncToken(data.next_batch);
+
+        // Reset after a successful sync
+        _this7.failedSyncCount = 0;
+        var syncEventData = {
+          oldSyncToken: syncToken !== null && syncToken !== void 0 ? syncToken : undefined,
+          nextSyncToken: data.next_batch,
+          catchingUp: _this7.catchingUp
+        };
+        try {
+          yield _this7.processSyncResponse(syncEventData, data);
+        } catch (e) {
+          // log the exception with stack if we have it, else fall back
+          // to the plain description
+          _this7.syncOpts.logger.error("Caught /sync error", e);
+
+          // Emit the exception for client handling
+          _this7.client.emit(ClientEvent.SyncUnexpectedError, e);
+        }
+
+        // Persist after processing as `unsigned` may get mutated
+        // with an `org.matrix.msc4023.thread_id`
+        yield _this7.client.store.setSyncData(data);
+
+        // update this as it may have changed
+        syncEventData.catchingUp = _this7.catchingUp;
+
+        // emit synced events
+        if (!syncOptions.hasSyncedBefore) {
+          _this7.updateSyncState(SyncState.Prepared, syncEventData);
+          syncOptions.hasSyncedBefore = true;
+        }
+
+        // tell the crypto module to do its processing. It may block (to do a
+        // /keys/changes request).
+        if (_this7.syncOpts.cryptoCallbacks) {
+          yield _this7.syncOpts.cryptoCallbacks.onSyncCompleted(syncEventData);
+        }
+
+        // keep emitting SYNCING -> SYNCING for clients who want to do bulk updates
+        _this7.updateSyncState(SyncState.Syncing, syncEventData);
+        if (_this7.client.store.wantsSave()) {
+          // tell databases that everything is now in a consistent state and can be saved.
+          yield _this7.client.store.save();
+        }
+      }
+      if (!_this7.running) {
+        _this7.syncOpts.logger.debug("Sync no longer running: exiting.");
+        if (_this7.connectionReturnedResolvers) {
+          _this7.connectionReturnedResolvers.reject();
+          _this7.connectionReturnedResolvers = undefined;
+        }
+        _this7.updateSyncState(SyncState.Stopped);
+      }
+    })();
+  }
+  doSyncRequest(syncOptions, syncToken) {
+    var _this$abortController3;
+    var qps = this.getSyncParams(syncOptions, syncToken);
+    return this.client.http.authedRequest(Method.Get, "/sync", qps, undefined, {
+      localTimeoutMs: qps.timeout + BUFFER_PERIOD_MS,
+      abortSignal: (_this$abortController3 = this.abortController) === null || _this$abortController3 === void 0 ? void 0 : _this$abortController3.signal
+    });
+  }
+  getSyncParams(syncOptions, syncToken) {
+    var timeout = this.opts.pollTimeout;
+    if (this.getSyncState() !== SyncState.Syncing || this.catchingUp) {
+      // unless we are happily syncing already, we want the server to return
+      // as quickly as possible, even if there are no events queued. This
+      // serves two purposes:
+      //
+      // * When the connection dies, we want to know asap when it comes back,
+      //   so that we can hide the error from the user. (We don't want to
+      //   have to wait for an event or a timeout).
+      //
+      // * We want to know if the server has any to_device messages queued up
+      //   for us. We do that by calling it with a zero timeout until it
+      //   doesn't give us any more to_device messages.
+      this.catchingUp = true;
+      timeout = 0;
+    }
+    var filter = syncOptions.filter;
+    if (this.client.isGuest() && !filter) {
+      filter = this.getGuestFilter();
+    }
+    var qps = {
+      filter,
+      timeout,
+      "org.matrix.msc4222.use_state_after": true
+    };
+    if (this.opts.disablePresence) {
+      qps.set_presence = SetPresence.Offline;
+    } else if (this.presence !== undefined) {
+      qps.set_presence = this.presence;
+    }
+    if (syncToken) {
+      qps.since = syncToken;
+    } else {
+      // use a cachebuster for initialsyncs, to make sure that
+      // we don't get a stale sync
+      // (https://github.com/vector-im/vector-web/issues/1354)
+      qps._cacheBuster = Date.now();
+    }
+    if ([SyncState.Reconnecting, SyncState.Error].includes(this.getSyncState())) {
+      // we think the connection is dead. If it comes back up, we won't know
+      // about it till /sync returns. If the timeout= is high, this could
+      // be a long time. Set it to 0 when doing retries so we don't have to wait
+      // for an event or a timeout before emiting the SYNCING event.
+      qps.timeout = 0;
+    }
+    return qps;
+  }
+
+  /**
+   * Specify the set_presence value to be used for subsequent calls to the Sync API.
+   * @param presence - the presence to specify to set_presence of sync calls
+   */
+  setPresence(presence) {
+    this.presence = presence;
+  }
+  onSyncError(err) {
+    var _this8 = this;
+    return _asyncToGenerator(function* () {
+      if (!_this8.running) {
+        _this8.syncOpts.logger.debug("Sync no longer running: exiting");
+        if (_this8.connectionReturnedResolvers) {
+          _this8.connectionReturnedResolvers.reject();
+          _this8.connectionReturnedResolvers = undefined;
+        }
+        _this8.updateSyncState(SyncState.Stopped);
+        return true; // abort
+      }
+      _this8.syncOpts.logger.error("/sync error %s", err);
+      if (_this8.shouldAbortSync(err)) {
+        return true; // abort
+      }
+      _this8.failedSyncCount++;
+      _this8.syncOpts.logger.debug("Number of consecutive failed sync requests:", _this8.failedSyncCount);
+      _this8.syncOpts.logger.debug("Starting keep-alive");
+      // Note that we do *not* mark the sync connection as
+      // lost yet: we only do this if a keepalive poke
+      // fails, since long lived HTTP connections will
+      // go away sometimes and we shouldn't treat this as
+      // erroneous. We set the state to 'reconnecting'
+      // instead, so that clients can observe this state
+      // if they wish.
+      var keepAlivePromise = _this8.startKeepAlives();
+      _this8.currentSyncRequest = undefined;
+      // Transition from RECONNECTING to ERROR after a given number of failed syncs
+      _this8.updateSyncState(_this8.failedSyncCount >= FAILED_SYNC_ERROR_THRESHOLD ? SyncState.Error : SyncState.Reconnecting, {
+        error: err
+      });
+      var connDidFail = yield keepAlivePromise;
+
+      // Only emit CATCHUP if we detected a connectivity error: if we didn't,
+      // it's quite likely the sync will fail again for the same reason and we
+      // want to stay in ERROR rather than keep flip-flopping between ERROR
+      // and CATCHUP.
+      if (connDidFail && _this8.getSyncState() === SyncState.Error) {
+        _this8.updateSyncState(SyncState.Catchup, {
+          catchingUp: true
+        });
+      }
+      return false;
+    })();
+  }
+
+  /**
+   * Process data returned from a sync response and propagate it
+   * into the model objects
+   *
+   * @param syncEventData - Object containing sync tokens associated with this sync
+   * @param data - The response from /sync
+   */
+  processSyncResponse(syncEventData, data) {
+    var _this9 = this;
+    return _asyncToGenerator(function* () {
+      var _data$presence, _data$account_data, _this9$syncOpts$crypt, _data$device_unused_f;
+      var client = _this9.client;
+
+      // data looks like:
+      // {
+      //    next_batch: $token,
+      //    presence: { events: [] },
+      //    account_data: { events: [] },
+      //    device_lists: { changed: ["@user:server", ... ]},
+      //    to_device: { events: [] },
+      //    device_one_time_keys_count: { signed_curve25519: 42 },
+      //    rooms: {
+      //      invite: {
+      //        $roomid: {
+      //          invite_state: { events: [] }
+      //        }
+      //      },
+      //      join: {
+      //        $roomid: {
+      //          state: { events: [] },
+      //          timeline: { events: [], prev_batch: $token, limited: true },
+      //          ephemeral: { events: [] },
+      //          summary: {
+      //             m.heroes: [ $user_id ],
+      //             m.joined_member_count: $count,
+      //             m.invited_member_count: $count
+      //          },
+      //          account_data: { events: [] },
+      //          unread_notifications: {
+      //              highlight_count: 0,
+      //              notification_count: 0,
+      //          }
+      //          "org.matrix.msc4222.state_after": { events: [] },  // only if "org.matrix.msc4222.use_state_after" is true
+      //          msc4354_sticky: { events: [] }, // only if "org.matrix.msc4354.sticky" is true
+      //        }
+      //      },
+      //      leave: {
+      //        $roomid: {
+      //          state: { events: [] },
+      //          timeline: { events: [], prev_batch: $token }
+      //        }
+      //      }
+      //    }
+      // }
+
+      // TODO-arch:
+      // - Each event we pass through needs to be emitted via 'event', can we
+      //   do this in one place?
+      // - The isBrandNewRoom boilerplate is boilerplatey.
+
+      // handle presence events (User objects)
+      if (Array.isArray((_data$presence = data.presence) === null || _data$presence === void 0 ? void 0 : _data$presence.events)) {
+        data.presence.events.filter(noUnsafeEventProps).map(client.getEventMapper()).forEach(function (presenceEvent) {
+          var user = client.store.getUser(presenceEvent.getSender());
+          if (user) {
+            user.setPresenceEvent(presenceEvent);
+          } else {
+            user = User.createUser(presenceEvent.getSender(), client);
+            user.setPresenceEvent(presenceEvent);
+            client.store.storeUser(user);
+          }
+          client.emit(ClientEvent.Event, presenceEvent);
+        });
+      }
+
+      // handle non-room account_data
+      if (Array.isArray((_data$account_data = data.account_data) === null || _data$account_data === void 0 ? void 0 : _data$account_data.events)) {
+        var events = data.account_data.events.filter(noUnsafeEventProps).map(client.getEventMapper());
+        var prevEventsMap = events.reduce((m, c) => {
+          m[c.getType()] = client.store.getAccountData(c.getType());
+          return m;
+        }, {});
+        client.store.storeAccountDataEvents(events);
+        events.forEach(function (accountDataEvent) {
+          // Honour push rules that come down the sync stream but also
+          // honour push rules that were previously cached. Base rules
+          // will be updated when we receive push rules via getPushRules
+          // (see sync) before syncing over the network.
+          if (accountDataEvent.getType() === EventType.PushRules) {
+            var rules = accountDataEvent.getContent();
+            client.setPushRules(rules);
+          }
+          var prevEvent = prevEventsMap[accountDataEvent.getType()];
+          client.emit(ClientEvent.AccountData, accountDataEvent, prevEvent);
+          return accountDataEvent;
+        });
+      }
+
+      // handle to-device events
+      if (data.to_device && Array.isArray(data.to_device.events) && data.to_device.events.length > 0) {
+        var toDeviceMessages = data.to_device.events.filter(noUnsafeEventProps);
+        var receivedToDeviceMessages;
+        if (_this9.syncOpts.cryptoCallbacks) {
+          receivedToDeviceMessages = yield _this9.syncOpts.cryptoCallbacks.preprocessToDeviceMessages(toDeviceMessages);
+        } else {
+          receivedToDeviceMessages = toDeviceMessages.map(rawEvent => (
+          // Crypto is not enabled, so we just return the events.
+          {
+            message: rawEvent,
+            encryptionInfo: null
+          }));
+        }
+        processToDeviceMessages(receivedToDeviceMessages, client);
+      } else {
+        // no more to-device events: we can stop polling with a short timeout.
+        _this9.catchingUp = false;
+      }
+
+      // the returned json structure is a bit crap, so make it into a
+      // nicer form (array) after applying sanity to make sure we don't fail
+      // on missing keys (on the off chance)
+      var inviteRooms = [];
+      var joinRooms = [];
+      var leaveRooms = [];
+      var knockRooms = [];
+      if (data.rooms) {
+        if (data.rooms.invite) {
+          inviteRooms = _this9.mapSyncResponseToRoomArray(data.rooms.invite);
+        }
+        if (data.rooms.join) {
+          joinRooms = _this9.mapSyncResponseToRoomArray(data.rooms.join);
+        }
+        if (data.rooms.leave) {
+          leaveRooms = _this9.mapSyncResponseToRoomArray(data.rooms.leave);
+        }
+        if (data.rooms.knock) {
+          knockRooms = _this9.mapSyncResponseToRoomArray(data.rooms.knock);
+        }
+      }
+      _this9.notifEvents = [];
+
+      // Handle invites
+      yield Promise.all(inviteRooms.map(/*#__PURE__*/function () {
+        var _ref7 = _asyncToGenerator(function* (inviteObj) {
+          var room = inviteObj.room;
+          var stateEvents = _this9.mapSyncEventsFormat(inviteObj.invite_state, room);
+          yield _this9.injectRoomEvents(room, stateEvents, undefined);
+          if (inviteObj.isBrandNewRoom) {
+            room.recalculate();
+            client.store.storeRoom(room);
+            client.emit(ClientEvent.Room, room);
+          } else {
+            // Update room state for invite->reject->invite cycles
+            room.recalculate();
+          }
+          stateEvents.forEach(function (e) {
+            client.emit(ClientEvent.Event, e);
+          });
+        });
+        return function (_x3) {
+          return _ref7.apply(this, arguments);
+        };
+      }()));
+
+      // Handle joins
+      yield Promise.all(joinRooms.map(/*#__PURE__*/function () {
+        var _ref8 = _asyncToGenerator(function* (joinObj) {
+          var _joinObj$UNREAD_THREA;
+          var room = joinObj.room;
+          var stateEvents = _this9.mapSyncEventsFormat(joinObj.state, room);
+          var stateAfterEvents = _this9.mapSyncEventsFormat(joinObj["org.matrix.msc4222.state_after"], room);
+          // Prevent events from being decrypted ahead of time
+          // this helps large account to speed up faster
+          // room::decryptCriticalEvent is in charge of decrypting all the events
+          // required for a client to function properly
+          var timelineEvents = _this9.mapSyncEventsFormat(joinObj.timeline, room, false);
+          var ephemeralEvents = _this9.mapSyncEventsFormat(joinObj.ephemeral);
+          var accountDataEvents = _this9.mapSyncEventsFormat(joinObj.account_data);
+          var stickyEvents = _this9.mapSyncEventsFormat(joinObj.msc4354_sticky);
+
+          // If state_after is present, this is the events that form the state at the end of the timeline block and
+          // regular timeline events do *not* count towards state. If it's not present, then the state is formed by
+          // the state events plus the timeline events. Note mapSyncEventsFormat returns an empty array if the field
+          // is absent so we explicitly check the field on the original object.
+          var eventsFormingFinalState = joinObj["org.matrix.msc4222.state_after"] ? stateAfterEvents : stateEvents.concat(timelineEvents);
+          var encrypted = _this9.isRoomEncrypted(room, eventsFormingFinalState);
+          // We store the server-provided value first so it's correct when any of the events fire.
+          if (joinObj.unread_notifications) {
+            /**
+             * We track unread notifications ourselves in encrypted rooms, so don't
+             * bother setting it here. We trust our calculations better than the
+             * server's for this case, and therefore will assume that our non-zero
+             * count is accurate.
+             * XXX: this is known faulty as the push rule for `.m.room.encrypted` may be disabled so server
+             * may issue notification counts of 0 which we wrongly trust.
+             * https://github.com/matrix-org/matrix-spec-proposals/pull/2654 would fix this
+             *
+             * @see import("./client").fixNotificationCountOnDecryption
+             */
+            if (!encrypted || joinObj.unread_notifications.notification_count === 0) {
+              var _joinObj$unread_notif;
+              // In an encrypted room, if the room has notifications enabled then it's typical for
+              // the server to flag all new messages as notifying. However, some push rules calculate
+              // events as ignored based on their event contents (e.g. ignoring msgtype=m.notice messages)
+              // so we want to calculate this figure on the client in all cases.
+              room.setUnreadNotificationCount(NotificationCountType.Total, (_joinObj$unread_notif = joinObj.unread_notifications.notification_count) !== null && _joinObj$unread_notif !== void 0 ? _joinObj$unread_notif : 0);
+            }
+            if (!encrypted || room.getUnreadNotificationCount(NotificationCountType.Highlight) <= 0) {
+              var _joinObj$unread_notif2;
+              // If the locally stored highlight count is zero, use the server provided value.
+              room.setUnreadNotificationCount(NotificationCountType.Highlight, (_joinObj$unread_notif2 = joinObj.unread_notifications.highlight_count) !== null && _joinObj$unread_notif2 !== void 0 ? _joinObj$unread_notif2 : 0);
+            }
+          }
+          var unreadThreadNotifications = (_joinObj$UNREAD_THREA = joinObj[UNREAD_THREAD_NOTIFICATIONS.name]) !== null && _joinObj$UNREAD_THREA !== void 0 ? _joinObj$UNREAD_THREA : joinObj[UNREAD_THREAD_NOTIFICATIONS.altName];
+          if (unreadThreadNotifications) {
+            // This mirrors the logic above for rooms: take the *total* notification count from
+            // the server for unencrypted rooms or is it's zero. Any threads not present in this
+            // object implicitly have zero notifications, so start by clearing the total counts
+            // for all such threads.
+            room.resetThreadUnreadNotificationCountFromSync(Object.keys(unreadThreadNotifications));
+            for (var [threadId, unreadNotification] of Object.entries(unreadThreadNotifications)) {
+              if (!encrypted || unreadNotification.notification_count === 0) {
+                var _unreadNotification$n;
+                room.setThreadUnreadNotificationCount(threadId, NotificationCountType.Total, (_unreadNotification$n = unreadNotification.notification_count) !== null && _unreadNotification$n !== void 0 ? _unreadNotification$n : 0);
+              }
+              var hasNoNotifications = room.getThreadUnreadNotificationCount(threadId, NotificationCountType.Highlight) <= 0;
+              if (!encrypted || encrypted && hasNoNotifications) {
+                var _unreadNotification$h;
+                room.setThreadUnreadNotificationCount(threadId, NotificationCountType.Highlight, (_unreadNotification$h = unreadNotification.highlight_count) !== null && _unreadNotification$h !== void 0 ? _unreadNotification$h : 0);
+              }
+            }
+          } else {
+            room.resetThreadUnreadNotificationCountFromSync();
+          }
+          joinObj.timeline = joinObj.timeline || {};
+          if (joinObj.isBrandNewRoom) {
+            // set the back-pagination token. Do this *before* adding any
+            // events so that clients can start back-paginating.
+            if (joinObj.timeline.prev_batch !== null) {
+              room.getLiveTimeline().setPaginationToken(joinObj.timeline.prev_batch, EventTimeline.BACKWARDS);
+            }
+          } else if (joinObj.timeline.limited) {
+            var limited = true;
+
+            // we've got a limited sync, so we *probably* have a gap in the
+            // timeline, so should reset. But we might have been peeking or
+            // paginating and already have some of the events, in which
+            // case we just want to append any subsequent events to the end
+            // of the existing timeline.
+            //
+            // This is particularly important in the case that we already have
+            // *all* of the events in the timeline - in that case, if we reset
+            // the timeline, we'll end up with an entirely empty timeline,
+            // which we'll try to paginate but not get any new events (which
+            // will stop us linking the empty timeline into the chain).
+            //
+            for (var i = timelineEvents.length - 1; i >= 0; i--) {
+              var eventId = timelineEvents[i].getId();
+              if (room.getTimelineForEvent(eventId)) {
+                _this9.syncOpts.logger.debug("Already have event ".concat(eventId, " in limited sync - not resetting"));
+                limited = false;
+
+                // we might still be missing some of the events before i;
+                // we don't want to be adding them to the end of the
+                // timeline because that would put them out of order.
+                timelineEvents.splice(0, i);
+
+                // XXX: there's a problem here if the skipped part of the
+                // timeline modifies the state set in stateEvents, because
+                // we'll end up using the state from stateEvents rather
+                // than the later state from timelineEvents. We probably
+                // need to wind stateEvents forward over the events we're
+                // skipping.
+
+                break;
+              }
+            }
+            if (limited) {
+              var _syncEventData$oldSyn;
+              room.resetLiveTimeline(joinObj.timeline.prev_batch, _this9.syncOpts.canResetEntireTimeline(room.roomId) ? null : (_syncEventData$oldSyn = syncEventData.oldSyncToken) !== null && _syncEventData$oldSyn !== void 0 ? _syncEventData$oldSyn : null);
+
+              // We have to assume any gap in any timeline is
+              // reason to stop incrementally tracking notifications and
+              // reset the timeline.
+              client.resetNotifTimelineSet();
+            }
+          }
+
+          // process any crypto events *before* emitting the RoomStateEvent events. This
+          // avoids a race condition if the application tries to send a message after the
+          // state event is processed, but before crypto is enabled, which then causes the
+          // crypto layer to complain.
+
+          if (_this9.syncOpts.cryptoCallbacks) {
+            for (var e of eventsFormingFinalState) {
+              if (e.isState() && e.getType() === EventType.RoomEncryption && e.getStateKey() === "") {
+                yield _this9.syncOpts.cryptoCallbacks.onCryptoEvent(room, e);
+              }
+            }
+          }
+
+          // Proactively decrypt state events: normally we decrypt on demand, but for state
+          // events we need them immediately, so we handle them here. Specifically, consumers
+          // (e.g. Element Web) expect state events to be unencrypted upon receipt.
+          for (var ev of timelineEvents.filter(ev => ev.isState())) {
+            yield _this9.client.decryptEventIfNeeded(ev);
+          }
+          try {
+            if ("org.matrix.msc4222.state_after" in joinObj) {
+              yield _this9.injectRoomEvents(room, undefined, stateAfterEvents, timelineEvents, syncEventData.fromCache);
+            } else {
+              yield _this9.injectRoomEvents(room, stateEvents, undefined, timelineEvents, syncEventData.fromCache);
+            }
+          } catch (e) {
+            _this9.syncOpts.logger.error("Failed to process events on room ".concat(room.roomId, ":"), e);
+          }
+
+          // set summary after processing events,
+          // because it will trigger a name calculation
+          // which needs the room state to be up to date
+          if (joinObj.summary) {
+            room.setSummary(joinObj.summary);
+          }
+
+          // we deliberately don't add ephemeral events to the timeline
+          room.addEphemeralEvents(ephemeralEvents);
+
+          // we deliberately don't add accountData to the timeline
+          room.addAccountData(accountDataEvents);
+
+          // Sticky events primarily come via the `timeline` field, with the
+          // sticky info field marking them as sticky.
+          // If the sync is "gappy" (meaning it is skipping events to catch up) then
+          // sticky events will instead come down the sticky section.
+          // This ensures we collect sticky events from both places.
+          var stickyEventsAndStickyEventsFromTheTimeline = stickyEvents.concat(timelineEvents.filter(e => e.unstableStickyInfo !== undefined));
+          // Note: We calculate sticky events before emitting `.Room` as it's nice to have
+          // sticky events calculated and ready to go.
+          room._unstable_addStickyEvents(stickyEventsAndStickyEventsFromTheTimeline);
+          room.recalculate();
+          if (joinObj.isBrandNewRoom) {
+            client.store.storeRoom(room);
+            client.emit(ClientEvent.Room, room);
+          }
+          _this9.processEventsForNotifs(room, timelineEvents);
+          var emitEvent = e => client.emit(ClientEvent.Event, e);
+          // this fires a couple of times for some events. (eg state events are in the timeline and the state)
+          // should this get a sync section as an additional event emission param (e, syncSection))?
+          stateEvents.forEach(emitEvent);
+          timelineEvents.forEach(emitEvent);
+          ephemeralEvents.forEach(emitEvent);
+          accountDataEvents.forEach(emitEvent);
+          stickyEvents.filter(stickyEvent =>
+          // This is highly unlikey, but in the case where a sticky event
+          // has appeared in the timeline AND the sticky section, we only
+          // want to emit the event once.
+          !timelineEvents.some(timelineEvent => timelineEvent.getId() === stickyEvent.getId())).forEach(emitEvent);
+          // Decrypt only the last message in all rooms to make sure we can generate a preview
+          // And decrypt all events after the recorded read receipt to ensure an accurate
+          // notification count
+          room.decryptCriticalEvents();
+        });
+        return function (_x4) {
+          return _ref8.apply(this, arguments);
+        };
+      }()));
+
+      // Handle leaves (e.g. kicked rooms)
+      yield Promise.all(leaveRooms.map(/*#__PURE__*/function () {
+        var _ref9 = _asyncToGenerator(function* (leaveObj) {
+          var room = leaveObj.room;
+          var {
+            timelineEvents,
+            stateEvents,
+            stateAfterEvents
+          } = yield _this9.mapAndInjectRoomEvents(leaveObj);
+          var accountDataEvents = _this9.mapSyncEventsFormat(leaveObj.account_data);
+          room.addAccountData(accountDataEvents);
+          room.recalculate();
+          if (leaveObj.isBrandNewRoom) {
+            client.store.storeRoom(room);
+            client.emit(ClientEvent.Room, room);
+          }
+          _this9.processEventsForNotifs(room, timelineEvents);
+          stateEvents === null || stateEvents === void 0 || stateEvents.forEach(function (e) {
+            client.emit(ClientEvent.Event, e);
+          });
+          stateAfterEvents === null || stateAfterEvents === void 0 || stateAfterEvents.forEach(function (e) {
+            client.emit(ClientEvent.Event, e);
+          });
+          timelineEvents.forEach(function (e) {
+            client.emit(ClientEvent.Event, e);
+          });
+          accountDataEvents.forEach(function (e) {
+            client.emit(ClientEvent.Event, e);
+          });
+        });
+        return function (_x5) {
+          return _ref9.apply(this, arguments);
+        };
+      }()));
+
+      // Handle knocks
+      yield Promise.all(knockRooms.map(/*#__PURE__*/function () {
+        var _ref0 = _asyncToGenerator(function* (knockObj) {
+          var room = knockObj.room;
+          var stateEvents = _this9.mapSyncEventsFormat(knockObj.knock_state, room);
+          yield _this9.injectRoomEvents(room, stateEvents, undefined);
+          if (knockObj.isBrandNewRoom) {
+            room.recalculate();
+            client.store.storeRoom(room);
+            client.emit(ClientEvent.Room, room);
+          } else {
+            // Update room state for knock->leave->knock cycles
+            room.recalculate();
+          }
+          stateEvents.forEach(function (e) {
+            client.emit(ClientEvent.Event, e);
+          });
+        });
+        return function (_x6) {
+          return _ref0.apply(this, arguments);
+        };
+      }()));
+
+      // update the notification timeline, if appropriate.
+      // we only do this for live events, as otherwise we can't order them sanely
+      // in the timeline relative to ones paginated in by /notifications.
+      // XXX: we could fix this by making EventTimeline support chronological
+      // ordering... but it doesn't, right now.
+      if (syncEventData.oldSyncToken && _this9.notifEvents.length) {
+        _this9.notifEvents.sort(function (a, b) {
+          return a.getTs() - b.getTs();
+        });
+        _this9.notifEvents.forEach(function (event) {
+          var _client$getNotifTimel;
+          (_client$getNotifTimel = client.getNotifTimelineSet()) === null || _client$getNotifTimel === void 0 || _client$getNotifTimel.addLiveEvent(event, {
+            addToState: true
+          });
+        });
+      }
+
+      // Handle device list updates
+      if (data.device_lists) {
+        if (_this9.syncOpts.cryptoCallbacks) {
+          yield _this9.syncOpts.cryptoCallbacks.processDeviceLists(data.device_lists);
+        } else {
+          // FIXME if we *don't* have a crypto module, we still need to
+          // invalidate the device lists. But that would require a
+          // substantial bit of rework :/.
+        }
+      }
+
+      // Handle one_time_keys_count and unused fallback keys
+      yield (_this9$syncOpts$crypt = _this9.syncOpts.cryptoCallbacks) === null || _this9$syncOpts$crypt === void 0 ? void 0 : _this9$syncOpts$crypt.processKeyCounts(data.device_one_time_keys_count, (_data$device_unused_f = data.device_unused_fallback_key_types) !== null && _data$device_unused_f !== void 0 ? _data$device_unused_f : data["org.matrix.msc2732.device_unused_fallback_key_types"]);
+    })();
+  }
+
+  /**
+   * Starts polling the connectivity check endpoint
+   * @param delay - How long to delay until the first poll.
+   *        defaults to a short, randomised interval (to prevent
+   *        tight-looping if /versions succeeds but /sync etc. fail).
+   * @returns which resolves once the connection returns
+   */
+  startKeepAlives(delay) {
+    if (delay === undefined) {
+      delay = 2000 + Math.floor(Math.random() * 5000);
+    }
+    if (this.keepAliveTimer !== null) {
+      clearTimeout(this.keepAliveTimer);
+    }
+    if (delay > 0) {
+      this.keepAliveTimer = setTimeout(this.pokeKeepAlive.bind(this), delay);
+    } else {
+      this.pokeKeepAlive();
+    }
+    if (!this.connectionReturnedResolvers) {
+      this.connectionReturnedResolvers = Promise.withResolvers();
+    }
+    return this.connectionReturnedResolvers.promise;
+  }
+
+  /**
+   * Make a dummy call to /_matrix/client/versions, to see if the HS is
+   * reachable.
+   *
+   * On failure, schedules a call back to itself. On success, resolves
+   * this.connectionReturnedResolvers.
+   *
+   * @param connDidFail - True if a connectivity failure has been detected. Optional.
+   */
+  pokeKeepAlive() {
+    var _this$abortController4;
+    var connDidFail = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+    if (!this.running) {
+      // we are in a keepAlive, retrying to connect, but the syncronization
+      // was stopped, so we are stopping the retry.
+      clearTimeout(this.keepAliveTimer);
+      if (this.connectionReturnedResolvers) {
+        this.connectionReturnedResolvers.reject("SyncApi.stop() was called");
+        this.connectionReturnedResolvers = undefined;
+      }
+      return;
+    }
+    var success = () => {
+      clearTimeout(this.keepAliveTimer);
+      if (this.connectionReturnedResolvers) {
+        this.connectionReturnedResolvers.resolve(connDidFail);
+        this.connectionReturnedResolvers = undefined;
+      }
+    };
+    this.client.http.request(Method.Get, "/_matrix/client/versions", undefined,
+    // queryParams
+    undefined,
+    // data
+    {
+      prefix: "",
+      localTimeoutMs: 15 * 1000,
+      abortSignal: (_this$abortController4 = this.abortController) === null || _this$abortController4 === void 0 ? void 0 : _this$abortController4.signal
+    }).then(() => {
+      success();
+    }, err => {
+      if (err.httpStatus == 400 || err.httpStatus == 404) {
+        // treat this as a success because the server probably just doesn't
+        // support /versions: point is, we're getting a response.
+        // We wait a short time though, just in case somehow the server
+        // is in a mode where it 400s /versions responses and sync etc.
+        // responses fail, this will mean we don't hammer in a loop.
+        this.keepAliveTimer = setTimeout(success, 2000);
+      } else {
+        connDidFail = true;
+        this.keepAliveTimer = setTimeout(this.pokeKeepAlive.bind(this, connDidFail), 5000 + Math.floor(Math.random() * 5000));
+        // A keepalive has failed, so we emit the
+        // error state (whether or not this is the
+        // first failure).
+        // Note we do this after setting the timer:
+        // this lets the unit tests advance the mock
+        // clock when they get the error.
+        this.updateSyncState(SyncState.Error, {
+          error: err
+        });
+      }
+    });
+  }
+  mapSyncResponseToRoomArray(obj) {
+    // Maps { roomid: {stuff}, roomid: {stuff} }
+    // to
+    // [{stuff+Room+isBrandNewRoom}, {stuff+Room+isBrandNewRoom}]
+    var client = this.client;
+    return Object.keys(obj).filter(k => !unsafeProp(k)).map(roomId => {
+      var room = client.store.getRoom(roomId);
+      var isBrandNewRoom = false;
+      if (!room) {
+        room = this.createRoom(roomId);
+        isBrandNewRoom = true;
+      }
+      return _objectSpread(_objectSpread({}, obj[roomId]), {}, {
+        room,
+        isBrandNewRoom
+      });
+    });
+  }
+  mapSyncEventsFormat(obj, room) {
+    var decrypt = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
+    if (!obj || !Array.isArray(obj.events)) {
+      return [];
+    }
+    var mapper = this.client.getEventMapper({
+      decrypt
+    });
+    return obj.events.filter(noUnsafeEventProps).map(function (e) {
+      if (room) {
+        e.room_id = room.roomId;
+      }
+      return mapper(e);
+    });
+  }
+
+  /**
+   */
+  resolveInvites(room) {
+    if (!room || !this.opts.resolveInvitesToProfiles) {
+      return;
+    }
+    var client = this.client;
+    // For each invited room member we want to give them a displayname/avatar url
+    // if they have one (the m.room.member invites don't contain this).
+    room.getMembersWithMembership(KnownMembership.Invite).forEach(function (member) {
+      if (member.requestedProfileInfo) return;
+      member.requestedProfileInfo = true;
+      // try to get a cached copy first.
+      var user = client.getUser(member.userId);
+      var promise;
+      if (user) {
+        promise = Promise.resolve({
+          avatar_url: user.avatarUrl,
+          displayname: user.displayName
+        });
+      } else {
+        promise = client.getProfileInfo(member.userId);
+      }
+      promise.then(function (info) {
+        // slightly naughty by doctoring the invite event but this means all
+        // the code paths remain the same between invite/join display name stuff
+        // which is a worthy trade-off for some minor pollution.
+        var inviteEvent = member.events.member;
+        if ((inviteEvent === null || inviteEvent === void 0 ? void 0 : inviteEvent.getContent().membership) !== KnownMembership.Invite) {
+          // between resolving and now they have since joined, so don't clobber
+          return;
+        }
+        inviteEvent.getContent().avatar_url = info.avatar_url;
+        inviteEvent.getContent().displayname = info.displayname;
+        // fire listeners
+        member.setMembershipEvent(inviteEvent, room.currentState);
+      }, function (err) {
+        // OH WELL.
+      });
+    });
+  }
+  findEncryptionEvent(events) {
+    return events === null || events === void 0 ? void 0 : events.find(e => e.getType() === EventType.RoomEncryption && e.getStateKey() === "");
+  }
+
+  // When processing the sync response we cannot rely on Room.hasEncryptionStateEvent we actually
+  // inject the events into the room object, so we have to inspect the events themselves.
+  isRoomEncrypted(room, eventsFormingFinalState) {
+    return room.hasEncryptionStateEvent() || !!this.findEncryptionEvent(eventsFormingFinalState);
+  }
+  mapAndInjectRoomEvents(wrappedRoom) {
+    var _this0 = this;
+    return _asyncToGenerator(function* () {
+      var stateEvents = _this0.mapSyncEventsFormat(wrappedRoom.state, wrappedRoom.room);
+      var stateAfterEvents = _this0.mapSyncEventsFormat(wrappedRoom["org.matrix.msc4222.state_after"], wrappedRoom.room);
+      var timelineEvents = _this0.mapSyncEventsFormat(wrappedRoom.timeline, wrappedRoom.room);
+      if ("org.matrix.msc4222.state_after" in wrappedRoom) {
+        yield _this0.injectRoomEvents(wrappedRoom.room, undefined, stateAfterEvents, timelineEvents);
+      } else {
+        yield _this0.injectRoomEvents(wrappedRoom.room, stateEvents, undefined, timelineEvents);
+      }
+      return {
+        timelineEvents,
+        stateEvents,
+        stateAfterEvents
+      };
+    })();
+  }
+
+  /**
+   * Injects events into a room's model.
+   * @param stateEventList - A list of state events. This is the state
+   * at the *START* of the timeline list if it is supplied.
+   * @param stateAfterEventList - A list of state events. This is the state
+   * at the *END* of the timeline list if it is supplied.
+   * @param timelineEventList - A list of timeline events, including threaded. Lower index
+   * is earlier in time. Higher index is later.
+   * @param fromCache - whether the sync response came from cache
+   *
+   * No more than one of stateEventList and stateAfterEventList must be supplied. If
+   * stateEventList is supplied, the events in timelineEventList are added to the state
+   * after stateEventList. If stateAfterEventList is supplied, the events in timelineEventList
+   * are not added to the state.
+   */
+
+  injectRoomEvents(room, stateEventList, stateAfterEventList, timelineEventList) {
+    var _arguments = arguments,
+      _this1 = this;
+    return _asyncToGenerator(function* () {
+      var fromCache = _arguments.length > 4 && _arguments[4] !== undefined ? _arguments[4] : false;
+      var eitherStateEventList = stateAfterEventList !== null && stateAfterEventList !== void 0 ? stateAfterEventList : stateEventList;
+
+      // If there are no events in the timeline yet, initialise it with
+      // the given state events
+      var liveTimeline = room.getLiveTimeline();
+      var timelineWasEmpty = liveTimeline.getEvents().length == 0;
+      if (timelineWasEmpty) {
+        // Passing these events into initialiseState will freeze them, so we need
+        // to compute and cache the push actions for them now, otherwise sync dies
+        // with an attempt to assign to read only property.
+        // XXX: This is pretty horrible and is assuming all sorts of behaviour from
+        // these functions that it shouldn't be. We should probably either store the
+        // push actions cache elsewhere so we can freeze MatrixEvents, or otherwise
+        // find some solution where MatrixEvents are immutable but allow for a cache
+        // field.
+
+        for (var ev of eitherStateEventList) {
+          _this1.client.getPushActionsForEvent(ev);
+        }
+        liveTimeline.initialiseState(eitherStateEventList, {
+          timelineWasEmpty
+        });
+      }
+      _this1.resolveInvites(room);
+
+      // recalculate the room name at this point as adding events to the timeline
+      // may make notifications appear which should have the right name.
+      // XXX: This looks suspect: we'll end up recalculating the room once here
+      // and then again after adding events (processSyncResponse calls it after
+      // calling us) even if no state events were added. It also means that if
+      // one of the room events in timelineEventList is something that needs
+      // a recalculation (like m.room.name) we won't recalculate until we've
+      // finished adding all the events, which will cause the notification to have
+      // the old room name rather than the new one.
+      room.recalculate();
+
+      // If the timeline wasn't empty, we process the state events here: they're
+      // defined as updates to the state before the start of the timeline, so this
+      // starts to roll the state forward.
+      // XXX: That's what we *should* do, but this can happen if we were previously
+      // peeking in a room, in which case we obviously do *not* want to add the
+      // state events here onto the end of the timeline. Historically, the js-sdk
+      // has just set these new state events on the old and new state. This seems
+      // very wrong because there could be events in the timeline that diverge the
+      // state, in which case this is going to leave things out of sync. However,
+      // for now I think it;s best to behave the same as the code has done previously.
+      if (!timelineWasEmpty) {
+        // XXX: As above, don't do this...
+        //room.addLiveEvents(stateEventList || []);
+        // Do this instead...
+        room.oldState.setStateEvents(eitherStateEventList);
+        room.currentState.setStateEvents(eitherStateEventList);
+      }
+
+      // Execute the timeline events. If addToState is true the timeline has any state
+      // events in it, this will continue to diverge the current state.
+      // This also needs to be done before running push rules on the events as they need
+      // to be decorated with sender etc.
+      yield room.addLiveEvents(timelineEventList || [], {
+        fromCache,
+        timelineWasEmpty,
+        addToState: stateAfterEventList === undefined
+      });
+      _this1.client.processBeaconEvents(room, timelineEventList);
+    })();
+  }
+
+  /**
+   * Takes a list of timelineEvents and adds and adds to notifEvents
+   * as appropriate.
+   * This must be called after the room the events belong to has been stored.
+   *
+   * @param timelineEventList - A list of timeline events. Lower index
+   * is earlier in time. Higher index is later.
+   */
+  processEventsForNotifs(room, timelineEventList) {
+    // gather our notifications into this.notifEvents
+    if (this.client.getNotifTimelineSet()) {
+      for (var event of timelineEventList) {
+        var _pushActions$tweaks;
+        var pushActions = this.client.getPushActionsForEvent(event);
+        if (pushActions !== null && pushActions !== void 0 && pushActions.notify && (_pushActions$tweaks = pushActions.tweaks) !== null && _pushActions$tweaks !== void 0 && _pushActions$tweaks.highlight) {
+          this.notifEvents.push(event);
+        }
+      }
+    }
+  }
+  getGuestFilter() {
+    // Dev note: This used to be conditional to return a filter of 20 events maximum, but
+    // the condition never went to the other branch. This is now hardcoded.
+    return "{}";
+  }
+
+  /**
+   * Sets the sync state and emits an event to say so
+   * @param newState - The new state string
+   * @param data - Object of additional data to emit in the event
+   */
+  updateSyncState(newState, data) {
+    var old = this.syncState;
+    this.syncState = newState;
+    this.syncStateData = data;
+    this.client.emit(ClientEvent.Sync, this.syncState, old, data);
+  }
+}
+
+// /!\ This function is not intended for public use! It's only exported from
+// here in order to share some common logic with sliding-sync-sdk.ts.
+export function _createAndReEmitRoom(client, roomId, opts) {
+  var {
+    timelineSupport
+  } = client;
+  var room = new Room(roomId, client, client.getUserId(), {
+    lazyLoadMembers: opts.lazyLoadMembers,
+    pendingEventOrdering: opts.pendingEventOrdering,
+    timelineSupport
+  });
+  client.reEmitter.reEmit(room, [RoomEvent.Name, RoomEvent.Redaction, RoomEvent.RedactionCancelled, RoomEvent.Receipt, RoomEvent.Tags, RoomEvent.LocalEchoUpdated, RoomEvent.AccountData, RoomEvent.MyMembership, RoomEvent.Timeline, RoomEvent.TimelineReset, RoomStateEvent.Events, RoomStateEvent.Members, RoomStateEvent.NewMember, RoomStateEvent.Update, BeaconEvent.New, BeaconEvent.Update, BeaconEvent.Destroy, BeaconEvent.LivenessChange]);
+
+  // We need to add a listener for RoomState.members in order to hook them
+  // correctly.
+  room.on(RoomStateEvent.NewMember, (event, state, member) => {
+    var _client$getUser;
+    member.user = (_client$getUser = client.getUser(member.userId)) !== null && _client$getUser !== void 0 ? _client$getUser : undefined;
+    client.reEmitter.reEmit(member, [RoomMemberEvent.Name, RoomMemberEvent.Typing, RoomMemberEvent.PowerLevel, RoomMemberEvent.Membership]);
+  });
+  return room;
+}
+
+/**
+ * Process a list of (decrypted, where possible) received to-device events.
+ *
+ * Emits the appropriate {@link ClientEvent.ReceivedToDeviceMessage} event.
+ * Also converts the events into `MatrixEvent`s, and emits the now deprecated {@link ClientEvent.ToDeviceEvent} events for compatibility.
+ * */
+export function processToDeviceMessages(toDeviceMessages, client) {
+  var cancelledKeyVerificationTxns = [];
+  toDeviceMessages.map(processedMessage => {
+    // map is a cheap inline forEach
+    // We want to flag m.key.verification.start events as cancelled
+    // if there's an accompanying m.key.verification.cancel event, so
+    // we pull out the transaction IDs from the cancellation events
+    // so we can flag the verification events as cancelled in the loop
+    // below.
+    if (processedMessage.message.type === "m.key.verification.cancel") {
+      var txnId = processedMessage.message.content["transaction_id"];
+      if (txnId) {
+        cancelledKeyVerificationTxns.push(txnId);
+      }
+    }
+
+    // as mentioned above, .map is a cheap inline forEach, so return
+    // the unmodified event.
+    return processedMessage;
+  }).forEach(function (processedEvent) {
+    // For backwards compatibility, we also emit the event as a `MatrixEvent` using `ClientEvent.ToDeviceEvent`.
+    {
+      var toDeviceEvent = processedEvent.message;
+      var content = toDeviceEvent.content;
+      // The message is cloned before being passed to the MatrixEvent constructor, because
+      // the `makeEncrypted` method will mutate the type and content properties of the original message and will interfere
+      // with the emitted event for `ReceivedToDeviceMessage`.
+      var deprecatedCompatibilityEvent = new MatrixEvent(Object.assign({}, toDeviceEvent));
+      if (toDeviceEvent.type === "m.key.verification.start" || toDeviceEvent.type === "m.key.verification.request") {
+        var txnId = content["transaction_id"];
+        if (cancelledKeyVerificationTxns.includes(txnId)) {
+          deprecatedCompatibilityEvent.flagCancelled();
+        }
+      }
+      if (processedEvent.encryptionInfo) {
+        // Restore partially the legacy behavior to detect encrypted messages.
+        // Now `event.isEncrypted()` will return true.
+        deprecatedCompatibilityEvent.makeEncrypted(EventType.RoomMessageEncrypted, {
+          ciphertext: ""
+        }, processedEvent.encryptionInfo.senderCurve25519KeyBase64, "");
+      }
+      client.emit(ClientEvent.ToDeviceEvent, deprecatedCompatibilityEvent);
+    }
+    client.emit(ClientEvent.ReceivedToDeviceMessage, processedEvent);
+  });
+}
+//# sourceMappingURL=sync.js.map

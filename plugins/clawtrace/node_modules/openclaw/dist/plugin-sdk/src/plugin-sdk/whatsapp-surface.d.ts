@@ -1,0 +1,2 @@
+export { DEFAULT_WEB_MEDIA_BYTES, hasAnyWhatsAppAuth, listEnabledWhatsAppAccounts, listWhatsAppDirectoryGroupsFromConfig, listWhatsAppDirectoryPeersFromConfig, resolveWhatsAppAccount, resolveWhatsAppGroupRequireMention, resolveWhatsAppGroupToolPolicy, resolveWhatsAppOutboundTarget, whatsappAccessControlTesting, } from "../../extensions/whatsapp/api.js";
+export type { WebChannelStatus, WebInboundMessage, WebListenerCloseReason, WebMonitorTuning, } from "../../extensions/whatsapp/api.js";

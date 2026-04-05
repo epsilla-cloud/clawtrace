@@ -1,0 +1,8 @@
+/**
+ * Thrown when an event is not valid for use with MatrixRTC.
+ */
+export declare class MatrixRTCMembershipParseError extends AggregateError {
+    readonly type: string;
+    constructor(type: string, errors: string[]);
+}
+//# sourceMappingURL=common.d.ts.map

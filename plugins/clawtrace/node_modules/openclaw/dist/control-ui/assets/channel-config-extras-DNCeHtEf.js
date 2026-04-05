@@ -1,0 +1,2 @@
+function e(e,t){if(!e)return null;let n=(e.channels??{})[t];if(n&&typeof n==`object`)return n;let r=e[t];return r&&typeof r==`object`?r:null}function t(e){if(e==null)return`n/a`;if(typeof e==`string`||typeof e==`number`||typeof e==`boolean`)return String(e);try{return JSON.stringify(e)}catch{return`n/a`}}function n(n){let r=e(n.configForm,n.channelId);return r?n.fields.flatMap(e=>e in r?[{label:e,value:t(r[e])}]:[]):[]}export{e as n,n as r,t};
+//# sourceMappingURL=channel-config-extras-DNCeHtEf.js.map

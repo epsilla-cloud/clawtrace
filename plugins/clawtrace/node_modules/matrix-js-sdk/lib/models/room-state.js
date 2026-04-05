@@ -1,0 +1,1066 @@
+import _asyncToGenerator from "@babel/runtime/helpers/asyncToGenerator";
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+/*
+Copyright 2015 - 2021 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { RoomMember } from "./room-member.js";
+import { logger } from "../logger.js";
+import { isNumber, removeHiddenChars } from "../utils.js";
+import { EventType, UNSTABLE_MSC2716_MARKER } from "../@types/event.js";
+import { MatrixEventEvent } from "./event.js";
+import { GuestAccess, HistoryVisibility, JoinRule } from "../@types/partials.js";
+import { TypedEventEmitter } from "./typed-event-emitter.js";
+import { Beacon, BeaconEvent, getBeaconInfoIdentifier } from "./beacon.js";
+import { TypedReEmitter } from "../ReEmitter.js";
+import { M_BEACON, M_BEACON_INFO } from "../@types/beacon.js";
+import { KnownMembership } from "../@types/membership.js";
+import { shouldUseHydraForRoomVersion } from "../utils/roomVersion.js";
+// possible statuses for out-of-band member loading
+var OobStatus = /*#__PURE__*/function (OobStatus) {
+  OobStatus[OobStatus["NotStarted"] = 0] = "NotStarted";
+  OobStatus[OobStatus["InProgress"] = 1] = "InProgress";
+  OobStatus[OobStatus["Finished"] = 2] = "Finished";
+  return OobStatus;
+}(OobStatus || {});
+export var RoomStateEvent = /*#__PURE__*/function (RoomStateEvent) {
+  RoomStateEvent["Events"] = "RoomState.events";
+  RoomStateEvent["Members"] = "RoomState.members";
+  RoomStateEvent["NewMember"] = "RoomState.newMember";
+  RoomStateEvent["Update"] = "RoomState.update";
+  // signals batches of updates without specificity
+  RoomStateEvent["BeaconLiveness"] = "RoomState.BeaconLiveness";
+  RoomStateEvent["Marker"] = "RoomState.Marker";
+  return RoomStateEvent;
+}({});
+export class RoomState extends TypedEventEmitter {
+  /**
+   * Construct room state.
+   *
+   * Room State represents the state of the room at a given point.
+   * It can be mutated by adding state events to it.
+   * There are two types of room member associated with a state event:
+   * normal member objects (accessed via getMember/getMembers) which mutate
+   * with the state to represent the current state of that room/user, e.g.
+   * the object returned by `getMember('@bob:example.com')` will mutate to
+   * get a different display name if Bob later changes his display name
+   * in the room.
+   * There are also 'sentinel' members (accessed via getSentinelMember).
+   * These also represent the state of room members at the point in time
+   * represented by the RoomState object, but unlike objects from getMember,
+   * sentinel objects will always represent the room state as at the time
+   * getSentinelMember was called, so if Bob subsequently changes his display
+   * name, a room member object previously acquired with getSentinelMember
+   * will still have his old display name. Calling getSentinelMember again
+   * after the display name change will return a new RoomMember object
+   * with Bob's new display name.
+   *
+   * @param roomId - Optional. The ID of the room which has this state.
+   * If none is specified it just tracks paginationTokens, useful for notifTimelineSet
+   * @param oobMemberFlags - Optional. The state of loading out of bound members.
+   * As the timeline might get reset while they are loading, this state needs to be inherited
+   * and shared when the room state is cloned for the new timeline.
+   * This should only be passed from clone.
+   */
+  constructor(roomId) {
+    var oobMemberFlags = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : {
+      status: OobStatus.NotStarted
+    };
+    super();
+    this.roomId = roomId;
+    this.oobMemberFlags = oobMemberFlags;
+    _defineProperty(this, "reEmitter", new TypedReEmitter(this));
+    _defineProperty(this, "sentinels", {});
+    // userId: RoomMember
+    // stores fuzzy matches to a list of userIDs (applies utils.removeHiddenChars to keys)
+    _defineProperty(this, "displayNameToUserIds", new Map());
+    _defineProperty(this, "userIdsToDisplayNames", {});
+    _defineProperty(this, "tokenToInvite", {});
+    // 3pid invite state_key to m.room.member invite
+    _defineProperty(this, "joinedMemberCount", null);
+    // cache of the number of joined members
+    // joined members count from summary api
+    // once set, we know the server supports the summary api
+    // and we should only trust that
+    // we could also only trust that before OOB members
+    // are loaded but doesn't seem worth the hassle atm
+    _defineProperty(this, "summaryJoinedMemberCount", null);
+    // same for invited member count
+    _defineProperty(this, "invitedMemberCount", null);
+    _defineProperty(this, "summaryInvitedMemberCount", null);
+    _defineProperty(this, "modified", -1);
+    // XXX: Should be read-only
+    // The room member dictionary, keyed on the user's ID.
+    _defineProperty(this, "members", {});
+    // userId: RoomMember
+    // The state events dictionary, keyed on the event type and then the state_key value.
+    _defineProperty(this, "events", new Map());
+    // Map<eventType, Map<stateKey, MatrixEvent>>
+    // The pagination token for this state.
+    _defineProperty(this, "paginationToken", null);
+    _defineProperty(this, "beacons", new Map());
+    _defineProperty(this, "_liveBeaconIds", []);
+    // We only wants to print warnings about bad room state once.
+    _defineProperty(this, "getVersionWarning", false);
+    this.updateModifiedTime();
+  }
+
+  /**
+   * Gets the version of the room
+   * @returns The version of the room
+   */
+  getRoomVersion() {
+    var _createEvent$getConte;
+    var createEvent = this.getStateEvents(EventType.RoomCreate, "");
+    if (!createEvent) {
+      if (!this.getVersionWarning) {
+        logger.warn("[getVersion] Room " + this.roomId + " does not have an m.room.create event");
+        this.getVersionWarning = true;
+      }
+      return "1";
+    }
+    return (_createEvent$getConte = createEvent.getContent()["room_version"]) !== null && _createEvent$getConte !== void 0 ? _createEvent$getConte : "1";
+  }
+
+  /**
+   * Returns the number of joined members in this room
+   * This method caches the result.
+   * @returns The number of members in this room whose membership is 'join'
+   */
+  getJoinedMemberCount() {
+    if (this.summaryJoinedMemberCount !== null) {
+      return this.summaryJoinedMemberCount;
+    }
+    if (this.joinedMemberCount === null) {
+      this.joinedMemberCount = this.getMembers().reduce((count, m) => {
+        return m.membership === KnownMembership.Join ? count + 1 : count;
+      }, 0);
+    }
+    return this.joinedMemberCount;
+  }
+
+  /**
+   * Set the joined member count explicitly (like from summary part of the sync response)
+   * @param count - the amount of joined members
+   */
+  setJoinedMemberCount(count) {
+    this.summaryJoinedMemberCount = count;
+  }
+
+  /**
+   * Returns the number of invited members in this room
+   * @returns The number of members in this room whose membership is 'invite'
+   */
+  getInvitedMemberCount() {
+    if (this.summaryInvitedMemberCount !== null) {
+      return this.summaryInvitedMemberCount;
+    }
+    if (this.invitedMemberCount === null) {
+      this.invitedMemberCount = this.getMembers().reduce((count, m) => {
+        return m.membership === KnownMembership.Invite ? count + 1 : count;
+      }, 0);
+    }
+    return this.invitedMemberCount;
+  }
+
+  /**
+   * Set the amount of invited members in this room
+   * @param count - the amount of invited members
+   */
+  setInvitedMemberCount(count) {
+    this.summaryInvitedMemberCount = count;
+  }
+
+  /**
+   * Get all RoomMembers in this room.
+   * @returns A list of RoomMembers.
+   */
+  getMembers() {
+    return Object.values(this.members);
+  }
+
+  /**
+   * Get all RoomMembers in this room, excluding the user IDs provided.
+   * @param excludedIds - The user IDs to exclude.
+   * @returns A list of RoomMembers.
+   */
+  getMembersExcept(excludedIds) {
+    return this.getMembers().filter(m => !excludedIds.includes(m.userId));
+  }
+
+  /**
+   * Get a room member by their user ID.
+   * @param userId - The room member's user ID.
+   * @returns The member or null if they do not exist.
+   */
+  getMember(userId) {
+    return this.members[userId] || null;
+  }
+
+  /**
+   * Get a room member whose properties will not change with this room state. You
+   * typically want this if you want to attach a RoomMember to a MatrixEvent which
+   * may no longer be represented correctly by Room.currentState or Room.oldState.
+   * The term 'sentinel' refers to the fact that this RoomMember is an unchanging
+   * guardian for state at this particular point in time.
+   * @param userId - The room member's user ID.
+   * @returns The member or null if they do not exist.
+   */
+  getSentinelMember(userId) {
+    if (!userId) return null;
+    var sentinel = this.sentinels[userId];
+    if (sentinel === undefined) {
+      sentinel = new RoomMember(this.roomId, userId);
+      var member = this.members[userId];
+      if (member !== null && member !== void 0 && member.events.member) {
+        sentinel.setMembershipEvent(member.events.member, this);
+      }
+      this.sentinels[userId] = sentinel;
+    }
+    return sentinel;
+  }
+
+  /**
+   * Get state events from the state of the room.
+   * @param eventType - The event type of the state event.
+   * @returns A list of events
+   */
+
+  /**
+   * Get state events from the state of the room.
+   * @param eventType - The event type of the state event.
+   * @param stateKey - The state_key of the state event.
+   * @returns A single event (or null if no match found).
+   */
+
+  getStateEvents(eventType, stateKey) {
+    if (!this.events.has(eventType)) {
+      // no match
+      return stateKey === undefined ? [] : null;
+    }
+    if (stateKey === undefined) {
+      // return all values
+      return Array.from(this.events.get(eventType).values());
+    }
+    var event = this.events.get(eventType).get(stateKey);
+    return event ? event : null;
+  }
+  get hasLiveBeacons() {
+    var _this$liveBeaconIds;
+    return !!((_this$liveBeaconIds = this.liveBeaconIds) !== null && _this$liveBeaconIds !== void 0 && _this$liveBeaconIds.length);
+  }
+  get liveBeaconIds() {
+    return this._liveBeaconIds;
+  }
+
+  /**
+   * Creates a copy of this room state so that mutations to either won't affect the other.
+   * @returns the copy of the room state
+   */
+  clone() {
+    var copy = new RoomState(this.roomId, this.oobMemberFlags);
+
+    // Ugly hack: because setStateEvents will mark
+    // members as susperseding future out of bound members
+    // if loading is in progress (through oobMemberFlags)
+    // since these are not new members, we're merely copying them
+    // set the status to not started
+    // after copying, we set back the status
+    var status = this.oobMemberFlags.status;
+    this.oobMemberFlags.status = OobStatus.NotStarted;
+    Array.from(this.events.values()).forEach(eventsByStateKey => {
+      copy.setStateEvents(Array.from(eventsByStateKey.values()));
+    });
+
+    // Ugly hack: see above
+    this.oobMemberFlags.status = status;
+    if (this.summaryInvitedMemberCount !== null) {
+      copy.setInvitedMemberCount(this.getInvitedMemberCount());
+    }
+    if (this.summaryJoinedMemberCount !== null) {
+      copy.setJoinedMemberCount(this.getJoinedMemberCount());
+    }
+
+    // copy out of band flags if needed
+    if (this.oobMemberFlags.status == OobStatus.Finished) {
+      // copy markOutOfBand flags
+      this.getMembers().forEach(member => {
+        if (member.isOutOfBand()) {
+          var _copy$getMember;
+          (_copy$getMember = copy.getMember(member.userId)) === null || _copy$getMember === void 0 || _copy$getMember.markOutOfBand();
+        }
+      });
+    }
+    return copy;
+  }
+
+  /**
+   * Add previously unknown state events.
+   * When lazy loading members while back-paginating,
+   * the relevant room state for the timeline chunk at the end
+   * of the chunk can be set with this method.
+   * @param events - state events to prepend
+   */
+  setUnknownStateEvents(events) {
+    var unknownStateEvents = events.filter(event => {
+      return !this.events.has(event.getType()) || !this.events.get(event.getType()).has(event.getStateKey());
+    });
+    this.setStateEvents(unknownStateEvents);
+  }
+
+  /**
+   * Add an array of one or more state MatrixEvents, overwriting any existing
+   * state with the same `{type, stateKey}` tuple. Will fire "RoomState.events"
+   * for every event added. May fire "RoomState.members" if there are
+   * `m.room.member` events. May fire "RoomStateEvent.Marker" if there are
+   * `UNSTABLE_MSC2716_MARKER` events.
+   * @param stateEvents - a list of state events for this room.
+   *
+   * @remarks
+   * Fires {@link RoomStateEvent.Members}
+   * Fires {@link RoomStateEvent.NewMember}
+   * Fires {@link RoomStateEvent.Events}
+   * Fires {@link RoomStateEvent.Marker}
+   */
+  setStateEvents(stateEvents, markerFoundOptions) {
+    this.updateModifiedTime();
+
+    // update the core event dict
+    // Track display names that change so we can recalculate disambiguation
+    var affectedDisplayNames = new Set();
+    // Track userIds whose membership events we process so we don't emit duplicate events
+    var processedMemberUserIds = new Set();
+    stateEvents.forEach(event => {
+      if (event.getRoomId() !== this.roomId || !event.isState()) return;
+      if (M_BEACON_INFO.matches(event.getType())) {
+        this.setBeacon(event);
+      }
+      var lastStateEvent = this.getStateEventMatching(event);
+      this.setStateEvent(event);
+      if (event.getType() === EventType.RoomMember) {
+        var _event$getContent$dis;
+        var userId = event.getStateKey();
+        processedMemberUserIds.add(userId);
+        var newDisplayName = (_event$getContent$dis = event.getContent().displayname) !== null && _event$getContent$dis !== void 0 ? _event$getContent$dis : "";
+        var oldDisplayName = this.userIdsToDisplayNames[userId];
+
+        // Track both old and new display names for disambiguation recalculation
+        if (oldDisplayName) {
+          var strippedOld = removeHiddenChars(oldDisplayName);
+          if (strippedOld) affectedDisplayNames.add(strippedOld);
+        }
+        if (newDisplayName) {
+          var strippedNew = removeHiddenChars(newDisplayName);
+          if (strippedNew) affectedDisplayNames.add(strippedNew);
+        }
+        this.updateDisplayNameCache(userId, newDisplayName);
+        this.updateThirdPartyTokenCache(event);
+      }
+      this.emit(RoomStateEvent.Events, event, this, lastStateEvent);
+    });
+    this.onBeaconLivenessChange();
+    // update higher level data structures. This needs to be done AFTER the
+    // core event dict as these structures may depend on other state events in
+    // the given array (e.g. disambiguating display names in one go to do both
+    // clashing names rather than progressively which only catches 1 of them).
+    stateEvents.forEach(event => {
+      if (event.getRoomId() !== this.roomId || !event.isState()) return;
+      if (event.getType() === EventType.RoomMember) {
+        var userId = event.getStateKey();
+
+        // leave events apparently elide the displayname or avatar_url,
+        // so let's fake one up so that we don't leak user ids
+        // into the timeline
+        if (event.getContent().membership === KnownMembership.Leave || event.getContent().membership === KnownMembership.Ban) {
+          event.getContent().avatar_url = event.getContent().avatar_url || event.getPrevContent().avatar_url;
+          event.getContent().displayname = event.getContent().displayname || event.getPrevContent().displayname;
+        }
+        var member = this.getOrCreateMember(userId, event);
+        member.setMembershipEvent(event, this);
+        this.updateMember(member);
+        this.emit(RoomStateEvent.Members, event, this, member);
+      } else if (event.getType() === EventType.RoomPowerLevels) {
+        // events with unknown state keys should be ignored
+        // and should not aggregate onto members power levels
+        if (event.getStateKey() !== "") {
+          return;
+        }
+        var members = Object.values(this.members);
+        var createEvent = this.getStateEvents(EventType.RoomCreate, "");
+        var creators = getCreators(this.getRoomVersion(), createEvent);
+        members.forEach(member => {
+          // We only propagate `RoomState.members` event if the
+          // power levels has been changed
+          // large room suffer from large re-rendering especially when not needed
+          var oldLastModified = member.getLastModifiedTime();
+          if (createEvent) {
+            var pl = powerLevelForUserId(member.userId, event, creators);
+            member.setPowerLevel(pl, event);
+          }
+          if (oldLastModified !== member.getLastModifiedTime()) {
+            this.emit(RoomStateEvent.Members, event, this, member);
+          }
+        });
+
+        // assume all our sentinels are now out-of-date
+        this.sentinels = {};
+      } else if (UNSTABLE_MSC2716_MARKER.matches(event.getType())) {
+        this.emit(RoomStateEvent.Marker, event, markerFoundOptions);
+      }
+    });
+
+    // Recalculate disambiguation for all members whose display names were affected.
+    // This ensures that when a user changes their name to match (or stop matching)
+    // another user, all affected users' disambiguation flags are updated correctly.
+    if (affectedDisplayNames.size > 0) {
+      // Collect all affected user IDs first to avoid duplicate processing
+      var affectedUserIds = new Set();
+      for (var displayName of affectedDisplayNames) {
+        var _this$displayNameToUs;
+        var userIds = (_this$displayNameToUs = this.displayNameToUserIds.get(displayName)) !== null && _this$displayNameToUs !== void 0 ? _this$displayNameToUs : [];
+        userIds.forEach(id => affectedUserIds.add(id));
+      }
+
+      // Process each affected member once, excluding those whose membership
+      // events were already processed (they already got their events emitted)
+      for (var userId of affectedUserIds) {
+        if (processedMemberUserIds.has(userId)) {
+          continue;
+        }
+        var member = this.members[userId];
+        if (member !== null && member !== void 0 && member.events.member) {
+          var nameChanged = member.recalculateDisambiguatedName(this);
+          if (nameChanged) {
+            this.emit(RoomStateEvent.Members, member.events.member, this, member);
+          }
+        }
+      }
+    }
+    this.emit(RoomStateEvent.Update, this);
+  }
+  processBeaconEvents(events, matrixClient) {
+    var _this = this;
+    return _asyncToGenerator(function* () {
+      if (!events.length ||
+      // discard locations if we have no beacons
+      !_this.beacons.size) {
+        return;
+      }
+      var beaconByEventIdDict = [..._this.beacons.values()].reduce((dict, beacon) => {
+        dict[beacon.beaconInfoId] = beacon;
+        return dict;
+      }, {});
+      var processBeaconRelation = (beaconInfoEventId, event) => {
+        if (!M_BEACON.matches(event.getType())) {
+          return;
+        }
+        var beacon = beaconByEventIdDict[beaconInfoEventId];
+        if (beacon) {
+          beacon.addLocations([event]);
+        }
+      };
+      var _loop = function* _loop(event) {
+          var _event$getRelation;
+          var relatedToEventId = (_event$getRelation = event.getRelation()) === null || _event$getRelation === void 0 ? void 0 : _event$getRelation.event_id;
+          // not related to a beacon we know about; discard
+          if (!relatedToEventId || !beaconByEventIdDict[relatedToEventId]) return {
+            v: void 0
+          };
+          if (!M_BEACON.matches(event.getType()) && !event.isEncrypted()) return {
+            v: void 0
+          };
+          try {
+            yield matrixClient.decryptEventIfNeeded(event);
+            processBeaconRelation(relatedToEventId, event);
+          } catch (_unused) {
+            if (event.isDecryptionFailure()) {
+              // add an event listener for once the event is decrypted.
+              event.once(MatrixEventEvent.Decrypted, /*#__PURE__*/_asyncToGenerator(function* () {
+                processBeaconRelation(relatedToEventId, event);
+              }));
+            }
+          }
+        },
+        _ret;
+      for (var event of events) {
+        _ret = yield* _loop(event);
+        if (_ret) return _ret.v;
+      }
+    })();
+  }
+
+  /**
+   * Looks up a member by the given userId, and if it doesn't exist,
+   * create it and emit the `RoomState.newMember` event.
+   * This method makes sure the member is added to the members dictionary
+   * before emitting, as this is done from setStateEvents and setOutOfBandMember.
+   * @param userId - the id of the user to look up
+   * @param event - the membership event for the (new) member. Used to emit.
+   * @returns the member, existing or newly created.
+   *
+   * @remarks
+   * Fires {@link RoomStateEvent.NewMember}
+   */
+  getOrCreateMember(userId, event) {
+    var member = this.members[userId];
+    if (!member) {
+      member = new RoomMember(this.roomId, userId);
+      // add member to members before emitting any events,
+      // as event handlers often lookup the member
+      this.members[userId] = member;
+      this.emit(RoomStateEvent.NewMember, event, this, member);
+    }
+    return member;
+  }
+  setStateEvent(event) {
+    if (!this.events.has(event.getType())) {
+      this.events.set(event.getType(), new Map());
+    }
+    this.events.get(event.getType()).set(event.getStateKey(), event);
+  }
+
+  /**
+   * @experimental
+   */
+  setBeacon(event) {
+    var beaconIdentifier = getBeaconInfoIdentifier(event);
+    if (this.beacons.has(beaconIdentifier)) {
+      var _beacon = this.beacons.get(beaconIdentifier);
+      if (event.isRedacted()) {
+        var _event$getRedactionEv;
+        if (_beacon.beaconInfoId === ((_event$getRedactionEv = event.getRedactionEvent()) === null || _event$getRedactionEv === void 0 ? void 0 : _event$getRedactionEv.redacts)) {
+          _beacon.destroy();
+          this.beacons.delete(beaconIdentifier);
+        }
+        return;
+      }
+      return _beacon.update(event);
+    }
+    if (event.isRedacted()) {
+      return;
+    }
+    var beacon = new Beacon(event);
+    this.reEmitter.reEmit(beacon, [BeaconEvent.New, BeaconEvent.Update, BeaconEvent.Destroy, BeaconEvent.LivenessChange]);
+    this.emit(BeaconEvent.New, event, beacon);
+    beacon.on(BeaconEvent.LivenessChange, this.onBeaconLivenessChange.bind(this));
+    beacon.on(BeaconEvent.Destroy, this.onBeaconLivenessChange.bind(this));
+    this.beacons.set(beacon.identifier, beacon);
+  }
+
+  /**
+   * @experimental
+   * Check liveness of room beacons
+   * emit RoomStateEvent.BeaconLiveness event
+   */
+  onBeaconLivenessChange() {
+    this._liveBeaconIds = Array.from(this.beacons.values()).filter(beacon => beacon.isLive).map(beacon => beacon.identifier);
+    this.emit(RoomStateEvent.BeaconLiveness, this, this.hasLiveBeacons);
+  }
+  getStateEventMatching(event) {
+    var _this$events$get$get, _this$events$get;
+    return (_this$events$get$get = (_this$events$get = this.events.get(event.getType())) === null || _this$events$get === void 0 ? void 0 : _this$events$get.get(event.getStateKey())) !== null && _this$events$get$get !== void 0 ? _this$events$get$get : null;
+  }
+  updateMember(member) {
+    // this member may have a power level already, so set it.
+    var createEvent = this.getStateEvents(EventType.RoomCreate, "");
+    var pwrLvlEvent = this.getStateEvents(EventType.RoomPowerLevels, "");
+    if (pwrLvlEvent && createEvent) {
+      var powerLevel = powerLevelForUserId(member.userId, pwrLvlEvent, getCreators(this.getRoomVersion(), createEvent));
+      member.setPowerLevel(powerLevel, pwrLvlEvent);
+    }
+
+    // blow away the sentinel which is now outdated
+    delete this.sentinels[member.userId];
+    this.members[member.userId] = member;
+    this.joinedMemberCount = null;
+    this.invitedMemberCount = null;
+  }
+
+  /**
+   * Get the out-of-band members loading state, whether loading is needed or not.
+   * Note that loading might be in progress and hence isn't needed.
+   * @returns whether or not the members of this room need to be loaded
+   */
+  needsOutOfBandMembers() {
+    return this.oobMemberFlags.status === OobStatus.NotStarted;
+  }
+
+  /**
+   * Check if loading of out-of-band-members has completed
+   *
+   * @returns true if the full membership list of this room has been loaded. False if it is not started or is in
+   *    progress.
+   */
+  outOfBandMembersReady() {
+    return this.oobMemberFlags.status === OobStatus.Finished;
+  }
+
+  /**
+   * Mark this room state as waiting for out-of-band members,
+   * ensuring it doesn't ask for them to be requested again
+   * through needsOutOfBandMembers
+   */
+  markOutOfBandMembersStarted() {
+    if (this.oobMemberFlags.status !== OobStatus.NotStarted) {
+      return;
+    }
+    this.oobMemberFlags.status = OobStatus.InProgress;
+  }
+
+  /**
+   * Mark this room state as having failed to fetch out-of-band members
+   */
+  markOutOfBandMembersFailed() {
+    if (this.oobMemberFlags.status !== OobStatus.InProgress) {
+      return;
+    }
+    this.oobMemberFlags.status = OobStatus.NotStarted;
+  }
+
+  /**
+   * Clears the loaded out-of-band members
+   */
+  clearOutOfBandMembers() {
+    var count = 0;
+    Object.keys(this.members).forEach(userId => {
+      var member = this.members[userId];
+      if (member.isOutOfBand()) {
+        ++count;
+        delete this.members[userId];
+      }
+    });
+    logger.log("LL: RoomState removed ".concat(count, " members..."));
+    this.oobMemberFlags.status = OobStatus.NotStarted;
+  }
+
+  /**
+   * Sets the loaded out-of-band members.
+   * @param stateEvents - array of membership state events
+   */
+  setOutOfBandMembers(stateEvents) {
+    logger.log("LL: RoomState about to set ".concat(stateEvents.length, " OOB members ..."));
+    if (this.oobMemberFlags.status !== OobStatus.InProgress) {
+      return;
+    }
+    logger.log("LL: RoomState put in finished state ...");
+    this.oobMemberFlags.status = OobStatus.Finished;
+    stateEvents.forEach(e => this.setOutOfBandMember(e));
+    this.emit(RoomStateEvent.Update, this);
+  }
+
+  /**
+   * Sets a single out of band member, used by both setOutOfBandMembers and clone
+   * @param stateEvent - membership state event
+   */
+  setOutOfBandMember(stateEvent) {
+    if (stateEvent.getType() !== EventType.RoomMember) {
+      return;
+    }
+    var userId = stateEvent.getStateKey();
+    var existingMember = this.getMember(userId);
+    // never replace members received as part of the sync
+    if (existingMember && !existingMember.isOutOfBand()) {
+      return;
+    }
+    var member = this.getOrCreateMember(userId, stateEvent);
+    member.setMembershipEvent(stateEvent, this);
+    // needed to know which members need to be stored seperately
+    // as they are not part of the sync accumulator
+    // this is cleared by setMembershipEvent so when it's updated through /sync
+    member.markOutOfBand();
+    this.updateDisplayNameCache(member.userId, member.name);
+    this.setStateEvent(stateEvent);
+    this.updateMember(member);
+    this.emit(RoomStateEvent.Members, stateEvent, this, member);
+  }
+
+  /**
+   * Set the current typing event for this room.
+   * @param event - The typing event
+   */
+  setTypingEvent(event) {
+    Object.values(this.members).forEach(function (member) {
+      member.setTypingEvent(event);
+    });
+  }
+
+  /**
+   * Get the m.room.member event which has the given third party invite token.
+   *
+   * @param token - The token
+   * @returns The m.room.member event or null
+   */
+  getInviteForThreePidToken(token) {
+    return this.tokenToInvite[token] || null;
+  }
+
+  /**
+   * Update the last modified time to the current time.
+   */
+  updateModifiedTime() {
+    this.modified = Date.now();
+  }
+
+  /**
+   * Get the timestamp when this room state was last updated. This timestamp is
+   * updated when this object has received new state events.
+   * @returns The timestamp
+   */
+  getLastModifiedTime() {
+    return this.modified;
+  }
+
+  /**
+   * Get user IDs with the specified or similar display names.
+   * @param displayName - The display name to get user IDs from.
+   * @returns An array of user IDs or an empty array.
+   */
+  getUserIdsWithDisplayName(displayName) {
+    var _this$displayNameToUs2;
+    return (_this$displayNameToUs2 = this.displayNameToUserIds.get(removeHiddenChars(displayName))) !== null && _this$displayNameToUs2 !== void 0 ? _this$displayNameToUs2 : [];
+  }
+
+  /**
+   * Returns true if userId is in room, event is not redacted and either sender of
+   * mxEvent or has power level sufficient to redact events other than their own.
+   * @param mxEvent - The event to test permission for
+   * @param userId - The user ID of the user to test permission for
+   * @returns true if the given used ID can redact given event
+   */
+  maySendRedactionForEvent(mxEvent, userId) {
+    var member = this.getMember(userId);
+    if (!member || member.membership === KnownMembership.Leave) return false;
+    if (mxEvent.status || mxEvent.isRedacted()) return false;
+
+    // The user may have been the sender, but they can't redact their own message
+    // if redactions are blocked.
+    var canRedact = this.maySendEvent(EventType.RoomRedaction, userId);
+    if (!canRedact) return false;
+    if (mxEvent.getSender() === userId) return true;
+    return this.hasSufficientPowerLevelFor("redact", member.powerLevel);
+  }
+
+  /**
+   * Returns true if the given power level is sufficient for action
+   * @param action - The type of power level to check
+   * @param powerLevel - The power level of the member
+   * @returns true if the given power level is sufficient
+   */
+  hasSufficientPowerLevelFor(action, powerLevel) {
+    var powerLevelsEvent = this.getStateEvents(EventType.RoomPowerLevels, "");
+    var powerLevels = {};
+    if (powerLevelsEvent) {
+      powerLevels = powerLevelsEvent.getContent();
+    }
+    var requiredLevel = 50;
+    if (isNumber(powerLevels[action])) {
+      requiredLevel = powerLevels[action];
+    }
+    return powerLevel >= requiredLevel;
+  }
+
+  /**
+   * Short-form for maySendEvent('m.room.message', userId)
+   * @param userId - The user ID of the user to test permission for
+   * @returns true if the given user ID should be permitted to send
+   *                   message events into the given room.
+   */
+  maySendMessage(userId) {
+    return this.maySendEventOfType(EventType.RoomMessage, userId, false);
+  }
+
+  /**
+   * Returns true if the given user ID has permission to send a normal
+   * event of type `eventType` into this room.
+   * @param eventType - The type of event to test
+   * @param userId - The user ID of the user to test permission for
+   * @returns true if the given user ID should be permitted to send
+   *                        the given type of event into this room,
+   *                        according to the room's state.
+   */
+  maySendEvent(eventType, userId) {
+    return this.maySendEventOfType(eventType, userId, false);
+  }
+
+  /**
+   * Returns true if the given MatrixClient has permission to send a state
+   * event of type `stateEventType` into this room.
+   * @param stateEventType - The type of state events to test
+   * @param cli - The client to test permission for
+   * @returns true if the given client should be permitted to send
+   *                        the given type of state event into this room,
+   *                        according to the room's state.
+   */
+  mayClientSendStateEvent(stateEventType, cli) {
+    if (cli.isGuest() || !cli.credentials.userId) {
+      return false;
+    }
+    return this.maySendStateEvent(stateEventType, cli.credentials.userId);
+  }
+
+  /**
+   * Returns true if the given user ID has permission to send a state
+   * event of type `stateEventType` into this room.
+   * @param stateEventType - The type of state events to test
+   * @param userId - The user ID of the user to test permission for
+   * @returns true if the given user ID should be permitted to send
+   *                        the given type of state event into this room,
+   *                        according to the room's state.
+   */
+  maySendStateEvent(stateEventType, userId) {
+    return this.maySendEventOfType(stateEventType, userId, true);
+  }
+
+  /**
+   * Returns true if the given user ID has permission to send a normal or state
+   * event of type `eventType` into this room.
+   * @param eventType - The type of event to test
+   * @param userId - The user ID of the user to test permission for
+   * @param state - If true, tests if the user may send a state
+   event of this type. Otherwise tests whether
+   they may send a regular event.
+   * @returns true if the given user ID should be permitted to send
+   *                        the given type of event into this room,
+   *                        according to the room's state.
+   */
+  maySendEventOfType(eventType, userId, state) {
+    var _roomMember$powerLeve;
+    var powerLevelsEvent = this.getStateEvents(EventType.RoomPowerLevels, "");
+    var powerLevels;
+    var eventsLevels = {};
+    var stateDefault = 0;
+    var eventsDefault = 0;
+    if (powerLevelsEvent) {
+      powerLevels = powerLevelsEvent.getContent();
+      eventsLevels = powerLevels.events || {};
+      if (Number.isSafeInteger(powerLevels.state_default)) {
+        stateDefault = powerLevels.state_default;
+      } else {
+        stateDefault = 50;
+      }
+      if (Number.isSafeInteger(powerLevels.events_default)) {
+        eventsDefault = powerLevels.events_default;
+      }
+    }
+    var requiredLevel = state ? stateDefault : eventsDefault;
+    if (Number.isSafeInteger(eventsLevels[eventType])) {
+      requiredLevel = eventsLevels[eventType];
+    }
+    var roomMember = this.getMember(userId);
+    var userPowerLevel = (_roomMember$powerLeve = roomMember === null || roomMember === void 0 ? void 0 : roomMember.powerLevel) !== null && _roomMember$powerLeve !== void 0 ? _roomMember$powerLeve : 0;
+    return userPowerLevel >= requiredLevel;
+  }
+
+  /**
+   * Returns true if the given user ID has permission to trigger notification
+   * of type `notifLevelKey`
+   * @param notifLevelKey - The level of notification to test (eg. 'room')
+   * @param userId - The user ID of the user to test permission for
+   * @returns true if the given user ID has permission to trigger a
+   *                        notification of this type.
+   */
+  mayTriggerNotifOfType(notifLevelKey, userId) {
+    var member = this.getMember(userId);
+    if (!member) {
+      return false;
+    }
+    var powerLevelsEvent = this.getStateEvents(EventType.RoomPowerLevels, "");
+    var notifLevel = 50;
+    if (powerLevelsEvent && powerLevelsEvent.getContent() && powerLevelsEvent.getContent().notifications && isNumber(powerLevelsEvent.getContent().notifications[notifLevelKey])) {
+      notifLevel = powerLevelsEvent.getContent().notifications[notifLevelKey];
+    }
+    return member.powerLevel >= notifLevel;
+  }
+
+  /**
+   * Returns the join rule based on the m.room.join_rule state event, defaulting to `invite`.
+   * @returns the join_rule applied to this room
+   */
+  getJoinRule() {
+    var _joinRuleEvent$getCon;
+    var joinRuleEvent = this.getStateEvents(EventType.RoomJoinRules, "");
+    var joinRuleContent = (_joinRuleEvent$getCon = joinRuleEvent === null || joinRuleEvent === void 0 ? void 0 : joinRuleEvent.getContent()) !== null && _joinRuleEvent$getCon !== void 0 ? _joinRuleEvent$getCon : {};
+    return joinRuleContent["join_rule"] || JoinRule.Invite;
+  }
+
+  /**
+   * Returns the history visibility based on the m.room.history_visibility state event, defaulting to `shared`.
+   * @returns the history_visibility applied to this room
+   */
+  getHistoryVisibility() {
+    var _historyVisibilityEve;
+    var historyVisibilityEvent = this.getStateEvents(EventType.RoomHistoryVisibility, "");
+    var historyVisibilityContent = (_historyVisibilityEve = historyVisibilityEvent === null || historyVisibilityEvent === void 0 ? void 0 : historyVisibilityEvent.getContent()) !== null && _historyVisibilityEve !== void 0 ? _historyVisibilityEve : {};
+    return historyVisibilityContent["history_visibility"] || HistoryVisibility.Shared;
+  }
+
+  /**
+   * Returns the guest access based on the m.room.guest_access state event, defaulting to `shared`.
+   * @returns the guest_access applied to this room
+   */
+  getGuestAccess() {
+    var _guestAccessEvent$get;
+    var guestAccessEvent = this.getStateEvents(EventType.RoomGuestAccess, "");
+    var guestAccessContent = (_guestAccessEvent$get = guestAccessEvent === null || guestAccessEvent === void 0 ? void 0 : guestAccessEvent.getContent()) !== null && _guestAccessEvent$get !== void 0 ? _guestAccessEvent$get : {};
+    return guestAccessContent["guest_access"] || GuestAccess.Forbidden;
+  }
+
+  /**
+   * Find the predecessor room based on this room state.
+   *
+   * @param msc3946ProcessDynamicPredecessor - if true, look for an
+   * m.room.predecessor state event and use it if found (MSC3946).
+   * @returns null if this room has no predecessor. Otherwise, returns
+   * the roomId, last eventId and viaServers of the predecessor room.
+   *
+   * If msc3946ProcessDynamicPredecessor is true, use m.predecessor events
+   * as well as m.room.create events to find predecessors.
+   *
+   * Note: if an m.predecessor event is used, eventId may be undefined
+   * since last_known_event_id is optional.
+   *
+   * Note: viaServers may be undefined, and will definitely be undefined if
+   * this predecessor comes from a RoomCreate event (rather than a
+   * RoomPredecessor, which has the optional via_servers property).
+   */
+  findPredecessor() {
+    var msc3946ProcessDynamicPredecessor = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : false;
+    // Note: the tests for this function are against Room.findPredecessor,
+    // which just calls through to here.
+
+    if (msc3946ProcessDynamicPredecessor) {
+      var predecessorEvent = this.getStateEvents(EventType.RoomPredecessor, "");
+      if (predecessorEvent) {
+        var content = predecessorEvent.getContent();
+        var _roomId = content.predecessor_room_id;
+        var eventId = content.last_known_event_id;
+        if (typeof eventId !== "string") {
+          eventId = undefined;
+        }
+        var viaServers = content.via_servers;
+        if (!Array.isArray(viaServers)) {
+          viaServers = undefined;
+        }
+        if (typeof _roomId === "string") {
+          return {
+            roomId: _roomId,
+            eventId,
+            viaServers
+          };
+        }
+      }
+    }
+    var createEvent = this.getStateEvents(EventType.RoomCreate, "");
+    if (createEvent) {
+      var predecessor = createEvent.getContent()["predecessor"];
+      if (predecessor) {
+        var _roomId2 = predecessor["room_id"];
+        if (typeof _roomId2 === "string") {
+          var _eventId = predecessor["event_id"];
+          if (typeof _eventId !== "string" || _eventId === "") {
+            _eventId = undefined;
+          }
+          return {
+            roomId: _roomId2,
+            eventId: _eventId
+          };
+        }
+      }
+    }
+    return null;
+  }
+  updateThirdPartyTokenCache(memberEvent) {
+    if (!memberEvent.getContent().third_party_invite) {
+      return;
+    }
+    var token = (memberEvent.getContent().third_party_invite.signed || {}).token;
+    if (!token) {
+      return;
+    }
+    var threePidInvite = this.getStateEvents(EventType.RoomThirdPartyInvite, token);
+    if (!threePidInvite) {
+      return;
+    }
+    this.tokenToInvite[token] = memberEvent;
+  }
+  updateDisplayNameCache(userId, displayName) {
+    var oldName = this.userIdsToDisplayNames[userId];
+    delete this.userIdsToDisplayNames[userId];
+    if (oldName) {
+      // Remove the old name from the cache.
+      // We clobber the user_id > name lookup but the name -> [user_id] lookup
+      // means we need to remove that user ID from that array rather than nuking
+      // the lot.
+      var strippedOldName = removeHiddenChars(oldName);
+      var existingUserIds = this.displayNameToUserIds.get(strippedOldName);
+      if (existingUserIds) {
+        // remove this user ID from this array
+        var filteredUserIDs = existingUserIds.filter(id => id !== userId);
+        this.displayNameToUserIds.set(strippedOldName, filteredUserIDs);
+      }
+    }
+    this.userIdsToDisplayNames[userId] = displayName;
+    var strippedDisplayname = displayName && removeHiddenChars(displayName);
+    // an empty stripped displayname (undefined/'') will be set to MXID in room-member.js
+    if (strippedDisplayname) {
+      var _this$displayNameToUs3;
+      var arr = (_this$displayNameToUs3 = this.displayNameToUserIds.get(strippedDisplayname)) !== null && _this$displayNameToUs3 !== void 0 ? _this$displayNameToUs3 : [];
+      arr.push(userId);
+      this.displayNameToUserIds.set(strippedDisplayname, arr);
+    }
+  }
+}
+
+/**
+ * Get the set of creator user IDs for a room: empty if the room is not a 'hydra' room, otherwise
+ * computed from the sender of the m.room.create event plus the additional_creators field.
+ * @param roomVersion The version of the room
+ * @param roomCreateEvent The m.room.create event for the room
+ * @returns A set of user IDs of the creators of the room.
+ */
+function getCreators(roomVersion, roomCreateEvent) {
+  var creators = new Set();
+  if (shouldUseHydraForRoomVersion(roomVersion) && roomCreateEvent) {
+    var roomCreateSender = roomCreateEvent.getSender();
+    if (roomCreateSender) creators.add(roomCreateSender);
+    var additionalCreators = roomCreateEvent.getDirectionalContent().additional_creators;
+    if (Array.isArray(additionalCreators)) additionalCreators.forEach(c => creators.add(c));
+  }
+  return creators;
+}
+
+/**
+ *
+ * @param userId The user ID to compute the power level for
+ * @param powerLevelEvents The power level event for the room
+ * @param creators The set of creator user IDs for the room if the room is a 'hydra' room, otherwise the empty set.
+ */
+function powerLevelForUserId(userId, powerLevelEvent, creators) {
+  if (creators.has(userId)) {
+    // As of "Hydra", If the user is a creator, they always have the highest power level
+    return Infinity;
+  } else {
+    var evContent = powerLevelEvent.getDirectionalContent();
+    var users = evContent.users || {};
+    if (users[userId] !== undefined && Number.isInteger(users[userId])) {
+      return users[userId];
+    } else if (evContent.users_default !== undefined) {
+      return evContent.users_default;
+    } else {
+      return 0;
+    }
+  }
+}
+//# sourceMappingURL=room-state.js.map

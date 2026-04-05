@@ -1,0 +1,2 @@
+export { isSignalSenderAllowed, listEnabledSignalAccounts, listSignalAccountIds, monitorSignalProvider, probeSignal, removeReactionSignal, resolveDefaultSignalAccountId, resolveSignalReactionLevel, sendMessageSignal, sendReactionSignal, signalMessageActions, } from "../../extensions/signal/api.js";
+export type { ResolvedSignalAccount, SignalProbe, SignalSender, } from "../../extensions/signal/api.js";

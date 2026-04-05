@@ -1,0 +1,10 @@
+import { type OpenClawConfig } from "openclaw/plugin-sdk/provider-onboard";
+export declare const OPENAI_DEFAULT_MODEL = "openai/gpt-5.4";
+export declare const OPENAI_CODEX_DEFAULT_MODEL = "openai-codex/gpt-5.4";
+export declare const OPENAI_DEFAULT_IMAGE_MODEL = "gpt-image-1";
+export declare const OPENAI_DEFAULT_TTS_MODEL = "gpt-4o-mini-tts";
+export declare const OPENAI_DEFAULT_TTS_VOICE = "alloy";
+export declare const OPENAI_DEFAULT_AUDIO_TRANSCRIPTION_MODEL = "gpt-4o-mini-transcribe";
+export declare const OPENAI_DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
+export declare function applyOpenAIProviderConfig(cfg: OpenClawConfig): OpenClawConfig;
+export declare function applyOpenAIConfig(cfg: OpenClawConfig): OpenClawConfig;

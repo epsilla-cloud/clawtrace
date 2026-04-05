@@ -1,0 +1,50 @@
+import { loadConfig } from "../config/config.js";
+import { type DeliveryContext, deliveryContextFromSession } from "../utils/delivery-context.js";
+import type { AgentInternalEvent } from "./internal-events.js";
+import { type SubagentAnnounceDeliveryResult } from "./subagent-announce-dispatch.js";
+import type { SpawnSubagentMode } from "./subagent-spawn.js";
+type DeliveryContextSource = Parameters<typeof deliveryContextFromSession>[0];
+export declare function resolveSubagentAnnounceTimeoutMs(cfg: ReturnType<typeof loadConfig>): number;
+export declare function isInternalAnnounceRequesterSession(sessionKey: string | undefined): boolean;
+export declare function runAnnounceDeliveryWithRetry<T>(params: {
+    operation: string;
+    signal?: AbortSignal;
+    run: () => Promise<T>;
+}): Promise<T>;
+export declare function resolveAnnounceOrigin(entry?: DeliveryContextSource, requesterOrigin?: DeliveryContext): DeliveryContext | undefined;
+export declare function resolveSubagentCompletionOrigin(params: {
+    childSessionKey: string;
+    requesterSessionKey: string;
+    requesterOrigin?: DeliveryContext;
+    childRunId?: string;
+    spawnMode?: SpawnSubagentMode;
+    expectsCompletionMessage: boolean;
+}): Promise<DeliveryContext | undefined>;
+export declare function resolveRequesterStoreKey(cfg: ReturnType<typeof loadConfig>, requesterSessionKey: string): string;
+export declare function loadRequesterSessionEntry(requesterSessionKey: string): {
+    cfg: import("../config/types.openclaw.ts").OpenClawConfig;
+    entry: import("../config/sessions.js").SessionEntry;
+    canonicalKey: string;
+};
+export declare function loadSessionEntryByKey(sessionKey: string): import("../config/sessions.js").SessionEntry;
+export declare function deliverSubagentAnnouncement(params: {
+    requesterSessionKey: string;
+    announceId?: string;
+    triggerMessage: string;
+    steerMessage: string;
+    internalEvents?: AgentInternalEvent[];
+    summaryLine?: string;
+    requesterOrigin?: DeliveryContext;
+    completionDirectOrigin?: DeliveryContext;
+    directOrigin?: DeliveryContext;
+    sourceSessionKey?: string;
+    sourceChannel?: string;
+    sourceTool?: string;
+    targetRequesterSessionKey: string;
+    requesterIsSubagent: boolean;
+    expectsCompletionMessage: boolean;
+    bestEffortDeliver?: boolean;
+    directIdempotencyKey: string;
+    signal?: AbortSignal;
+}): Promise<SubagentAnnounceDeliveryResult>;
+export {};

@@ -1,0 +1,383 @@
+/**
+ * Implementation of server-side secret storage
+ *
+ * @see https://spec.matrix.org/v1.6/client-server-api/#storage
+ */
+import { type TypedEventEmitter } from "./models/typed-event-emitter.ts";
+import { ClientEvent, type ClientEventHandlerMap } from "./client.ts";
+import { type AESEncryptedSecretStoragePayload } from "./@types/AESEncryptedSecretStoragePayload.ts";
+import { type AccountDataEvents, type SecretStorageAccountDataEvents } from "./@types/event.ts";
+import { type EmptyObject } from "./@types/common.ts";
+export declare const SECRET_STORAGE_ALGORITHM_V1_AES = "m.secret_storage.v1.aes-hmac-sha2";
+/**
+ * Common base interface for Secret Storage Keys.
+ *
+ * The common properties for all encryption keys used in server-side secret storage.
+ *
+ * @see https://spec.matrix.org/v1.6/client-server-api/#key-storage
+ */
+export interface SecretStorageKeyDescriptionCommon {
+    /** A human-readable name for this key. */
+    name: string;
+    /** The encryption algorithm used with this key. */
+    algorithm: string;
+    /** Information for deriving this key from a passphrase. */
+    passphrase: PassphraseInfo;
+}
+/**
+ * Properties for a SSSS key using the `m.secret_storage.v1.aes-hmac-sha2` algorithm.
+ *
+ * Corresponds to `AesHmacSha2KeyDescription` in the specification.
+ *
+ * @see https://spec.matrix.org/v1.6/client-server-api/#msecret_storagev1aes-hmac-sha2
+ */
+export interface SecretStorageKeyDescriptionAesV1 extends SecretStorageKeyDescriptionCommon {
+    /** The 16-byte AES initialization vector, encoded as base64. */
+    iv: string;
+    /** The MAC of the result of encrypting 32 bytes of 0, encoded as base64. */
+    mac: string;
+}
+/**
+ * Union type for secret storage keys.
+ *
+ * For now, this is only {@link SecretStorageKeyDescriptionAesV1}, but other interfaces may be added in future.
+ */
+export type SecretStorageKeyDescription = SecretStorageKeyDescriptionAesV1;
+/**
+ * Information on how to generate the key from a passphrase.
+ *
+ * @see https://spec.matrix.org/v1.6/client-server-api/#deriving-keys-from-passphrases
+ */
+export interface PassphraseInfo {
+    /** The algorithm to be used to derive the key. */
+    algorithm: "m.pbkdf2";
+    /** The number of PBKDF2 iterations to use. */
+    iterations: number;
+    /** The salt to be used for PBKDF2. */
+    salt: string;
+    /** The number of bits to generate. Defaults to 256. */
+    bits?: number;
+}
+/**
+ * Options for {@link ServerSideSecretStorageImpl#addKey}.
+ */
+export interface AddSecretStorageKeyOpts {
+    /** Information for deriving the key from a passphrase if any. */
+    passphrase?: PassphraseInfo;
+    /** Optional name of the key. */
+    name?: string;
+    /** The private key. Will be used to generate the key check values in the key info; it will not be stored on the server */
+    key: Uint8Array<ArrayBuffer>;
+}
+/**
+ * Return type for {@link ServerSideSecretStorageImpl#getKey}.
+ */
+export type SecretStorageKeyTuple = [keyId: string, keyInfo: SecretStorageKeyDescription];
+/**
+ * Return type for {@link ServerSideSecretStorageImpl#addKey}.
+ */
+export type SecretStorageKeyObject = {
+    /** The ID of the key */
+    keyId: string;
+    /**  details about the key */
+    keyInfo: SecretStorageKeyDescription;
+};
+/** Interface for managing account data on the server.
+ *
+ * A subset of {@link MatrixClient}.
+ */
+export interface AccountDataClient extends TypedEventEmitter<ClientEvent.AccountData, ClientEventHandlerMap> {
+    /**
+     * Get account data event of given type for the current user. This variant
+     * gets account data directly from the homeserver if the local store is not
+     * ready, which can be useful very early in startup before the initial sync.
+     *
+     * @param eventType - The type of account data
+     * @returns The contents of the given account data event, or `null` if the event is not found
+     */
+    getAccountDataFromServer: <K extends keyof AccountDataEvents>(eventType: K) => Promise<AccountDataEvents[K] | null>;
+    /**
+     * Set account data event for the current user, with retries
+     *
+     * @param eventType - The type of account data
+     * @param content - the content object to be set
+     * @returns an empty object
+     */
+    setAccountData: <K extends keyof AccountDataEvents>(eventType: K, content: AccountDataEvents[K] | Record<string, never>) => Promise<EmptyObject>;
+}
+/**
+ *  Application callbacks for use with {@link SecretStorage.ServerSideSecretStorageImpl}
+ */
+export interface SecretStorageCallbacks {
+    /**
+     * Called to retrieve a secret storage encryption key
+     *
+     * Before a secret can be stored in server-side storage, it must be encrypted with one or more
+     * keys. Similarly, after it has been retrieved from storage, it must be decrypted with one of
+     * the keys it was encrypted with. These encryption keys are known as "secret storage keys".
+     *
+     * Descriptions of the secret storage keys are also stored in server-side storage, per the
+     * [matrix specification](https://spec.matrix.org/v1.6/client-server-api/#key-storage), so
+     * before a key can be used in this way, it must have been stored on the server. This is
+     * done via {@link ServerSideSecretStorage#addKey}.
+     *
+     * Obviously the keys themselves are not stored server-side, so the js-sdk calls this callback
+     * in order to retrieve a secret storage key from the application.
+     *
+     * @param keys - An options object, containing only the property `keys`.
+     *
+     * @param name - the name of the *secret* (NB: not the encryption key) being stored or retrieved.
+     *    This is the "event type" stored in account data.
+     *
+     * @returns a pair [`keyId`, `privateKey`], where `keyId` is one of the keys from the `keys` parameter,
+     *    and `privateKey` is the raw private encryption key, as appropriate for the encryption algorithm.
+     *    (For `m.secret_storage.v1.aes-hmac-sha2`, it is the input to an HKDF as defined in the
+     *    [specification](https://spec.matrix.org/v1.6/client-server-api/#msecret_storagev1aes-hmac-sha2).)
+     *
+     *    Alternatively, if none of the keys are known, may return `null` — in which case the original
+     *    storage/retrieval operation will fail with an exception.
+     */
+    getSecretStorageKey?: (keys: {
+        /**
+         * details of the secret storage keys required: a map from the key ID
+         * (excluding the `m.secret_storage.key.` prefix) to details of the key.
+         *
+         * When storing a secret, `keys` will contain exactly one entry; this method will be called
+         * once for each secret storage key to be used for encryption.
+         *
+         * For secret retrieval, `keys` may contain several entries, and the application can return
+         * any one of the requested keys.
+         */
+        keys: Record<string, SecretStorageKeyDescription>;
+    }, name: string) => Promise<[string, Uint8Array<ArrayBuffer>] | null>;
+}
+/**
+ * Account Data event types which can store secret-storage-encrypted information.
+ */
+export type SecretStorageKey = keyof SecretStorageAccountDataEvents;
+/**
+ * Account Data event content type for storing secret-storage-encrypted information.
+ *
+ * See https://spec.matrix.org/v1.13/client-server-api/#msecret_storagev1aes-hmac-sha2-1
+ */
+export interface SecretInfo {
+    encrypted: {
+        [keyId: string]: AESEncryptedSecretStoragePayload;
+    };
+}
+/**
+ * Interface provided by SecretStorage implementations
+ *
+ * Normally this will just be an {@link ServerSideSecretStorageImpl}, but for backwards
+ * compatibility some methods allow other implementations.
+ */
+export interface ServerSideSecretStorage {
+    /**
+     * Add a key for encrypting secrets.
+     *
+     * @param algorithm - the algorithm used by the key.
+     * @param opts - the options for the algorithm.  The properties used
+     *     depend on the algorithm given.
+     * @param keyId - the ID of the key.  If not given, a random
+     *     ID will be generated.
+     *
+     * @returns details about the key.
+     */
+    addKey(algorithm: string, opts: AddSecretStorageKeyOpts, keyId?: string): Promise<SecretStorageKeyObject>;
+    /**
+     * Get the key information for a given ID.
+     *
+     * @param keyId - The ID of the key to check
+     *     for. Defaults to the default key ID if not provided.
+     * @returns If the key was found, the return value is an array of
+     *     the form [keyId, keyInfo].  Otherwise, null is returned.
+     *     XXX: why is this an array when addKey returns an object?
+     */
+    getKey(keyId?: string | null): Promise<SecretStorageKeyTuple | null>;
+    /**
+     * Check whether we have a key with a given ID.
+     *
+     * @param keyId - The ID of the key to check
+     *     for. Defaults to the default key ID if not provided.
+     * @returns Whether we have the key.
+     */
+    hasKey(keyId?: string): Promise<boolean>;
+    /**
+     * Check whether a key matches what we expect based on the key info
+     *
+     * @param key - the key to check
+     * @param info - the key info
+     *
+     * @returns whether or not the key matches
+     */
+    checkKey(key: Uint8Array, info: SecretStorageKeyDescriptionAesV1): Promise<boolean>;
+    /**
+     * Store an encrypted secret on the server.
+     *
+     * Details of the encryption keys to be used must previously have been stored in account data
+     * (for example, via {@link ServerSideSecretStorageImpl#addKey}. {@link SecretStorageCallbacks#getSecretStorageKey} will be called to obtain a secret storage
+     * key to decrypt the secret.
+     *
+     * If the secret is `null`, the secret value in the account data will be set to an empty object.
+     * This is considered as "removing" the secret.
+     *
+     * @param name - The name of the secret - i.e., the "event type" to be stored in the account data
+     * @param secret - The secret contents.
+     * @param keys - The IDs of the keys to use to encrypt the secret, or null/undefined to use the default key
+     *     (will throw if no default key is set).
+     */
+    store(name: string, secret: string | null, keys?: string[] | null): Promise<void>;
+    /**
+     * Get a secret from storage, and decrypt it.
+     *
+     * @param name - the name of the secret - i.e., the "event type" stored in the account data
+     *
+     * @returns the decrypted contents of the secret, or "undefined" if `name` is not found in
+     *    the user's account data.
+     */
+    get(name: string): Promise<string | undefined>;
+    /**
+     * Check if a secret is stored on the server.
+     *
+     * @param name - the name of the secret
+     *
+     * @returns map of key name to key info the secret is encrypted
+     *     with, or null if it is not present or not encrypted with a trusted
+     *     key
+     */
+    isStored(name: SecretStorageKey): Promise<Record<string, SecretStorageKeyDescriptionAesV1> | null>;
+    /**
+     * Get the current default key ID for encrypting secrets.
+     *
+     * @returns The default key ID or null if no default key ID is set
+     */
+    getDefaultKeyId(): Promise<string | null>;
+    /**
+     * Set the default key ID for encrypting secrets.
+     *
+     * If keyId is `null`, the default key id value in the account data will be set to an empty object.
+     * This is considered as "disabling" the default key.
+     *
+     * @param keyId - The new default key ID
+     */
+    setDefaultKeyId(keyId: string | null): Promise<void>;
+}
+/**
+ * Implementation of Server-side secret storage.
+ *
+ * Secret *sharing* is *not* implemented here: this class is strictly about the storage component of
+ * SSSS.
+ *
+ * @see https://spec.matrix.org/v1.6/client-server-api/#storage
+ */
+export declare class ServerSideSecretStorageImpl implements ServerSideSecretStorage {
+    private readonly accountDataAdapter;
+    private readonly callbacks;
+    /**
+     * Construct a new `SecretStorage`.
+     *
+     * Normally, it is unnecessary to call this directly, since MatrixClient automatically constructs one.
+     * However, it may be useful to construct a new `SecretStorage`, if custom `callbacks` are required, for example.
+     *
+     * @param accountDataAdapter - interface for fetching and setting account data on the server. Normally an instance
+     *   of {@link MatrixClient}.
+     * @param callbacks - application level callbacks for retrieving secret keys
+     */
+    constructor(accountDataAdapter: AccountDataClient, callbacks: SecretStorageCallbacks);
+    /**
+     * Get the current default key ID for encrypting secrets.
+     *
+     * @returns The default key ID or null if no default key ID is set
+     */
+    getDefaultKeyId(): Promise<string | null>;
+    /**
+     * Implementation of {@link ServerSideSecretStorage#setDefaultKeyId}.
+     */
+    setDefaultKeyId(keyId: string | null): Promise<void>;
+    /**
+     * Add a key for encrypting secrets.
+     *
+     * @param algorithm - the algorithm used by the key.
+     * @param opts - the options for the algorithm.  The properties used
+     *     depend on the algorithm given.
+     * @param keyId - the ID of the key.  If not given, a random
+     *     ID will be generated.
+     *
+     * @returns An object with:
+     *     keyId: the ID of the key
+     *     keyInfo: details about the key (iv, mac, passphrase)
+     */
+    addKey(algorithm: string, opts: AddSecretStorageKeyOpts, keyId?: string): Promise<SecretStorageKeyObject>;
+    /**
+     * Get the key information for a given ID.
+     *
+     * @param keyId - The ID of the key to check
+     *     for. Defaults to the default key ID if not provided.
+     * @returns If the key was found, the return value is an array of
+     *     the form [keyId, keyInfo].  Otherwise, null is returned.
+     *     XXX: why is this an array when addKey returns an object?
+     */
+    getKey(keyId?: string | null): Promise<SecretStorageKeyTuple | null>;
+    /**
+     * Check whether we have a key with a given ID.
+     *
+     * @param keyId - The ID of the key to check
+     *     for. Defaults to the default key ID if not provided.
+     * @returns Whether we have the key.
+     */
+    hasKey(keyId?: string): Promise<boolean>;
+    /**
+     * Check whether a key matches what we expect based on the key info
+     *
+     * @param key - the key to check
+     * @param info - the key info
+     *
+     * @returns whether or not the key matches
+     */
+    checkKey(key: Uint8Array<ArrayBuffer>, info: SecretStorageKeyDescriptionAesV1): Promise<boolean>;
+    /**
+     * Implementation of {@link ServerSideSecretStorage#store}.
+     */
+    store(name: SecretStorageKey, secret: string | null, keys?: string[] | null): Promise<void>;
+    /**
+     * Get a secret from storage, and decrypt it.
+     *
+     * {@link SecretStorageCallbacks#getSecretStorageKey} will be called to obtain a secret storage
+     * key to decrypt the secret.
+     *
+     * @param name - the name of the secret - i.e., the "event type" stored in the account data
+     *
+     * @returns the decrypted contents of the secret, or "undefined" if `name` is not found in
+     *    the user's account data.
+     */
+    get(name: SecretStorageKey): Promise<string | undefined>;
+    /**
+     * Check if a secret is stored on the server.
+     *
+     * @param name - the name of the secret
+     *
+     * @returns map of key name to key info the secret is encrypted
+     *     with, or null if it is not present or not encrypted with a trusted
+     *     key
+     */
+    isStored(name: SecretStorageKey): Promise<Record<string, SecretStorageKeyDescriptionAesV1> | null>;
+    private getSecretStorageKey;
+}
+/** trim trailing instances of '=' from a string
+ *
+ * @internal
+ *
+ * @param input - input string
+ */
+export declare function trimTrailingEquals(input: string): string;
+/**
+ * Calculate the MAC for checking the key.
+ * See https://spec.matrix.org/v1.11/client-server-api/#msecret_storagev1aes-hmac-sha2, steps 3 and 4.
+ *
+ * @param key - the key to use
+ * @param iv - The initialization vector as a base64-encoded string.
+ *     If omitted, a random initialization vector will be created.
+ * @returns An object that contains, `mac` and `iv` properties.
+ */
+export declare function calculateKeyCheck(key: Uint8Array<ArrayBuffer>, iv?: string): Promise<AESEncryptedSecretStoragePayload>;
+//# sourceMappingURL=secret-storage.d.ts.map

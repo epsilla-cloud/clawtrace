@@ -1,0 +1,98 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.FileStateStore = void 0;
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_os_1 = require("node:os");
+const node_path_1 = __importDefault(require("node:path"));
+const logger_1 = require("@slack/logger");
+const errors_1 = require("../errors");
+class FileStateStore {
+    constructor(args) {
+        this.baseDir = args.baseDir !== undefined ? args.baseDir : `${(0, node_os_1.homedir)()}/.bolt-js-oauth-states`;
+        this.stateExpirationSeconds = args.stateExpirationSeconds !== undefined ? args.stateExpirationSeconds : 600;
+        this.logger = args.logger !== undefined ? args.logger : new logger_1.ConsoleLogger();
+    }
+    async generateStateParam(installOptions, now) {
+        let state = generateRandomString();
+        while (this.alreadyExists(state)) {
+            // Still race condition can arise here
+            state = generateRandomString();
+        }
+        const source = { installOptions, now };
+        this.writeToFile(state, source);
+        return state;
+    }
+    async verifyStateParam(now, state) {
+        try {
+            // decode the state using the secret
+            let decoded;
+            try {
+                decoded = this.readFile(state);
+            }
+            catch (e) {
+                const message = `Failed to load the data represented by the state parameter (error: ${e})`;
+                throw new errors_1.InvalidStateError(message);
+            }
+            if (decoded !== undefined) {
+                // Check if the state value is not too old
+                const generatedAt = new Date(decoded.now);
+                const passedSeconds = Math.floor((now.getTime() - generatedAt.getTime()) / 1000);
+                if (passedSeconds > this.stateExpirationSeconds) {
+                    throw new errors_1.InvalidStateError('The state value is already expired');
+                }
+                // return installOptions
+                return decoded.installOptions;
+            }
+        }
+        finally {
+            this.deleteFile(state);
+        }
+        throw new errors_1.InvalidStateError('The state value is already expired');
+    }
+    // -------------------------------------------
+    // private methods
+    // -------------------------------------------
+    alreadyExists(filename) {
+        const fullpath = node_path_1.default.resolve(`${this.baseDir}/${filename}`);
+        return node_fs_1.default.existsSync(fullpath);
+    }
+    writeToFile(filename, data) {
+        node_fs_1.default.mkdirSync(this.baseDir, { recursive: true });
+        const fullpath = node_path_1.default.resolve(`${this.baseDir}/${filename}`);
+        node_fs_1.default.writeFileSync(fullpath, JSON.stringify(data));
+    }
+    readFile(filename) {
+        const fullpath = node_path_1.default.resolve(`${this.baseDir}/${filename}`);
+        try {
+            const data = node_fs_1.default.readFileSync(fullpath);
+            if (data !== undefined) {
+                return JSON.parse(data.toString());
+            }
+            return undefined;
+        }
+        catch (e) {
+            this.logger.debug(`Failed to load state data from file (error: ${e})`);
+            return undefined;
+        }
+    }
+    deleteFile(filename) {
+        const fullpath = node_path_1.default.resolve(`${this.baseDir}/${filename}`);
+        if (node_fs_1.default.existsSync(fullpath)) {
+            node_fs_1.default.unlinkSync(fullpath);
+        }
+    }
+}
+exports.FileStateStore = FileStateStore;
+const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+function generateRandomString(length = 10) {
+    let generated = '';
+    for (let i = 0; i < length; i += 1) {
+        const position = Math.floor(Math.random() * chars.length);
+        generated += chars.charAt(position);
+    }
+    return generated;
+}
+//# sourceMappingURL=file-state-store.js.map

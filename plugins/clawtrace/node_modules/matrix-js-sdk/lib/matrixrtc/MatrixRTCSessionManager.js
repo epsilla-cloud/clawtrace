@@ -1,0 +1,149 @@
+import _asyncToGenerator from "@babel/runtime/helpers/asyncToGenerator";
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+/*
+Copyright 2023-2026 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { ClientEvent } from "../client.js";
+import { TypedEventEmitter } from "../models/typed-event-emitter.js";
+import { RoomStateEvent } from "../models/room-state.js";
+import { MatrixRTCSession } from "./MatrixRTCSession.js";
+import { EventType } from "../@types/event.js";
+import { computeSlotId } from "./utils.js";
+export var MatrixRTCSessionManagerEvents = /*#__PURE__*/function (MatrixRTCSessionManagerEvents) {
+  // A member has joined the MatrixRTC session, creating an active session in a room where there wasn't previously
+  MatrixRTCSessionManagerEvents["SessionStarted"] = "session_started";
+  // All participants have left a given MatrixRTC session.
+  MatrixRTCSessionManagerEvents["SessionEnded"] = "session_ended";
+  return MatrixRTCSessionManagerEvents;
+}({});
+/**
+ * Holds all active MatrixRTC session objects and creates new ones as events arrive.
+ * One `MatrixRTCSessionManager` is required for each MatrixRTC sessionDescription (application, session id) that the client wants to support.
+ * If no application type is specified in the constructor, the default is "m.call".
+ *
+ * This interface is UNSTABLE and may change without warning.
+ */
+export class MatrixRTCSessionManager extends TypedEventEmitter {
+  constructor(rootLogger, client) {
+    var slotDescription = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {
+      application: "m.call",
+      id: "ROOM"
+    };
+    super();
+    this.client = client;
+    this.slotDescription = slotDescription;
+    // All the room-scoped sessions we know about. This will include any where the app
+    // has queried for the MatrixRTC sessions in a room, whether it's ever had any members
+    // or not). We keep a (lazily created) session object for every room to ensure that there
+    // is only ever one single room session object for any given room for the lifetime of the
+    // client: that way there can never be any code holding onto a stale object that is no
+    // longer the correct session object for the room.
+    _defineProperty(this, "roomSessions", new Map());
+    _defineProperty(this, "logger", void 0);
+    _defineProperty(this, "onRoom", room => {
+      void this.refreshRoom(room);
+    });
+    _defineProperty(this, "onEvent", event => {
+      if (!event.unstableStickyExpiresAt) return; // Not sticky, not interested.
+
+      if (event.getType() !== EventType.RTCMembership) return;
+      var room = this.client.getRoom(event.getRoomId());
+      if (!room) return;
+      void this.refreshRoom(room);
+    });
+    _defineProperty(this, "onRoomState", event => {
+      if (event.getType() !== EventType.GroupCallMemberPrefix) {
+        return;
+      }
+      var room = this.client.getRoom(event.getRoomId());
+      if (!room) {
+        this.logger.error("Got room state event for unknown room ".concat(event.getRoomId(), "!"));
+        return;
+      }
+      void this.refreshRoom(room);
+    });
+    this.logger = rootLogger.getChild("[MatrixRTCSessionManager ".concat(computeSlotId(slotDescription), "]"));
+  }
+  start() {
+    // We shouldn't need to null-check here, but matrix-client.spec.ts mocks getRooms
+    // returning nothing, and breaks tests if you change it to return an empty array :'(
+    for (var room of (_this$client$getRooms = this.client.getRooms()) !== null && _this$client$getRooms !== void 0 ? _this$client$getRooms : []) {
+      var _this$client$getRooms;
+      var session = MatrixRTCSession.sessionForSlot(this.client, room, this.slotDescription);
+      if (session.memberships.length > 0) {
+        this.roomSessions.set(room.roomId, session);
+      }
+    }
+    this.client.on(ClientEvent.Room, this.onRoom);
+    this.client.on(ClientEvent.Event, this.onEvent);
+    this.client.on(RoomStateEvent.Events, this.onRoomState);
+  }
+  stop() {
+    for (var sess of this.roomSessions.values()) {
+      void sess.stop();
+    }
+    this.roomSessions.clear();
+    this.client.off(ClientEvent.Room, this.onRoom);
+    this.client.off(ClientEvent.Event, this.onEvent);
+    this.client.off(RoomStateEvent.Events, this.onRoomState);
+  }
+
+  /**
+   * Gets the main MatrixRTC session for a room, or undefined if there is
+   * no current session
+   */
+  getActiveRoomSession(room) {
+    return this.roomSessions.get(room.roomId);
+  }
+
+  /**
+   * Gets the main MatrixRTC session for a room, returning an empty session
+   * if no members are currently participating
+   */
+  getRoomSession(room) {
+    if (!this.roomSessions.has(room.roomId)) {
+      this.roomSessions.set(room.roomId, MatrixRTCSession.sessionForSlot(this.client, room, this.slotDescription));
+    }
+    return this.roomSessions.get(room.roomId);
+  }
+  refreshRoom(room) {
+    var _this = this;
+    return _asyncToGenerator(function* () {
+      var isNewSession = !_this.roomSessions.has(room.roomId);
+      var session = _this.getRoomSession(room);
+      var wasActiveAndKnown = session.memberships.length > 0 && !isNewSession;
+      // This needs to be here and the event listener cannot be setup in the MatrixRTCSession,
+      // because we need the update to happen between:
+      // wasActiveAndKnown = session.memberships.length > 0 and
+      // nowActive = session.memberships.length
+      // Alternatively we would need to setup some event emission when the RTC session ended.
+      // TODO we want to add the emission en session end. This makes the responsibility of the session manager more clear.
+
+      yield session._onRTCSessionMemberUpdate().catch(error => {
+        _this.logger.error("Error updating RTC session members for ".concat(room.roomId, ": ").concat(error));
+      });
+      var nowActive = session.memberships.length > 0;
+      if (wasActiveAndKnown && !nowActive) {
+        _this.logger.trace("Session ended for ".concat(room.roomId, " (").concat(session.memberships.length, " members)"));
+        _this.emit(MatrixRTCSessionManagerEvents.SessionEnded, room.roomId, _this.roomSessions.get(room.roomId));
+      } else if (!wasActiveAndKnown && nowActive) {
+        _this.logger.trace("Session started for ".concat(room.roomId, " (").concat(session.memberships.length, " members)"));
+        _this.emit(MatrixRTCSessionManagerEvents.SessionStarted, room.roomId, _this.roomSessions.get(room.roomId));
+      }
+    })();
+  }
+}
+//# sourceMappingURL=MatrixRTCSessionManager.js.map

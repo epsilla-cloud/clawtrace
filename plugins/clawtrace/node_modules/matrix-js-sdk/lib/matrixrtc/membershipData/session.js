@@ -1,0 +1,62 @@
+/*
+Copyright 2026 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { MatrixRTCMembershipParseError } from "./common.js";
+
+/**
+ * (MatrixRTC) session membership data.
+ * This represents the *OLD* form of MSC4143, which uses state events to store membership.
+ * Represents the `session` in the memberships section of an m.call.member event as it is on the wire.
+ **/
+
+/**
+ * Validates that `data` matches the format expected by the legacy form of MSC4143.
+ * @param data The event content.
+ * @returns true if `data` is valid SessionMembershipData
+ * @throws {MatrixRTCMembershipParseError} if the content is not valid
+ */
+export var checkSessionsMembershipData = data => {
+  var _data$focus_active;
+  var prefix = " - ";
+  var errors = [];
+  if (typeof data.device_id !== "string") errors.push(prefix + "device_id must be string");
+  if (typeof data.call_id !== "string") errors.push(prefix + "call_id must be string");
+  if (typeof data.application !== "string") errors.push(prefix + "application must be a string");
+  if (data.focus_active === undefined) {
+    errors.push(prefix + "focus_active has an invalid type");
+  }
+  if (typeof ((_data$focus_active = data.focus_active) === null || _data$focus_active === void 0 ? void 0 : _data$focus_active.type) !== "string") {
+    errors.push(prefix + "focus_active.type must be a string");
+  }
+  if (data.foci_preferred !== undefined && !(Array.isArray(data.foci_preferred) && data.foci_preferred.every(f => typeof f === "object" && f !== null && typeof f.type === "string"))) {
+    errors.push(prefix + "foci_preferred must be an array of transport objects");
+  }
+  // optional parameters
+  if (data.created_ts !== undefined && typeof data.created_ts !== "number") {
+    errors.push(prefix + "created_ts must be number");
+  }
+
+  // application specific data (we first need to check if they exist)
+  if (data.scope !== undefined && typeof data.scope !== "string") errors.push(prefix + "scope must be string");
+  if (data["m.call.intent"] !== undefined && typeof data["m.call.intent"] !== "string") {
+    errors.push(prefix + "m.call.intent must be a string");
+  }
+  if (errors.length) {
+    throw new MatrixRTCMembershipParseError("SessionMembership", errors);
+  }
+  return true;
+};
+//# sourceMappingURL=session.js.map

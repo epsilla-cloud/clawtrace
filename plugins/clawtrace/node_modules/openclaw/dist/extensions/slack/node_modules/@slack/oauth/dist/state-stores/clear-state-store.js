@@ -1,0 +1,40 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const jsonwebtoken_1 = require("jsonwebtoken");
+const errors_1 = require("../errors");
+// default implementation of StateStore
+class ClearStateStore {
+    constructor(stateSecret, stateExpirationSeconds = 600) {
+        this.stateSecret = stateSecret;
+        this.stateExpirationSeconds = stateExpirationSeconds;
+    }
+    async generateStateParam(installOptions, now) {
+        const source = {
+            installOptions,
+            now: now.toJSON(),
+            random: Math.floor(Math.random() * 1000000),
+        };
+        return (0, jsonwebtoken_1.sign)(source, this.stateSecret);
+    }
+    async verifyStateParam(now, state) {
+        // decode the state using the secret
+        let decoded;
+        try {
+            decoded = (0, jsonwebtoken_1.verify)(state, this.stateSecret);
+        }
+        catch (e) {
+            const message = `Failed to load the data represented by the state parameter (error: ${e})`;
+            throw new errors_1.InvalidStateError(message);
+        }
+        // Check if the state value is not too old
+        const generatedAt = new Date(decoded.now);
+        const passedSeconds = Math.floor((now.getTime() - generatedAt.getTime()) / 1000);
+        if (passedSeconds > this.stateExpirationSeconds) {
+            throw new errors_1.InvalidStateError('The state value is already expired');
+        }
+        // return installOptions
+        return decoded.installOptions;
+    }
+}
+exports.default = ClearStateStore;
+//# sourceMappingURL=clear-state-store.js.map

@@ -1,0 +1,154 @@
+import { type RTCCallIntent, type Transport, type SlotDescription } from "./types.ts";
+import { type MatrixEvent } from "../models/event.ts";
+import { type RtcMembershipData, type SessionMembershipData } from "./membershipData/index.ts";
+/**
+ * The default duration in milliseconds that a membership is considered valid for.
+ * Ordinarily the client responsible for the session will update the membership before it expires.
+ * We use this duration as the fallback case where stale sessions are present for some reason.
+ */
+export declare const DEFAULT_EXPIRE_DURATION: number;
+/**
+ * Describes the source event type that provided the membership data.
+ */
+declare enum MembershipKind {
+    /**
+     * The modern MSC4143 format event.
+     */
+    RTC = "rtc",
+    /**
+     * The legacy call event type.
+     */
+    Session = "session"
+}
+type MembershipData = {
+    kind: MembershipKind.RTC;
+    data: RtcMembershipData;
+} | {
+    kind: MembershipKind.Session;
+    data: SessionMembershipData;
+};
+type LimitedEvent = Pick<MatrixEvent, "getId" | "getSender" | "getTs" | "getType" | "getContent">;
+export declare class CallMembership {
+    /** The Matrix event that this membership is based on */
+    private readonly matrixEvent;
+    private readonly membershipData;
+    readonly rtcBackendIdentity: string;
+    /**
+     * Parse the membershipdata from a call membership event.
+     * @param matrixEvent The Matrix event to read.
+     * @returns MembershipData in either MembershipKind.RTC or MembershipKind.Session format.
+     * @throws If the content is neither format.
+     */
+    static membershipDataFromMatrixEvent(matrixEvent: LimitedEvent): MembershipData;
+    /**
+     * Parse the contents of a MatrixEvent and create a CallMembership instance.
+     * @param matrixEvent The Matrix event to read.
+     */
+    static parseFromEvent(matrixEvent: LimitedEvent): Promise<CallMembership>;
+    static equal(a?: CallMembership, b?: CallMembership): boolean;
+    private logger;
+    /** The parsed data from the Matrix event.
+     * To access checked eventId and sender from the matrixEvent.
+     * Class construction will fail if these values cannot get obtained. */
+    private readonly matrixEventData;
+    /**
+     * Use `parseFromEvent`.
+     * Constructor should only be used by tests.
+     * @private
+     * @param matrixEvent
+     * @param membershipData
+     * @param rtcBackendIdentity
+     */
+    constructor(
+    /** The Matrix event that this membership is based on */
+    matrixEvent: LimitedEvent, membershipData: MembershipData, rtcBackendIdentity: string);
+    /** @deprecated use userId instead */
+    get sender(): string;
+    get userId(): string;
+    get eventId(): string;
+    /**
+     * The ID of the MatrixRTC slot that this membership belongs to (format `{application}#{id}`).
+     * This is computed in case SessionMembershipData is used.
+     */
+    get slotId(): string;
+    get deviceId(): string;
+    get callIntent(): RTCCallIntent | undefined;
+    /**
+     * Parsed `slot_id` (format `{application}#{id}`) into its components (application and id).
+     */
+    get slotDescription(): SlotDescription;
+    /**
+     * The application `type`.
+     * @deprecated Use @see applicationData
+     */
+    get application(): string;
+    /**
+     * Information about the application being used for the RTC session.
+     * May contain extra keys specific to the application.
+     */
+    get applicationData(): {
+        type: string;
+        [key: string]: unknown;
+    };
+    /** @deprecated scope is not used and will be removed in future versions. replaced by application specific types.*/
+    get scope(): SessionMembershipData["scope"] | undefined;
+    /**
+     * This computes the membership ID for the membership.
+     * For the sticky event based rtcSessionData this is trivial it is `member.id`.
+     * This is not supposed to be used to identity on an rtc backend. This is just a nouance for
+     * a generated (sha256) anonymised identity. Only send `rtcBackendIdentity` to any rtc backend service.
+     *
+     * For the legacy sessionMemberEvents it is a bit more complex. Here we sometimes do not have this data
+     * in the event content and we expected the SFU and the client to use `${this.matrixEventData.sender}:${data.device_id}`.
+     *
+     * So if there is no membershipID we use the hard coded jwt id default (`${this.matrixEventData.sender}:${data.device_id}`)
+     * value (used until version 0.16.0)
+     *
+     * It is also possible for a session event to set a custom membershipID. in that case this will be used.
+     */
+    get memberId(): string;
+    /**
+     * @deprecated renamed to `memberId`
+     */
+    get membershipID(): string;
+    createdTs(): number;
+    /**
+     * Gets the absolute expiry timestamp of the membership.
+     * @returns The absolute expiry time of the membership as a unix timestamp in milliseconds or undefined if not applicable
+     */
+    getAbsoluteExpiry(): number | undefined;
+    /**
+     * @returns The number of milliseconds until the membership expires or undefined if applicable
+     * @deprecated Not used by RTC events.
+     */
+    getMsUntilExpiry(): number | undefined;
+    /**
+     * @returns true if the membership has expired, otherwise false
+     */
+    isExpired(): boolean;
+    /**
+     * ## RTC Membership
+     * Gets the primary transport to use for this RTC membership (m.rtc.member).
+     * This will return the primary transport that is used by this call membership to publish their media.
+     * Directly relates to the `rtc_transports` field.
+     *
+     * ## Legacy session membership
+     * In case of a legacy session membership (m.call.member) this will return the selected transport where
+     * media is published. How this selection happens depends on the `focus_active` field of the session membership.
+     * If the `focus_selection` is `oldest_membership` this will return the transport of the oldest membership
+     * in the room (based on the `created_ts` field of the session membership).
+     * If the `focus_selection` is `multi_sfu` it will return the first transport of the `foci_preferred` list.
+     * (`multi_sfu` is equivalent to how `m.rtc.member` `rtc_transports` work).
+     * @param oldestMembership For backwards compatibility with session membership (legacy). Unused in case of RTC membership.
+     * Always required to make the consumer not care if it deals with RTC or session memberships.
+     * @returns The transport this membership uses to publish media or undefined if no transport is available.
+     */
+    getTransport(oldestMembership: CallMembership): Transport | undefined;
+    /**
+     * The value of the `rtc_transports` field for RTC memberships (m.rtc.member).
+     * Or the value of the `foci_preferred` field for legacy session memberships (m.call.member).
+     */
+    get transports(): Transport[];
+}
+export {};
+//# sourceMappingURL=CallMembership.d.ts.map

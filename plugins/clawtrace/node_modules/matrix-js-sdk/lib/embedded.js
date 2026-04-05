@@ -1,0 +1,746 @@
+import _asyncToGenerator from "@babel/runtime/helpers/asyncToGenerator";
+import _defineProperty from "@babel/runtime/helpers/defineProperty";
+function ownKeys(e, r) { var t = Object.keys(e); if (Object.getOwnPropertySymbols) { var o = Object.getOwnPropertySymbols(e); r && (o = o.filter(function (r) { return Object.getOwnPropertyDescriptor(e, r).enumerable; })), t.push.apply(t, o); } return t; }
+function _objectSpread(e) { for (var r = 1; r < arguments.length; r++) { var t = null != arguments[r] ? arguments[r] : {}; r % 2 ? ownKeys(Object(t), !0).forEach(function (r) { _defineProperty(e, r, t[r]); }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) { Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r)); }); } return e; }
+function _asyncIterator(r) { var n, t, o, e = 2; for ("undefined" != typeof Symbol && (t = Symbol.asyncIterator, o = Symbol.iterator); e--;) { if (t && null != (n = r[t])) return n.call(r); if (o && null != (n = r[o])) return new AsyncFromSyncIterator(n.call(r)); t = "@@asyncIterator", o = "@@iterator"; } throw new TypeError("Object is not async iterable"); }
+function AsyncFromSyncIterator(r) { function AsyncFromSyncIteratorContinuation(r) { if (Object(r) !== r) return Promise.reject(new TypeError(r + " is not an object.")); var n = r.done; return Promise.resolve(r.value).then(function (r) { return { value: r, done: n }; }); } return AsyncFromSyncIterator = function AsyncFromSyncIterator(r) { this.s = r, this.n = r.next; }, AsyncFromSyncIterator.prototype = { s: null, n: null, next: function next() { return AsyncFromSyncIteratorContinuation(this.n.apply(this.s, arguments)); }, return: function _return(r) { var n = this.s.return; return void 0 === n ? Promise.resolve({ value: r, done: !0 }) : AsyncFromSyncIteratorContinuation(n.apply(this.s, arguments)); }, throw: function _throw(r) { var n = this.s.return; return void 0 === n ? Promise.reject(r) : AsyncFromSyncIteratorContinuation(n.apply(this.s, arguments)); } }, new AsyncFromSyncIterator(r); }
+/*
+Copyright 2022 The Matrix.org Foundation C.I.C.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+import { WidgetApiToWidgetAction, WidgetApiResponseError, MatrixCapabilities, UnstableApiVersion } from "matrix-widget-api";
+import { MatrixEvent, EventStatus } from "./models/event.js";
+import { UpdateDelayedEventAction, isSendDelayedEventRequestOpts } from "./@types/requests.js";
+import { EventType } from "./@types/event.js";
+import { logger } from "./logger.js";
+import { MatrixClient, ClientEvent, UNSTABLE_MSC4140_DELAYED_EVENTS } from "./client.js";
+import { SyncApi, SyncState } from "./sync.js";
+import { SlidingSyncSdk } from "./sliding-sync-sdk.js";
+import { ConnectionError, MatrixError } from "./http-api/errors.js";
+import { User } from "./models/user.js";
+import { MapWithDefault, recursiveMapToObject } from "./utils.js";
+import { TypedEventEmitter, UnsupportedDelayedEventsEndpointError } from "./matrix.js";
+export var RoomWidgetClientEvent = /*#__PURE__*/function (RoomWidgetClientEvent) {
+  RoomWidgetClientEvent["PendingEventsChanged"] = "PendingEvent.pendingEventsChanged";
+  return RoomWidgetClientEvent;
+}({});
+/**
+ * A MatrixClient that routes its requests through the widget API instead of the
+ * real CS API.
+ * @experimental This class is considered unstable!
+ */
+export class RoomWidgetClient extends MatrixClient {
+  /**
+   *
+   * @param widgetApi - The widget api to use for communication.
+   * @param capabilities - The capabilities the widget client will request.
+   * @param roomId - The room id the widget is associated with.
+   * @param opts - The configuration options for this client.
+   * @param sendContentLoaded - Whether to send a content loaded widget action immediately after initial setup.
+   *   Set to `false` if the widget uses `waitForIFrameLoad=true` (in this case the client does not expect a content loaded action at all),
+   *   or if the the widget wants to send the `ContentLoaded` action at a later point in time after the initial setup.
+   */
+  constructor(widgetApi, capabilities, roomId, opts, sendContentLoaded) {
+    var _this, _capabilities$receive;
+    super(opts);
+    _this = this;
+    this.widgetApi = widgetApi;
+    this.capabilities = capabilities;
+    this.roomId = roomId;
+    _defineProperty(this, "room", void 0);
+    _defineProperty(this, "widgetApiReady", void 0);
+    _defineProperty(this, "roomStateSynced", void 0);
+    _defineProperty(this, "lifecycle", void 0);
+    _defineProperty(this, "syncState", null);
+    _defineProperty(this, "pendingSendingEventsTxId", []);
+    _defineProperty(this, "eventEmitter", new TypedEventEmitter());
+    _defineProperty(this, "syncApiResolver", Promise.withResolvers());
+    _defineProperty(this, "updateTxId", /*#__PURE__*/function () {
+      var _ref = _asyncToGenerator(function* (event) {
+        // We update the txId for remote echos that originate from this client.
+        // This happens with the help of `pendingSendingEventsTxId` where we store all events that are currently sending
+        // with their widget txId and once ready the final evId.
+        if (
+        // This could theoretically be an event send by this device
+        // In that case we need to update the txId of the event because the embedded client/widget
+        // knows this event with a different transaction Id than what was used by the host client.
+        event.getSender() === _this.getUserId() &&
+        // We optimize by not blocking events from types that we have not send
+        // with this client.
+        _this.pendingSendingEventsTxId.some(p => event.getType() === p.type)) {
+          var _this$pendingSendingE;
+          // Compare by event Id if we have a matching pending event where we know the txId.
+          var matchingTxId = (_this$pendingSendingE = _this.pendingSendingEventsTxId.find(p => p.id === event.getId())) === null || _this$pendingSendingE === void 0 ? void 0 : _this$pendingSendingE.txId;
+          // Block any further processing of this event until we have received the sending response.
+          // -> until we know the event id.
+          // -> until we have not pending events anymore.
+          while (!matchingTxId && _this.pendingSendingEventsTxId.length > 0) {
+            var _this$pendingSendingE2;
+            // Recheck whenever the PendingEventsChanged
+            yield new Promise(resolve => _this.eventEmitter.once(RoomWidgetClientEvent.PendingEventsChanged, () => resolve()));
+            matchingTxId = (_this$pendingSendingE2 = _this.pendingSendingEventsTxId.find(p => p.id === event.getId())) === null || _this$pendingSendingE2 === void 0 ? void 0 : _this$pendingSendingE2.txId;
+          }
+
+          // We found the correct txId: we update the event and delete the entry of the pending events.
+          if (matchingTxId) {
+            event.setTxnId(matchingTxId);
+            event.setUnsigned(_objectSpread(_objectSpread({}, event.getUnsigned()), {}, {
+              transaction_id: matchingTxId
+            }));
+          }
+          _this.pendingSendingEventsTxId = _this.pendingSendingEventsTxId.filter(p => p.id !== event.getId());
+
+          // Emit once there are no pending events anymore to release all other events that got
+          // awaited in the `while (!matchingTxId && this.pendingSendingEventsTxId.length > 0)` loop
+          // but are not send by this client.
+          if (_this.pendingSendingEventsTxId.length === 0) {
+            _this.eventEmitter.emit(RoomWidgetClientEvent.PendingEventsChanged);
+          }
+        }
+      });
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    }());
+    _defineProperty(this, "onEvent", /*#__PURE__*/function () {
+      var _ref2 = _asyncToGenerator(function* (ev) {
+        ev.preventDefault();
+
+        // Verify the room ID matches, since it's possible for the client to
+        // send us events from other rooms if this widget is always on screen
+        if (ev.detail.data.room_id === _this.roomId) {
+          var _event = new MatrixEvent(ev.detail.data);
+
+          // Only inject once we have update the txId
+          yield _this.updateTxId(_event);
+          yield _this.syncApiResolver.promise;
+          if (_this.syncApi instanceof SyncApi) {
+            if (yield _this.supportUpdateState()) {
+              yield _this.syncApi.injectRoomEvents(_this.room, undefined, [], [_event]);
+            } else {
+              // Passing undefined for `stateAfterEventList` will make `injectRoomEvents` run in legacy mode
+              // -> state events in `timelineEventList` will update the state.
+              yield _this.syncApi.injectRoomEvents(_this.room, [], undefined, [_event]);
+            }
+          } else {
+            // Sliding Sync
+            if (yield _this.supportUpdateState()) {
+              yield _this.syncApi.injectRoomEvents(_this.room, [], [_event]);
+            } else {
+              logger.error("slididng sync cannot be used in widget mode if the client widget driver does not support the version: 'org.matrix.msc2762_update_state'");
+            }
+          }
+          _this.emit(ClientEvent.Event, _event);
+          if (_event.unstableStickyInfo !== undefined) _this.room._unstable_addStickyEvents([_event]);
+          _this.setSyncState(SyncState.Syncing);
+          logger.info("Received event ".concat(_event.getId(), " ").concat(_event.getType()));
+        } else {
+          var {
+            event_id: eventId,
+            room_id: _roomId
+          } = ev.detail.data;
+          logger.info("Received event ".concat(eventId, " for a different room ").concat(_roomId, "; discarding"));
+        }
+        yield _this.ack(ev);
+      });
+      return function (_x2) {
+        return _ref2.apply(this, arguments);
+      };
+    }());
+    _defineProperty(this, "onToDevice", /*#__PURE__*/function () {
+      var _ref3 = _asyncToGenerator(function* (ev) {
+        ev.preventDefault();
+        var event = new MatrixEvent({
+          type: ev.detail.data.type,
+          sender: ev.detail.data.sender,
+          content: ev.detail.data.content
+        });
+        // Mark the event as encrypted if it was, using fake contents and keys since those are unknown to us
+        if (ev.detail.data.encrypted) event.makeEncrypted(EventType.RoomMessageEncrypted, {}, "", "");
+        _this.emit(ClientEvent.ToDeviceEvent, event);
+        _this.setSyncState(SyncState.Syncing);
+        yield _this.ack(ev);
+      });
+      return function (_x3) {
+        return _ref3.apply(this, arguments);
+      };
+    }());
+    _defineProperty(this, "onStateUpdate", /*#__PURE__*/function () {
+      var _ref4 = _asyncToGenerator(function* (ev) {
+        ev.preventDefault();
+        if (!(yield _this.supportUpdateState())) {
+          logger.warn("received update_state widget action but the widget driver did not claim to support 'org.matrix.msc2762_update_state'");
+        }
+        yield _this.syncApiResolver.promise;
+        for (var rawEvent of ev.detail.data.state) {
+          // Verify the room ID matches, since it's possible for the client to
+          // send us state updates from other rooms if this widget is always
+          // on screen
+          if (rawEvent.room_id === _this.roomId) {
+            var _event2 = new MatrixEvent(rawEvent);
+            if (_this.syncApi instanceof SyncApi) {
+              yield _this.syncApi.injectRoomEvents(_this.room, undefined, [_event2]);
+            } else {
+              // Sliding Sync
+              yield _this.syncApi.injectRoomEvents(_this.room, [_event2]);
+            }
+            logger.info("Updated state entry ".concat(_event2.getType(), " ").concat(_event2.getStateKey(), " to ").concat(_event2.getId()));
+          } else {
+            var {
+              event_id: eventId,
+              room_id: _roomId2
+            } = ev.detail.data;
+            logger.info("Received state entry ".concat(eventId, " for a different room ").concat(_roomId2, "; discarding"));
+          }
+        }
+        yield _this.ack(ev);
+      });
+      return function (_x4) {
+        return _ref4.apply(this, arguments);
+      };
+    }());
+    var transportSend = this.widgetApi.transport.send.bind(this.widgetApi.transport);
+    this.widgetApi.transport.send = /*#__PURE__*/function () {
+      var _ref5 = _asyncToGenerator(function* (action, data) {
+        try {
+          return yield transportSend(action, data);
+        } catch (error) {
+          processAndThrow(error);
+        }
+      });
+      return function (_x5, _x6) {
+        return _ref5.apply(this, arguments);
+      };
+    }();
+    var transportSendComplete = this.widgetApi.transport.sendComplete.bind(this.widgetApi.transport);
+    this.widgetApi.transport.sendComplete = /*#__PURE__*/function () {
+      var _ref6 = _asyncToGenerator(function* (action, data) {
+        try {
+          return yield transportSendComplete(action, data);
+        } catch (error) {
+          processAndThrow(error);
+        }
+      });
+      return function (_x7, _x8) {
+        return _ref6.apply(this, arguments);
+      };
+    }();
+    this.widgetApiReady = new Promise(resolve => this.widgetApi.once("ready", resolve));
+    this.roomStateSynced = (_capabilities$receive = capabilities.receiveState) !== null && _capabilities$receive !== void 0 && _capabilities$receive.length ? new Promise(resolve => this.widgetApi.once("action:".concat(WidgetApiToWidgetAction.UpdateState), resolve)) : Promise.resolve();
+    this.requestInitialCapabilities(capabilities, roomId);
+    widgetApi.on("action:".concat(WidgetApiToWidgetAction.SendEvent), this.onEvent);
+    widgetApi.on("action:".concat(WidgetApiToWidgetAction.SendToDevice), this.onToDevice);
+    widgetApi.on("action:".concat(WidgetApiToWidgetAction.UpdateState), this.onStateUpdate);
+
+    // Open communication with the host
+    widgetApi.start();
+    // Send a content loaded event now we've started the widget API
+    // Note that element-web currently does not use waitForIFrameLoad=false and so
+    // does *not* (yes, that is the right way around) wait for this event. Let's
+    // start sending this, then once this has rolled out, we can change element-web to
+    // use waitForIFrameLoad=false and have a widget API that's less racy.
+    if (sendContentLoaded) widgetApi.sendContentLoaded();
+  }
+  requestInitialCapabilities(capabilities, roomId) {
+    var _capabilities$sendEve, _capabilities$receive2, _capabilities$sendSta, _capabilities$receive3, _capabilities$sendEve2, _capabilities$receive4, _capabilities$sendSta2, _capabilities$receive5, _capabilities$sendToD, _capabilities$receive6, _capabilities$sendEve3, _capabilities$sendSta3;
+    // Request capabilities for the functionality this client needs to support
+    if ((_capabilities$sendEve = capabilities.sendEvent) !== null && _capabilities$sendEve !== void 0 && _capabilities$sendEve.length || (_capabilities$receive2 = capabilities.receiveEvent) !== null && _capabilities$receive2 !== void 0 && _capabilities$receive2.length || capabilities.sendMessage === true || Array.isArray(capabilities.sendMessage) && capabilities.sendMessage.length || capabilities.receiveMessage === true || Array.isArray(capabilities.receiveMessage) && capabilities.receiveMessage.length || (_capabilities$sendSta = capabilities.sendState) !== null && _capabilities$sendSta !== void 0 && _capabilities$sendSta.length || (_capabilities$receive3 = capabilities.receiveState) !== null && _capabilities$receive3 !== void 0 && _capabilities$receive3.length) {
+      this.widgetApi.requestCapabilityForRoomTimeline(roomId);
+    }
+    (_capabilities$sendEve2 = capabilities.sendEvent) === null || _capabilities$sendEve2 === void 0 || _capabilities$sendEve2.forEach(eventType => this.widgetApi.requestCapabilityToSendEvent(eventType));
+    (_capabilities$receive4 = capabilities.receiveEvent) === null || _capabilities$receive4 === void 0 || _capabilities$receive4.forEach(eventType => this.widgetApi.requestCapabilityToReceiveEvent(eventType));
+    if (capabilities.sendMessage === true) {
+      this.widgetApi.requestCapabilityToSendMessage();
+    } else if (Array.isArray(capabilities.sendMessage)) {
+      capabilities.sendMessage.forEach(msgType => this.widgetApi.requestCapabilityToSendMessage(msgType));
+    }
+    if (capabilities.receiveMessage === true) {
+      this.widgetApi.requestCapabilityToReceiveMessage();
+    } else if (Array.isArray(capabilities.receiveMessage)) {
+      capabilities.receiveMessage.forEach(msgType => this.widgetApi.requestCapabilityToReceiveMessage(msgType));
+    }
+    (_capabilities$sendSta2 = capabilities.sendState) === null || _capabilities$sendSta2 === void 0 || _capabilities$sendSta2.forEach(_ref7 => {
+      var {
+        eventType,
+        stateKey
+      } = _ref7;
+      return this.widgetApi.requestCapabilityToSendState(eventType, stateKey);
+    });
+    (_capabilities$receive5 = capabilities.receiveState) === null || _capabilities$receive5 === void 0 || _capabilities$receive5.forEach(_ref8 => {
+      var {
+        eventType,
+        stateKey
+      } = _ref8;
+      return this.widgetApi.requestCapabilityToReceiveState(eventType, stateKey);
+    });
+    (_capabilities$sendToD = capabilities.sendToDevice) === null || _capabilities$sendToD === void 0 || _capabilities$sendToD.forEach(eventType => this.widgetApi.requestCapabilityToSendToDevice(eventType));
+    (_capabilities$receive6 = capabilities.receiveToDevice) === null || _capabilities$receive6 === void 0 || _capabilities$receive6.forEach(eventType => this.widgetApi.requestCapabilityToReceiveToDevice(eventType));
+    if (capabilities.sendDelayedEvents && ((_capabilities$sendEve3 = capabilities.sendEvent) !== null && _capabilities$sendEve3 !== void 0 && _capabilities$sendEve3.length || capabilities.sendMessage === true || Array.isArray(capabilities.sendMessage) && capabilities.sendMessage.length || (_capabilities$sendSta3 = capabilities.sendState) !== null && _capabilities$sendSta3 !== void 0 && _capabilities$sendSta3.length)) {
+      this.widgetApi.requestCapability(MatrixCapabilities.MSC4157SendDelayedEvent);
+    }
+    if (capabilities.updateDelayedEvents) {
+      this.widgetApi.requestCapability(MatrixCapabilities.MSC4157UpdateDelayedEvent);
+    }
+    if (capabilities.sendSticky) {
+      this.widgetApi.requestCapability(MatrixCapabilities.MSC4407SendStickyEvent);
+    }
+    if (capabilities.receiveSticky) {
+      this.widgetApi.requestCapability(MatrixCapabilities.MSC4407ReceiveStickyEvent);
+    }
+    if (capabilities.turnServers) {
+      this.widgetApi.requestCapability(MatrixCapabilities.MSC3846TurnServers);
+    }
+  }
+  supportUpdateState() {
+    var _this2 = this;
+    return _asyncToGenerator(function* () {
+      return (yield _this2.widgetApi.getClientVersions()).includes(UnstableApiVersion.MSC2762_UPDATE_STATE);
+    })();
+  }
+  startClient() {
+    var _arguments = arguments,
+      _this3 = this;
+    return _asyncToGenerator(function* () {
+      var opts = _arguments.length > 0 && _arguments[0] !== undefined ? _arguments[0] : {};
+      _this3.lifecycle = new AbortController();
+
+      // Create our own user object artificially (instead of waiting for sync)
+      // so it's always available, even if the user is not in any rooms etc.
+      var userId = _this3.getUserId();
+      if (userId) {
+        _this3.store.storeUser(new User(userId));
+      }
+
+      // Even though we have no access token and cannot sync, the sync class
+      // still has some valuable helper methods that we make use of, so we
+      // instantiate it anyways
+      if (opts.slidingSync) {
+        _this3.syncApi = new SlidingSyncSdk(opts.slidingSync, _this3, opts, _this3.buildSyncApiOptions());
+      } else {
+        _this3.syncApi = new SyncApi(_this3, opts, _this3.buildSyncApiOptions());
+      }
+      _this3.syncApiResolver.resolve();
+      _this3.room = _this3.syncApi.createRoom(_this3.roomId);
+      _this3.store.storeRoom(_this3.room);
+      yield _this3.widgetApiReady;
+
+      // sync room state:
+      if (yield _this3.supportUpdateState()) {
+        // This will resolve once the client driver has sent us all the allowed room state.
+        yield _this3.roomStateSynced;
+      } else {
+        var _this3$capabilities$r, _this3$capabilities$r2;
+        // Backfill the requested events
+        // We only get the most recent event for every type + state key combo,
+        // so it doesn't really matter what order we inject them in
+        yield Promise.all((_this3$capabilities$r = (_this3$capabilities$r2 = _this3.capabilities.receiveState) === null || _this3$capabilities$r2 === void 0 ? void 0 : _this3$capabilities$r2.map(/*#__PURE__*/function () {
+          var _ref0 = _asyncToGenerator(function* (_ref9) {
+            var {
+              eventType,
+              stateKey
+            } = _ref9;
+            var rawEvents = yield _this3.widgetApi.readStateEvents(eventType, undefined, stateKey, [_this3.roomId]);
+            var events = rawEvents.map(rawEvent => new MatrixEvent(rawEvent));
+            if (_this3.syncApi instanceof SyncApi) {
+              // Passing events as `stateAfterEventList` will update the state.
+              yield _this3.syncApi.injectRoomEvents(_this3.room, undefined, events);
+            } else {
+              yield _this3.syncApi.injectRoomEvents(_this3.room, events); // Sliding Sync
+            }
+            events.forEach(event => {
+              _this3.emit(ClientEvent.Event, event);
+              logger.info("Backfilled event ".concat(event.getId(), " ").concat(event.getType(), " ").concat(event.getStateKey()));
+            });
+          });
+          return function (_x9) {
+            return _ref0.apply(this, arguments);
+          };
+        }())) !== null && _this3$capabilities$r !== void 0 ? _this3$capabilities$r : []);
+      }
+      if (opts.clientWellKnownPollPeriod !== undefined) {
+        _this3.clientWellKnownIntervalID = setInterval(() => {
+          _this3.fetchClientWellKnown();
+        }, 1000 * opts.clientWellKnownPollPeriod);
+        _this3.fetchClientWellKnown();
+      }
+      _this3.setSyncState(SyncState.Syncing);
+      logger.info("Finished initial sync");
+      _this3.matrixRTC.start();
+
+      // Watch for TURN servers, if requested
+      if (_this3.capabilities.turnServers) _this3.watchTurnServers();
+    })();
+  }
+  stopClient() {
+    this.widgetApi.off("action:".concat(WidgetApiToWidgetAction.SendEvent), this.onEvent);
+    this.widgetApi.off("action:".concat(WidgetApiToWidgetAction.SendToDevice), this.onToDevice);
+    this.widgetApi.off("action:".concat(WidgetApiToWidgetAction.UpdateState), this.onStateUpdate);
+    super.stopClient();
+    this.lifecycle.abort(); // Signal to other async tasks that the client has stopped
+  }
+  joinRoom(roomIdOrAlias) {
+    var _this4 = this;
+    return _asyncToGenerator(function* () {
+      if (roomIdOrAlias === _this4.roomId) return _this4.room;
+      throw new Error("Unknown room: ".concat(roomIdOrAlias));
+    })();
+  }
+  encryptAndSendEvent(room, event, delayOptsOrQuery, queryDict) {
+    var _this5 = this;
+    return _asyncToGenerator(function* () {
+      var _queryOpts;
+      var queryOpts = queryDict;
+      var delayOpts;
+      if (delayOptsOrQuery && isSendDelayedEventRequestOpts(delayOptsOrQuery)) {
+        delayOpts = delayOptsOrQuery;
+      } else if (!queryOpts) {
+        queryOpts = delayOptsOrQuery;
+      }
+      var stickyDurationMs = (_queryOpts = queryOpts) === null || _queryOpts === void 0 ? void 0 : _queryOpts["org.matrix.msc4354.sticky_duration_ms"];
+      if (stickyDurationMs !== undefined && typeof stickyDurationMs !== "number") {
+        throw new Error("Sticky duration must be a number when defined");
+      }
+      // This is save since we just checked that above
+      // We need the additional as assertion for the EW linter to be happy.
+      // It is not capable of implying the type based on the throw if `stickyDurationMs !== undefined && typeof stickyDurationMs !== "number"`
+      // above
+      var stickyDurationMsAsNumber = stickyDurationMs;
+
+      // We need to extend the content with the redacts parameter
+      // The js sdk uses event.redacts but the widget api uses event.content.redacts
+      // This will be converted back to event.redacts in the widget driver.
+      var content = event.event.redacts ? _objectSpread(_objectSpread({}, event.getContent()), {}, {
+        redacts: event.event.redacts
+      }) : event.getContent();
+
+      // Delayed event special case.
+      if (delayOpts) {
+        // TODO: updatePendingEvent for delayed events?
+        var _response = yield _this5.widgetApi.sendRoomEvent(event.getType(), content, room.roomId, "delay" in delayOpts ? delayOpts.delay : undefined, "parent_delay_id" in delayOpts ? delayOpts.parent_delay_id : undefined, stickyDurationMsAsNumber).catch(timeoutToConnectionError);
+        return _this5.validateSendDelayedEventResponse(_response);
+      }
+      var txId = event.getTxnId();
+      // Add the txnId to the pending list (still with unknown evID)
+      if (txId) _this5.pendingSendingEventsTxId.push({
+        type: event.getType(),
+        id: undefined,
+        txId
+      });
+      var response;
+      try {
+        response = yield _this5.widgetApi.sendRoomEvent(event.getType(), content, room.roomId, undefined, undefined, stickyDurationMsAsNumber).catch(timeoutToConnectionError);
+      } catch (e) {
+        _this5.updatePendingEventStatus(room, event, EventStatus.NOT_SENT);
+        throw e;
+      }
+      // This also checks for an event id on the response
+      room.updatePendingEvent(event, EventStatus.SENT, response.event_id);
+
+      // Update the pending events list with the eventId
+      _this5.pendingSendingEventsTxId.forEach(p => {
+        if (p.txId === txId) p.id = response.event_id;
+      });
+      _this5.eventEmitter.emit(RoomWidgetClientEvent.PendingEventsChanged);
+      return {
+        event_id: response.event_id
+      };
+    })();
+  }
+  sendStateEvent(roomId, eventType, content) {
+    var _arguments2 = arguments,
+      _this6 = this;
+    return _asyncToGenerator(function* () {
+      var stateKey = _arguments2.length > 3 && _arguments2[3] !== undefined ? _arguments2[3] : "";
+      var response = yield _this6.widgetApi.sendStateEvent(eventType, stateKey, content, roomId).catch(timeoutToConnectionError);
+      if (response.event_id === undefined) {
+        throw new Error("'event_id' absent from response to an event request");
+      }
+      return {
+        event_id: response.event_id
+      };
+    })();
+  }
+
+  /**
+   * @experimental This currently relies on an unstable MSC (MSC4140).
+   */
+  // eslint-disable-next-line
+  _unstable_sendDelayedStateEvent(roomId, delayOpts, eventType, content) {
+    var _arguments3 = arguments,
+      _this7 = this;
+    return _asyncToGenerator(function* () {
+      var stateKey = _arguments3.length > 4 && _arguments3[4] !== undefined ? _arguments3[4] : "";
+      if (!(yield _this7.doesServerSupportUnstableFeature(UNSTABLE_MSC4140_DELAYED_EVENTS))) {
+        throw new UnsupportedDelayedEventsEndpointError("Server does not support the delayed events API", "sendDelayedStateEvent");
+      }
+      var response = yield _this7.widgetApi.sendStateEvent(eventType, stateKey, content, roomId, "delay" in delayOpts ? delayOpts.delay : undefined, "parent_delay_id" in delayOpts ? delayOpts.parent_delay_id : undefined).catch(timeoutToConnectionError);
+      return _this7.validateSendDelayedEventResponse(response);
+    })();
+  }
+  validateSendDelayedEventResponse(response) {
+    if (response.delay_id === undefined) {
+      throw new Error("'delay_id' absent from response to a delayed event request");
+    }
+    return {
+      delay_id: response.delay_id
+    };
+  }
+
+  /**
+   * @experimental This currently relies on an unstable MSC (MSC4140).
+   * @deprecated Instead use one of:
+   * - {@link _unstable_cancelScheduledDelayedEvent}
+   * - {@link _unstable_restartScheduledDelayedEvent}
+   * - {@link _unstable_sendScheduledDelayedEvent}
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  _unstable_updateDelayedEvent(delayId, action) {
+    var _this8 = this;
+    return _asyncToGenerator(function* () {
+      if (!(yield _this8.doesServerSupportUnstableFeature(UNSTABLE_MSC4140_DELAYED_EVENTS))) {
+        throw new UnsupportedDelayedEventsEndpointError("Server does not support the delayed events API", "updateDelayedEvent");
+      }
+      var updateDelayedEvent;
+      switch (action) {
+        case UpdateDelayedEventAction.Cancel:
+          updateDelayedEvent = _this8.widgetApi.cancelScheduledDelayedEvent;
+          break;
+        case UpdateDelayedEventAction.Restart:
+          updateDelayedEvent = _this8.widgetApi.cancelScheduledDelayedEvent;
+          break;
+        case UpdateDelayedEventAction.Send:
+          updateDelayedEvent = _this8.widgetApi.sendScheduledDelayedEvent;
+          break;
+      }
+      yield updateDelayedEvent.call(_this8.widgetApi, delayId).catch(timeoutToConnectionError);
+      return {};
+    })();
+  }
+
+  /**
+   * @experimental This currently relies on an unstable MSC (MSC4140).
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  _unstable_cancelScheduledDelayedEvent(delayId) {
+    var _this9 = this;
+    return _asyncToGenerator(function* () {
+      if (!(yield _this9.doesServerSupportUnstableFeature(UNSTABLE_MSC4140_DELAYED_EVENTS))) {
+        throw new UnsupportedDelayedEventsEndpointError("Server does not support the delayed events API", "cancelScheduledDelayedEvent");
+      }
+      yield _this9.widgetApi.cancelScheduledDelayedEvent(delayId).catch(timeoutToConnectionError);
+      return {};
+    })();
+  }
+
+  /**
+   * @experimental This currently relies on an unstable MSC (MSC4140).
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  _unstable_restartScheduledDelayedEvent(delayId) {
+    var _this0 = this;
+    return _asyncToGenerator(function* () {
+      if (!(yield _this0.doesServerSupportUnstableFeature(UNSTABLE_MSC4140_DELAYED_EVENTS))) {
+        throw new UnsupportedDelayedEventsEndpointError("Server does not support the delayed events API", "restartScheduledDelayedEvent");
+      }
+      yield _this0.widgetApi.restartScheduledDelayedEvent(delayId).catch(timeoutToConnectionError);
+      return {};
+    })();
+  }
+
+  /**
+   * @experimental This currently relies on an unstable MSC (MSC4140).
+   */
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  _unstable_sendScheduledDelayedEvent(delayId) {
+    var _this1 = this;
+    return _asyncToGenerator(function* () {
+      if (!(yield _this1.doesServerSupportUnstableFeature(UNSTABLE_MSC4140_DELAYED_EVENTS))) {
+        throw new UnsupportedDelayedEventsEndpointError("Server does not support the delayed events API", "sendScheduledDelayedEvent");
+      }
+      yield _this1.widgetApi.sendScheduledDelayedEvent(delayId).catch(timeoutToConnectionError);
+      return {};
+    })();
+  }
+
+  /**
+   * by {@link MatrixClient.encryptAndSendToDevice}.
+   */
+  encryptAndSendToDevice(eventType, devices, payload) {
+    var _this10 = this;
+    return _asyncToGenerator(function* () {
+      // map: user Id → device Id → payload
+      var contentMap = new MapWithDefault(() => new Map());
+      for (var {
+        userId,
+        deviceId
+      } of devices) {
+        contentMap.getOrCreate(userId).set(deviceId, payload);
+      }
+      yield _this10.widgetApi.sendToDevice(eventType, true, recursiveMapToObject(contentMap)).catch(timeoutToConnectionError);
+    })();
+  }
+  sendToDevice(eventType, contentMap) {
+    var _this11 = this;
+    return _asyncToGenerator(function* () {
+      yield _this11.widgetApi.sendToDevice(eventType, false, recursiveMapToObject(contentMap)).catch(timeoutToConnectionError);
+      return {};
+    })();
+  }
+  getOpenIdToken() {
+    var _this12 = this;
+    return _asyncToGenerator(function* () {
+      var token = yield _this12.widgetApi.requestOpenIDConnectToken().catch(timeoutToConnectionError);
+      // the IOpenIDCredentials from the widget-api and IOpenIDToken form the matrix-js-sdk are compatible.
+      // we still recreate the token to make this transparent and catch'able by the linter in case the types change in the future.
+      return {
+        access_token: token.access_token,
+        expires_in: token.expires_in,
+        matrix_server_name: token.matrix_server_name,
+        token_type: token.token_type
+      };
+    })();
+  }
+  queueToDevice(_ref1) {
+    var _this13 = this;
+    return _asyncToGenerator(function* () {
+      var {
+        eventType,
+        batch
+      } = _ref1;
+      // map: user Id → device Id → payload
+      var contentMap = new MapWithDefault(() => new Map());
+      for (var {
+        userId,
+        deviceId,
+        payload
+      } of batch) {
+        contentMap.getOrCreate(userId).set(deviceId, payload);
+      }
+      yield _this13.widgetApi.sendToDevice(eventType, false, recursiveMapToObject(contentMap)).catch(timeoutToConnectionError);
+    })();
+  }
+
+  /**
+   * Send an event to a specific list of devices via the widget API. Optionally encrypts the event.
+   *
+   * If you are using a full MatrixClient you would be calling {@link MatrixClient.getCrypto().encryptToDeviceMessages()} followed
+   * by {@link MatrixClient.queueToDevice}.
+   *
+   * However, this is combined into a single step when running as an embedded widget client. So, we expose this method for those
+   * that need it.
+   *
+   * @param eventType - Type of the event to send.
+   * @param encrypted - Whether the event should be encrypted.
+   * @param contentMap - The content to send. Map from user_id to device_id to content object.
+   */
+  sendToDeviceViaWidgetApi(eventType, encrypted, contentMap) {
+    var _this14 = this;
+    return _asyncToGenerator(function* () {
+      yield _this14.widgetApi.sendToDevice(eventType, encrypted, recursiveMapToObject(contentMap)).catch(timeoutToConnectionError);
+    })();
+  }
+
+  // Overridden since we get TURN servers automatically over the widget API,
+  // and this method would otherwise complain about missing an access token
+  checkTurnServers() {
+    var _this15 = this;
+    return _asyncToGenerator(function* () {
+      return _this15.turnServers.length > 0;
+    })();
+  }
+
+  // Overridden since we 'sync' manually without the sync API
+  getSyncState() {
+    return this.syncState;
+  }
+  setSyncState(state) {
+    var oldState = this.syncState;
+    this.syncState = state;
+    this.emit(ClientEvent.Sync, state, oldState);
+  }
+  ack(ev) {
+    var _this16 = this;
+    return _asyncToGenerator(function* () {
+      yield _this16.widgetApi.transport.reply(ev.detail, {});
+    })();
+  }
+  watchTurnServers() {
+    var _this17 = this;
+    return _asyncToGenerator(function* () {
+      var servers = _this17.widgetApi.getTurnServers();
+      var onClientStopped = () => {
+        servers.return(undefined);
+      };
+      _this17.lifecycle.signal.addEventListener("abort", onClientStopped);
+      try {
+        var _iteratorAbruptCompletion = false;
+        var _didIteratorError = false;
+        var _iteratorError;
+        try {
+          for (var _iterator = _asyncIterator(servers), _step; _iteratorAbruptCompletion = !(_step = yield _iterator.next()).done; _iteratorAbruptCompletion = false) {
+            var server = _step.value;
+            {
+              _this17.turnServers = [{
+                urls: server.uris,
+                username: server.username,
+                credential: server.password
+              }];
+              _this17.emit(ClientEvent.TurnServers, _this17.turnServers);
+              logger.log("Received TURN server: ".concat(server.uris));
+            }
+          }
+        } catch (err) {
+          _didIteratorError = true;
+          _iteratorError = err;
+        } finally {
+          try {
+            if (_iteratorAbruptCompletion && _iterator.return != null) {
+              yield _iterator.return();
+            }
+          } finally {
+            if (_didIteratorError) {
+              throw _iteratorError;
+            }
+          }
+        }
+      } catch (e) {
+        logger.warn("Error watching TURN servers", e);
+      } finally {
+        _this17.lifecycle.signal.removeEventListener("abort", onClientStopped);
+      }
+    })();
+  }
+}
+function processAndThrow(error) {
+  if (error instanceof WidgetApiResponseError && error.data.matrix_api_error) {
+    throw MatrixError.fromWidgetApiErrorData(error.data.matrix_api_error);
+  } else {
+    throw error;
+  }
+}
+
+/**
+ * This converts an "Request timed out" error from the PostmessageTransport into a ConnectionError.
+ * It either throws the original error or a new ConnectionError.
+ **/
+function timeoutToConnectionError(error) {
+  // TODO: this should not check on error.message but instead it should be a specific type
+  // error instanceof WidgetTimeoutError
+  if (error instanceof Error && error.message === "Request timed out") {
+    throw new ConnectionError("widget api timeout");
+  }
+  throw error;
+}
+//# sourceMappingURL=embedded.js.map

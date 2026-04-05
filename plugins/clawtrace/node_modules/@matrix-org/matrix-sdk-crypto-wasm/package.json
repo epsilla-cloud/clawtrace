@@ -1,0 +1,88 @@
+{
+    "name": "@matrix-org/matrix-sdk-crypto-wasm",
+    "version": "18.0.0",
+    "homepage": "https://github.com/matrix-org/matrix-sdk-crypto-wasm",
+    "description": "WebAssembly bindings of the matrix-sdk-crypto encryption library",
+    "license": "Apache-2.0",
+    "collaborators": [
+        "Ivan Enderlin <ivane@element.io>"
+    ],
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/matrix-org/matrix-sdk-crypto-wasm"
+    },
+    "keywords": [
+        "matrix",
+        "chat",
+        "messaging",
+        "ruma",
+        "nio"
+    ],
+    "type": "module",
+    "exports": {
+        ".": {
+            "matrix-org:wasm-esm": {
+                "types": "./index.d.ts",
+                "default": "./index-wasm-esm.mjs"
+            },
+            "require": {
+                "types": "./index.d.ts",
+                "node": "./node.cjs",
+                "default": "./index.cjs"
+            },
+            "import": {
+                "types": "./index.d.ts",
+                "node": "./node.mjs",
+                "default": "./index.mjs"
+            }
+        }
+    },
+    "files": [
+        "index.mjs",
+        "index.cjs",
+        "index-wasm-esm.mjs",
+        "index.d.ts",
+        "node.mjs",
+        "node.cjs",
+        "pkg/matrix_sdk_crypto_wasm.d.ts",
+        "pkg/matrix_sdk_crypto_wasm_bg.js",
+        "pkg/matrix_sdk_crypto_wasm_bg.cjs",
+        "pkg/matrix_sdk_crypto_wasm_bg.wasm.d.ts",
+        "pkg/matrix_sdk_crypto_wasm_bg.wasm"
+    ],
+    "devDependencies": {
+        "@babel/cli": "^7.23.5",
+        "@babel/core": "^7.23.5",
+        "@babel/plugin-transform-modules-commonjs": "^7.25.9",
+        "@babel/preset-env": "^7.23.5",
+        "@babel/preset-typescript": "^7.23.3",
+        "@tsconfig/node18": "^18.2.4",
+        "@types/jest": "^29.5.10",
+        "@types/node": "^25.3.5",
+        "babel-jest": "^29.7.0",
+        "cross-env": "^7.0.3",
+        "eslint": "^8.55.0",
+        "fake-indexeddb": "^4.0",
+        "jest": "^28.1.0",
+        "prettier": "^2.8.3",
+        "typedoc": "^0.27.1",
+        "typescript": "5.7.2",
+        "wasm-pack": "0.13",
+        "yargs-parser": "~21.0.1"
+    },
+    "engines": {
+        "node": ">= 18"
+    },
+    "packageManager": "pnpm@10.30.3+sha512.c961d1e0a2d8e354ecaa5166b822516668b7f44cb5bd95122d590dd81922f606f5473b6d23ec4a5be05e7fcd18e8488d47d978bbe981872f1145d06e9a740017",
+    "scripts": {
+        "lint": "pnpm lint:eslint && pnpm lint:prettier && pnpm lint:types",
+        "lint:eslint": "eslint --max-warnings 0 tests",
+        "lint:prettier": "prettier --check .",
+        "lint:types": "tsc --noEmit",
+        "build": "WASM_PACK_ARGS=--release ./scripts/build.sh",
+        "build:dev": "WASM_PACK_ARGS=--dev ./scripts/build.sh",
+        "test": "jest --verbose && pnpm wasm-pack test --node",
+        "doc": "typedoc --treatWarningsAsErrors --tsconfig .",
+        "prepack": "pnpm build && pnpm run test"
+    }
+}
