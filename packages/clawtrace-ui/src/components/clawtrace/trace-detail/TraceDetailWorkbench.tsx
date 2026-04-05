@@ -2155,18 +2155,21 @@ function ViewInspector({
                 <p className={styles.inspectEmpty}>Not captured in this run.</p>
               )
             ) : selectedSpan.kind === 'llm_call' ? (
-              <pre className={styles.inspectCode}>
+              typeof selectedSpan.attributes.prompt === 'string' && selectedSpan.attributes.prompt.length > 0 ? (
+                <pre className={styles.inspectCode}>{selectedSpan.attributes.prompt as string}</pre>
+              ) : (
+                <pre className={styles.inspectCode}>
 {JSON.stringify(
   {
     provider: selectedSpan.provider,
     model: selectedSpan.model,
     tokensIn: selectedSpan.tokensIn,
-    attributes: selectedSpan.attributes,
   },
   null,
   2,
 )}
-              </pre>
+                </pre>
+              )
             ) : (
               <pre className={styles.inspectCode}>{JSON.stringify(selectedSpan.attributes, null, 2)}</pre>
             )}
@@ -2174,7 +2177,9 @@ function ViewInspector({
 
           <section className={styles.inspectSection}>
             <h3 className={styles.inspectTitle}>Output / response</h3>
-            {outputPayload ? (
+            {selectedSpan.kind === 'llm_call' && Array.isArray(selectedSpan.attributes.output) && (selectedSpan.attributes.output as string[]).length > 0 ? (
+              <pre className={styles.inspectCode}>{(selectedSpan.attributes.output as string[]).join('\n')}</pre>
+            ) : outputPayload ? (
               <pre className={styles.inspectCode}>{JSON.stringify(outputPayload, null, 2)}</pre>
             ) : (
               <p className={styles.inspectEmpty}>Not captured in this run.</p>
