@@ -188,6 +188,9 @@ export class HookEventTracker {
    */
   private readonly activeRuns = new Map<string, RunState>();
 
+  /** sessionKey → runId: resolves the active run when tool hooks omit runId. */
+  private readonly sessionToRunId = new Map<string, string>();
+
   /** In-flight tool calls keyed by toolCallId. */
   private readonly tools = new Map<string, ActiveSpanState>();
   private readonly anonymousToolQueues = new Map<string, string[]>();
@@ -264,10 +267,6 @@ export class HookEventTracker {
   onLlmInput(event: LlmInputEvent, ctx: AgentContext): void {
     const sessionKey = this.sessionKeyFrom({ sessionId: event.sessionId }, ctx);
 
-    this.logger.warn?.(
-      `[clawtrace:debug] llm_input: event.runId=${event.runId ?? "UNDEF"} ctx.runId=${ctx.runId ?? "UNDEF"} sessionKey=${sessionKey} activeRuns=${this.activeRuns.size}`,
-    );
-
     const run = this.ensureRun(event.runId, sessionKey, ctx);
 
     const span: ActiveSpanState = {
@@ -334,16 +333,14 @@ export class HookEventTracker {
 
   onBeforeToolCall(event: BeforeToolCallEvent, ctx: ToolContext): void {
     const sessionKey = this.sessionKeyFrom({}, ctx);
-    const runId = event.runId ?? ctx.runId;
+    // OpenClaw does NOT pass runId to before_tool_call hooks — fall back to
+    // sessionKey → runId lookup established when the LLM call started.
+    const runId = event.runId ?? ctx.runId ?? this.sessionToRunId.get(sessionKey);
     const run = runId ? this.activeRuns.get(runId) : undefined;
     // Parent under the current LLM span if one is active, otherwise root
     const llmSpan = runId ? this.tools.get(`llm:${runId}`) : undefined;
     const parentSpanId = llmSpan?.spanId ?? run?.rootSpanId ?? null;
     const traceId = run?.traceId ?? runId ?? this.idFactory();
-
-    this.logger.warn?.(
-      `[clawtrace:debug] before_tool_call: tool=${event.toolName} event.runId=${event.runId ?? "UNDEF"} ctx.runId=${ctx.runId ?? "UNDEF"} resolvedRunId=${runId ?? "UNDEF"} runFound=${!!run} activeRuns=${this.activeRuns.size} traceId=${traceId}`,
-    );
 
     const toolCallId = this.resolveToolCallId(event, ctx) ?? `anon-tool-${this.idFactory()}`;
     const span: ActiveSpanState = {
@@ -379,7 +376,7 @@ export class HookEventTracker {
         : ctxSessionKey;
     if (toolCallId) this.toolCallIdToSessionKey.delete(toolCallId);
 
-    const runId = event.runId ?? ctx.runId;
+    const runId = event.runId ?? ctx.runId ?? this.sessionToRunId.get(sessionKey);
     const run = runId ? this.activeRuns.get(runId) : undefined;
 
     const span =
@@ -558,6 +555,7 @@ export class HookEventTracker {
       sessionKey,
     };
     this.activeRuns.set(runId, run);
+    this.sessionToRunId.set(sessionKey, runId);
 
     // Parse agent identity from sessionKey
     // Format: agent:<agentId>:<target> e.g. "agent:main:main", "agent:codex:subagent:550e..."
@@ -594,6 +592,10 @@ export class HookEventTracker {
     const run = this.activeRuns.get(runId);
     if (!run) return;
     this.activeRuns.delete(runId);
+    // Remove sessionKey → runId mapping
+    if (this.sessionToRunId.get(run.sessionKey) === runId) {
+      this.sessionToRunId.delete(run.sessionKey);
+    }
 
     // Clean up tool/subagent state associated with this trace
     for (const [key, span] of this.tools) {
