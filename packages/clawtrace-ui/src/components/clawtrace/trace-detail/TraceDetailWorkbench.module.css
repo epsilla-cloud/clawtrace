@@ -1299,29 +1299,6 @@
   background: #faf4ec;
 }
 
-/* Narrow: inspector full-width overlay, mode switcher becomes dropdown.
-   1400px accounts for AppNav(60) + Tracy(340) leaving ~1000px for content */
-@media (max-width: 1400px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr);
-    position: relative;
-  }
-  .inspectorCard {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10;
-    box-shadow: -4px 0 20px rgba(24, 12, 4, 0.12);
-    border-radius: 12px;
-  }
-  /* Hide button-based switcher on narrow, show dropdown instead */
-  .modeSwitcher { display: none; }
-  .modeDropdown { display: flex; }
-  .divider { display: none; }
-}
-
 /* Mode dropdown — hidden by default, shown on narrow screens */
 .modeDropdown {
   display: none;
@@ -1344,6 +1321,27 @@
   background-repeat: no-repeat;
   background-position: right 10px center;
   min-width: 160px;
+}
+
+/* Narrow: inspector full-width overlay, mode switcher becomes dropdown */
+@media (max-width: 1400px) {
+  .workspace {
+    grid-template-columns: minmax(0, 1fr) !important;
+    position: relative;
+  }
+  .inspectorCard {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    box-shadow: -4px 0 20px rgba(24, 12, 4, 0.12);
+    border-radius: 12px;
+  }
+  .modeSwitcher { display: none !important; }
+  .modeDropdown { display: flex !important; }
+  .divider { display: none; }
 }
 
 @media (max-width: 1280px) {
