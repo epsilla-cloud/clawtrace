@@ -2371,7 +2371,7 @@ function PayloadContent({ rawText, format }: { rawText: string; format: PayloadF
 }
 
 /* ── Payload section with format toggle + copy ─────────────────────────── */
-function PayloadSection({ label, rawText }: { label: string; rawText: string }) {
+function PayloadSection({ label, rawText, rawOnly }: { label: string; rawText: string; rawOnly?: boolean }) {
   const autoFormat = useMemo(() => detectPayloadFormat(rawText), [rawText]);
   const [viewMode, setViewMode] = useState<'auto' | 'raw'>('auto');
 
@@ -2389,29 +2389,31 @@ function PayloadSection({ label, rawText }: { label: string; rawText: string }) 
     );
   }
 
-  const activeFormat = viewMode === 'auto' ? autoFormat : 'raw';
+  const activeFormat = rawOnly ? 'raw' : (viewMode === 'auto' ? autoFormat : 'raw');
   const formatLabel = formatPayloadLabel(autoFormat);
 
   return (
     <section className={styles.payloadSection}>
       <div className={styles.payloadHeader}>
         <h3 className={styles.inspectTitle}>{label}</h3>
-        <div className={styles.payloadToggle}>
-          <button
-            type="button"
-            className={`${styles.payloadToggleBtn} ${viewMode === 'auto' ? styles.payloadToggleBtnActive : ''}`}
-            onClick={() => setViewMode('auto')}
-          >
-            {formatLabel}
-          </button>
-          <button
-            type="button"
-            className={`${styles.payloadToggleBtn} ${viewMode === 'raw' ? styles.payloadToggleBtnActive : ''}`}
-            onClick={() => setViewMode('raw')}
-          >
-            Raw
-          </button>
-        </div>
+        {!rawOnly && (
+          <div className={styles.payloadToggle}>
+            <button
+              type="button"
+              className={`${styles.payloadToggleBtn} ${viewMode === 'auto' ? styles.payloadToggleBtnActive : ''}`}
+              onClick={() => setViewMode('auto')}
+            >
+              {formatLabel}
+            </button>
+            <button
+              type="button"
+              className={`${styles.payloadToggleBtn} ${viewMode === 'raw' ? styles.payloadToggleBtnActive : ''}`}
+              onClick={() => setViewMode('raw')}
+            >
+              Raw
+            </button>
+          </div>
+        )}
       </div>
       <div className={styles.payloadBox}>
         <CopyButton text={rawText} />
@@ -2488,8 +2490,9 @@ function ViewInspector({
           {/* Input */}
           <PayloadSection label="Input" rawText={inputText} />
 
-          {/* Output */}
-          <PayloadSection label="Output" rawText={outputText} />
+          {/* Output — exec tool results shown as raw only */}
+          <PayloadSection label="Output" rawText={outputText}
+            rawOnly={selectedSpan.kind === 'tool_call' && selectedSpan.toolName === 'exec'} />
         </div>
       ) : (
         <div className={styles.inspectorBody}>
