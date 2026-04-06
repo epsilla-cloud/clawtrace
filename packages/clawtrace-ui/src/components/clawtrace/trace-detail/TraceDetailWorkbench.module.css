@@ -272,7 +272,21 @@
 .treeNodeBlock:hover { background: #f0e8dc; }
 .treeNodeBlockSelected { background: #e8dcc8; }
 .treeNodeBlockSelected:hover { background: #e2d4bc; }
-.treeNodeBlockError { box-shadow: inset 3px 0 0 #e53e3e; }
+.treeErrorBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1;
+}
 
 /* Row 1: icon + name + badge + chevron */
 .treeNodeRow {

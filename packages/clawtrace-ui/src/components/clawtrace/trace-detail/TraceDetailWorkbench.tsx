@@ -2128,7 +2128,7 @@ function ExecutionPathView({
         <button
           type="button"
           id={`span-${span.spanId}`}
-          className={`${styles.treeNodeBlock} ${isSelected ? styles.treeNodeBlockSelected : ''} ${isError ? styles.treeNodeBlockError : ''}`}
+          className={`${styles.treeNodeBlock} ${isSelected ? styles.treeNodeBlockSelected : ''}`}
           onClick={() => onSelectSpan(span.spanId)}
         >
           {/* Row 1: icon + name + badge + chevron */}
@@ -2141,6 +2141,7 @@ function ExecutionPathView({
               <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
             )}
             <span className={styles.treeItemName}>{spanTreeName(span)}</span>
+            {isError && <span className={styles.treeErrorBadge}>Error</span>}
             {span.kind === 'llm_call' && span.model && (
               <span className={styles.treeItemBadge}>{shortModelName(span.model)}</span>
             )}
