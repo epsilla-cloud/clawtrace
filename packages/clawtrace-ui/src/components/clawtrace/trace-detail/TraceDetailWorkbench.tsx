@@ -2488,6 +2488,7 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
           </Link>
         </header>
 
+        {/* Button tabs (wide screens) */}
         <section className={styles.modeSwitcher} role="tablist" aria-label="Trace detail views">
           {MODE_ITEMS.map((item) => (
             <button
@@ -2503,7 +2504,17 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
           ))}
         </section>
 
-        <section className={styles.workspace}>
+        {/* Dropdown tabs (narrow screens) */}
+        <div className={styles.modeDropdown}>
+          <select className={styles.modeDropdownSelect} value={mode}
+            onChange={(e) => setMode(e.target.value as TraceDetailViewMode)}>
+            {MODE_ITEMS.map((item) => (
+              <option key={item.id} value={item.id}>{item.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <section className={`${styles.workspace} ${!inspectorOpen ? styles.workspaceNoInspector : ''}`}>
           <article className={styles.viewCard}>
             <div
               className={`${styles.viewBody} ${
