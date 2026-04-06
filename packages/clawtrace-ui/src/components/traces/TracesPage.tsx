@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AppNav } from '../app-nav/AppNav';
+import { TracyPanel } from '../tracy/TracyPanel';
 import styles from './TracesPage.module.css';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
@@ -292,6 +293,7 @@ export function TracesPage() {
     <div className={styles.shell}>
       <AppNav />
       <main className={styles.main}>
+
         {/* Row 1: Title */}
         <h1 className={styles.title}>Agent Trajectories Dashboard</h1>
 
@@ -425,6 +427,7 @@ export function TracesPage() {
           </div>
         </div>
       </main>
+      <TracyPanel />
     </div>
   );
 }
