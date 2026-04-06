@@ -204,7 +204,12 @@
   height: 100%;
   padding: 10px;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
 }
+.viewBody::-webkit-scrollbar { width: 6px; }
+.viewBody::-webkit-scrollbar-track { background: transparent; }
+.viewBody::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
 
 .viewBodyFlush {
   padding: 0;
@@ -242,38 +247,66 @@
 .treeRows {
   min-height: 0;
   overflow: auto;
-  padding: 6px 8px 10px;
+  padding: 4px 0 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
 }
+.treeRows::-webkit-scrollbar { width: 6px; }
+.treeRows::-webkit-scrollbar-track { background: transparent; }
+.treeRows::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
 
 /* ── Tree node ──────────────────────────────────────────────────────────── */
 .treeNode {}
 
-/* Main clickable row — full width, no side margin, so highlight spans edge-to-edge */
-.treeNodeRow {
+/* Clickable block covers BOTH rows — highlight spans name + metadata */
+.treeNodeBlock {
   border: 0;
   width: 100%;
   background: transparent;
+  text-align: left;
+  cursor: pointer;
+  padding: 4px 12px;
+  font-family: inherit;
+  transition: background 100ms;
+}
+.treeNodeBlock:hover { background: #f0e8dc; }
+.treeNodeBlockSelected { background: #e8dcc8; }
+.treeNodeBlockSelected:hover { background: #e2d4bc; }
+.treeNodeBlockError { box-shadow: inset 3px 0 0 #e53e3e; }
+
+/* Row 1: icon + name + badge + chevron */
+.treeNodeRow {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 12px 2px;
-  text-align: left;
-  cursor: pointer;
-  transition: background 100ms;
-  font-family: inherit;
 }
-.treeNodeRow:hover { background: #f0e8dc; }
-.treeNodeRowSelected { background: #e8dcc8; }
-.treeNodeRowSelected:hover { background: #e2d4bc; }
-.treeNodeRowError { box-shadow: inset 3px 0 0 #e53e3e; }
 
-/* ── Tree item pieces ───────────────────────────────────────────────────── */
+/* ── Icons ───────────────────────────────────────────────────────────────── */
 .treeItemIcon {
   width: 24px;
   height: 24px;
   border-radius: 6px;
   flex-shrink: 0;
   object-fit: cover;
+}
+
+/* White rounded-corner wrapper for LLM vendor icons */
+.treeItemIconWrap {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: #fff;
+  border: 1px solid #e0d5c6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.treeItemIconInner {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: contain;
 }
 
 .treeItemName {
@@ -318,39 +351,117 @@
 }
 .treeItemChevron:hover { color: #5a4534; }
 
-/* ── Second-row metadata badges — aligned under the name text ───────────── */
+/* ── Row 2: metadata badges ─────────────────────────────────────────────── */
 .treeNodeMeta {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 12px 4px 44px; /* 12px row-pad + 24px icon + 8px gap = 44px */
+  gap: 6px;
+  padding: 3px 0 0 32px; /* 24px icon + 8px gap = 32px aligned under name */
 }
 
-.treeMetaPill {
+/* Duration pill — green background */
+.treeMetaDuration {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  font-size: 12px;
-  color: #8c7a66;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e8f0e4;
+  color: #4a6b42;
+  font-size: 11px;
+  font-weight: 520;
   white-space: nowrap;
+}
+
+/* Token/cost group — bordered pill */
+.treeMetaGroup {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  border-radius: 999px;
+  border: 1px solid #dacbb4;
+  background: #fff;
+  font-size: 11px;
+  color: #7c6854;
+  overflow: hidden;
+}
+.treeMetaGroupItem {
+  padding: 0 7px;
+  white-space: nowrap;
+  font-weight: 480;
+}
+.treeMetaSep {
+  width: 1px;
+  align-self: stretch;
+  margin: 4px 0;
+  background: #dacbb4;
+  flex-shrink: 0;
 }
 
 .treeItemPillIcon {
   width: 12px;
   height: 12px;
   flex-shrink: 0;
-  color: #b89c84;
+  color: currentColor;
+  opacity: 0.7;
 }
 
-/* ── Child group container — the hierarchy indicator ────────────────────── */
-/* Uses left-border with rounded bottom-left corner to show parent→children.
-   Nesting these containers naturally produces multi-level hierarchy lines. */
+/* ── Hierarchy connectors ───────────────────────────────────────────────── */
+/* Child group: indented under parent icon center.
+   Connectors are drawn by per-child pseudo-elements for precise control. */
 .treeChildGroup {
-  margin-left: 22px;
-  padding-left: 12px;
+  margin-left: 24px; /* = parent icon center (12px pad + 12px half-icon) */
+}
+
+/* Each child node in a group */
+.treeChildGroup > .treeNode {
+  position: relative;
+}
+
+/* Vertical line: full height for intermediate children */
+.treeChildGroup > .treeNode::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
   border-left: 1.5px solid #ddd0c0;
-  border-bottom-left-radius: 12px;
-  padding-bottom: 2px;
+  pointer-events: none;
+}
+
+/* Horizontal arm to child icon center-left */
+.treeChildGroup > .treeNode::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 16px; /* icon vertical center: 4px block-pad + 12px half-icon */
+  width: 12px; /* reaches block padding-left where icon starts */
+  border-top: 1.5px solid #ddd0c0;
+  pointer-events: none;
+}
+
+/* First child: extend vertical line up to parent icon bottom */
+.treeChildGroup > .treeNode:first-child::before {
+  top: -24px;
+}
+
+/* Last child: L-shaped rounded corner — line stops at icon center */
+.treeChildGroup > .treeNode:last-child::before {
+  bottom: auto;
+  height: 17px;
+  border-bottom: 1.5px solid #ddd0c0;
+  border-bottom-left-radius: 10px;
+  width: 12px;
+}
+.treeChildGroup > .treeNode:last-child::after {
+  display: none; /* L-corner already provides the horizontal arm */
+}
+
+/* Only child: extend up to parent AND L-corner at bottom */
+.treeChildGroup > .treeNode:first-child:last-child::before {
+  top: -24px;
+  height: calc(24px + 17px);
 }
 
 .actorMapCanvas {
@@ -598,6 +709,8 @@
   border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   border-radius: 10px;
   overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
 }
 
 .phaseTable {
@@ -720,6 +833,8 @@
   padding: 10px;
   display: grid;
   gap: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
 }
 
 .inspectSection {
@@ -1352,8 +1467,8 @@
   }
 
   .treeNodeMeta { gap: 4px; }
-  .treeMetaPill:last-child { display: none; }
-  .treeChildGroup { margin-left: 14px; padding-left: 10px; }
+  .treeMetaGroup { display: none; }
+  .treeChildGroup { margin-left: 18px; }
 
   .inspectGrid {
     grid-template-columns: 1fr;

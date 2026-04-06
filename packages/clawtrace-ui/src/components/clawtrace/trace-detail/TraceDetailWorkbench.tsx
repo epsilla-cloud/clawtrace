@@ -257,12 +257,11 @@ function shortModelName(model: string): string {
   return model.length > 24 ? model.slice(0, 24) + '\u2026' : model;
 }
 
-function formatSpanCost(span: TraceDetailSpan): string | null {
+function formatSpanCostValue(span: TraceDetailSpan): string | null {
   if (span.kind !== 'llm_call' || span.totalTokens <= 0) return null;
   const cost = estimateSpanCost(span.model, span.tokensIn, span.tokensOut);
   if (cost <= 0) return null;
-  if (cost < 0.01) return `<$${cost.toFixed(4)}`;
-  return `$${cost.toFixed(4)}`;
+  return formatCurrency(cost);
 }
 
 function ClockIcon() {
@@ -2120,52 +2119,73 @@ function ExecutionPathView({
     const isError = Number(span.attributes.has_error) > 0;
     const isRoot = rootIdSet.has(span.spanId);
     const iconSrc = resolveSpanIcon(span);
-    const cost = formatSpanCost(span);
+    const isVendorIcon = iconSrc.includes('/llms/');
+    const cost = formatSpanCostValue(span);
 
     return (
       <div key={span.spanId} className={styles.treeNode}>
-        {/* Row 1: icon + name + badge + chevron */}
+        {/* Single clickable block covers both rows — so highlight spans everything */}
         <button
           type="button"
           id={`span-${span.spanId}`}
-          className={`${styles.treeNodeRow} ${isSelected ? styles.treeNodeRowSelected : ''} ${isError ? styles.treeNodeRowError : ''}`}
+          className={`${styles.treeNodeBlock} ${isSelected ? styles.treeNodeBlockSelected : ''} ${isError ? styles.treeNodeBlockError : ''}`}
           onClick={() => onSelectSpan(span.spanId)}
         >
-          <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
-          <span className={styles.treeItemName}>{spanTreeName(span)}</span>
-          {span.kind === 'llm_call' && span.model && (
-            <span className={styles.treeItemBadge}>{shortModelName(span.model)}</span>
-          )}
-          <span className={styles.treeItemSpacer} />
-          {hasChildren && !isRoot ? (
-            <span
-              className={styles.treeItemChevron}
-              role="button"
-              tabIndex={-1}
-              onClick={(e) => { e.stopPropagation(); toggleExpanded(span.spanId); }}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleExpanded(span.spanId); } }}
-            >
-              {isExpanded ? '\u25BE' : '\u25B8'}
+          {/* Row 1: icon + name + badge + chevron */}
+          <div className={styles.treeNodeRow}>
+            {isVendorIcon ? (
+              <span className={styles.treeItemIconWrap}>
+                <Image src={iconSrc} width={20} height={20} alt="" className={styles.treeItemIconInner} unoptimized />
+              </span>
+            ) : (
+              <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
+            )}
+            <span className={styles.treeItemName}>{spanTreeName(span)}</span>
+            {span.kind === 'llm_call' && span.model && (
+              <span className={styles.treeItemBadge}>{shortModelName(span.model)}</span>
+            )}
+            <span className={styles.treeItemSpacer} />
+            {hasChildren && !isRoot ? (
+              <span
+                className={styles.treeItemChevron}
+                role="button"
+                tabIndex={-1}
+                onClick={(e) => { e.stopPropagation(); toggleExpanded(span.spanId); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleExpanded(span.spanId); } }}
+              >
+                {isExpanded ? '\u25BE' : '\u25B8'}
+              </span>
+            ) : null}
+          </div>
+
+          {/* Row 2: metadata badges */}
+          <div className={styles.treeNodeMeta}>
+            <span className={styles.treeMetaDuration}>
+              <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
             </span>
-          ) : null}
+            {(span.tokensIn > 0 || span.tokensOut > 0 || cost) && (
+              <span className={styles.treeMetaGroup}>
+                {span.tokensIn > 0 && (
+                  <span className={styles.treeMetaGroupItem}>In: {formatCompactTokens(span.tokensIn)}</span>
+                )}
+                {span.tokensOut > 0 && (
+                  <>
+                    {span.tokensIn > 0 && <span className={styles.treeMetaSep} />}
+                    <span className={styles.treeMetaGroupItem}>Out: {formatCompactTokens(span.tokensOut)}</span>
+                  </>
+                )}
+                {cost && (
+                  <>
+                    {(span.tokensIn > 0 || span.tokensOut > 0) && <span className={styles.treeMetaSep} />}
+                    <span className={styles.treeMetaGroupItem}>Cost: {cost}</span>
+                  </>
+                )}
+              </span>
+            )}
+          </div>
         </button>
 
-        {/* Row 2: metadata badges — aligned under the name */}
-        <div className={styles.treeNodeMeta}>
-          <span className={styles.treeMetaPill}>
-            <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
-          </span>
-          {span.totalTokens > 0 && (
-            <span className={styles.treeMetaPill}>
-              <CoinIcon /> {formatCompactTokens(span.totalTokens)}
-            </span>
-          )}
-          {cost && (
-            <span className={styles.treeMetaPill}>/ {cost}</span>
-          )}
-        </div>
-
-        {/* Children — wrapped in a container with left-border for hierarchy */}
+        {/* Children */}
         {hasChildren && isExpanded && (
           <div className={styles.treeChildGroup}>
             {children.map((child) => renderNode(child))}
