@@ -338,17 +338,12 @@ function buildExecutionParentBySpanId(spans: TraceDetailSpan[]): Map<string, str
   return parentBySpan;
 }
 
-function compactActorNodeLabel(span: TraceDetailSpan): string {
-  if (span.kind === 'session') {
-    return span.agentId ?? 'session';
-  }
+function graphNodeLabel(span: TraceDetailSpan): string {
   if (span.kind === 'llm_call') {
-    return span.model ?? 'model';
+    const model = span.model ? shortModelName(span.model) : '';
+    return model ? `LLM Generation: ${model}` : 'LLM Generation';
   }
-  if (span.kind === 'tool_call') {
-    return span.toolName ?? span.name.replace(/^tool:/, '');
-  }
-  return span.childAgentId ?? 'subagent';
+  return spanTreeName(span);
 }
 
 function buildSelectionSummary(source: SelectionSource | null): string {
@@ -1102,7 +1097,7 @@ function ActorMapView({
     const nodes: GraphNode[] = spans.map((span) => ({
       spanId: span.spanId,
       span,
-      label: compactActorNodeLabel(span),
+      label: graphNodeLabel(span),
       kind: span.kind,
       r: span.kind === 'session' ? 34 : span.kind === 'llm_call' ? 19 : span.kind === 'subagent' ? 23 : 12,
       x: 0,
@@ -1127,23 +1122,17 @@ function ActorMapView({
     const H = Math.max(420, container.clientHeight || 0);
     const cx = W / 2;
     const cy = H / 2;
-    const colors: Record<TraceDetailSpanKind, string> = {
-      session: '#2563eb',
-      llm_call: '#ca8a04',
-      tool_call: '#16a34a',
-      subagent: '#9333ea',
+    const strokeColors: Record<TraceDetailSpanKind, string> = {
+      session: '#dacbb4',
+      llm_call: '#dacbb4',
+      tool_call: '#dacbb4',
+      subagent: '#dacbb4',
     };
-    const bgColors: Record<TraceDetailSpanKind, string> = {
-      session: '#eff6ff',
-      llm_call: '#fefce8',
-      tool_call: '#f0fdf4',
-      subagent: '#f3e8ff',
-    };
-    const iconByKind: Record<TraceDetailSpanKind, string> = {
-      session: '🤖',
-      llm_call: '🧠',
-      tool_call: '🔧',
-      subagent: '🤖',
+    const labelColors: Record<TraceDetailSpanKind, string> = {
+      session: '#5a4534',
+      llm_call: '#5a4534',
+      tool_call: '#5a4534',
+      subagent: '#5a4534',
     };
 
     container.innerHTML = '';
@@ -1203,45 +1192,54 @@ function ActorMapView({
 
     const documentCleanupHandlers: Array<() => void> = [];
 
-    const nodeEls = nodes.map((node) => {
+    const nodeEls = nodes.map((node, nodeIdx) => {
       const group = document.createElementNS(ns, 'g');
       group.classList.add(styles.actorGraphNode);
 
+      // Clip path for circular icon
+      const clipId = `clip-node-${nodeIdx}`;
+      const clip = document.createElementNS(ns, 'clipPath');
+      clip.setAttribute('id', clipId);
+      const clipCircle = document.createElementNS(ns, 'circle');
+      clipCircle.setAttribute('r', String(node.r));
+      clipCircle.setAttribute('cx', '0');
+      clipCircle.setAttribute('cy', '0');
+      clip.appendChild(clipCircle);
+      defs.appendChild(clip);
+
+      // Background circle with border
       const circle = document.createElementNS(ns, 'circle');
       circle.setAttribute('r', String(node.r));
-      circle.setAttribute('fill', bgColors[node.kind] ?? '#ffffff');
-      circle.setAttribute('stroke', colors[node.kind] ?? '#9ca3af');
+      circle.setAttribute('fill', '#fffdf8');
+      circle.setAttribute('stroke', strokeColors[node.kind] ?? '#dacbb4');
       const isSelected = selectedEntityId === `entity:${node.spanId}`;
-      circle.setAttribute('stroke-width', isSelected ? '3' : '2');
+      circle.setAttribute('stroke-width', isSelected ? '3' : '1.5');
       group.appendChild(circle);
 
-      const icon = document.createElementNS(ns, 'text');
-      icon.setAttribute('text-anchor', 'middle');
-      icon.setAttribute('dy', node.kind === 'session' || node.kind === 'subagent' ? '-4' : '1');
-      icon.setAttribute('font-size', node.kind === 'session' || node.kind === 'subagent' ? '16' : '12');
-      icon.textContent = iconByKind[node.kind];
-      group.appendChild(icon);
+      // Icon image filling the circle
+      const iconSrc = resolveSpanIcon(node.span);
+      const imgSize = node.r * 2;
+      const img = document.createElementNS(ns, 'image');
+      img.setAttribute('href', iconSrc);
+      img.setAttribute('x', String(-node.r));
+      img.setAttribute('y', String(-node.r));
+      img.setAttribute('width', String(imgSize));
+      img.setAttribute('height', String(imgSize));
+      img.setAttribute('clip-path', `url(#${clipId})`);
+      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      group.appendChild(img);
 
+      // Label below the circle
       const label = document.createElementNS(ns, 'text');
       label.setAttribute('text-anchor', 'middle');
-      label.setAttribute('dy', node.kind === 'session' || node.kind === 'subagent' ? '12' : '24');
-      label.setAttribute('fill', colors[node.kind] ?? '#6b7280');
+      label.setAttribute('dy', String(node.r + 14));
+      label.setAttribute('fill', labelColors[node.kind] ?? '#5a4534');
       label.setAttribute('font-size', '10');
-      const labelText = node.label.length > 20 ? `${node.label.slice(0, 18)}…` : node.label;
+      label.setAttribute('font-weight', '500');
+      const maxLabelLen = 28;
+      const labelText = node.label.length > maxLabelLen ? `${node.label.slice(0, maxLabelLen - 1)}…` : node.label;
       label.textContent = labelText;
       group.appendChild(label);
-
-      if ((node.kind === 'session' || node.kind === 'subagent') && node.span.sessionKey) {
-        const metrics = sessionMetrics.get(node.span.sessionKey);
-        if (metrics) {
-          const stats = document.createElementNS(ns, 'text');
-          stats.classList.add(styles.actorGraphNodeStats);
-          stats.setAttribute('text-anchor', 'middle');
-          stats.setAttribute('dy', '23');
-          stats.textContent = `${metrics.llmCalls} llm / ${metrics.toolCalls} tools`;
-          group.appendChild(stats);
-        }
-      }
 
       group.addEventListener('click', () => {
         onSelect(`entity:${node.spanId}`, node.spanId, spanDisplayLabel(node.span));
@@ -1262,11 +1260,26 @@ function ActorMapView({
         node.y = (event.clientY - rect.top) * scaleY;
         node.vx = 0;
         node.vy = 0;
+        // Update position immediately during drag (even when frozen)
+        nodeEls[nodes.indexOf(node)]?.setAttribute('transform', `translate(${node.x},${node.y})`);
+        // Update connected links
+        links.forEach((link, li) => {
+          const src = nodes[link.source];
+          const tgt = nodes[link.target];
+          const ddx = tgt.x - src.x;
+          const ddy = tgt.y - src.y;
+          const dd = Math.sqrt(ddx * ddx + ddy * ddy) || 1;
+          linkEls[li].setAttribute('x1', String(src.x));
+          linkEls[li].setAttribute('y1', String(src.y));
+          linkEls[li].setAttribute('x2', String(tgt.x - (ddx / dd) * tgt.r));
+          linkEls[li].setAttribute('y2', String(tgt.y - (ddy / dd) * tgt.r));
+        });
       };
       const onMouseUp = () => {
         if (!dragging) return;
         dragging = false;
-        node.fixed = false;
+        // After freeze, keep node fixed at its new position
+        if (!frozen) node.fixed = false;
       };
       group.addEventListener('mousedown', onMouseDown);
       document.addEventListener('mousemove', onMouseMove);
@@ -1310,16 +1323,22 @@ function ActorMapView({
       return group;
     });
 
-    const legend = document.createElement('div');
-    legend.className = styles.actorGraphLegend;
-    legend.innerHTML = `<span class="${styles.actorLegendSession}">Session</span><span class="${styles.actorLegendModel}">Model</span><span class="${styles.actorLegendTool}">Tool</span>`;
     container.appendChild(svg);
-    container.appendChild(legend);
 
     let rafId = 0;
     let alpha = 1;
+    let frozen = false;
+
+    // Freeze force layout after 5 seconds — fix all node positions
+    const freezeTimer = setTimeout(() => {
+      frozen = true;
+      alpha = 0;
+      for (const node of nodes) node.fixed = true;
+    }, 5000);
+
     const tick = () => {
       if (alpha < 0.001) return;
+      if (frozen) return;
       alpha *= 0.982;
 
       for (let i = 0; i < nodes.length; i += 1) {
@@ -1419,6 +1438,7 @@ function ActorMapView({
     window.addEventListener('resize', onResize);
 
     return () => {
+      clearTimeout(freezeTimer);
       if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener('resize', onResize);
       documentCleanupHandlers.forEach((dispose) => dispose());
