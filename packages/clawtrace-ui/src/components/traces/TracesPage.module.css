@@ -1,5 +1,14 @@
 .shell { display: flex; height: 100dvh; overflow: hidden; background: #f0e4d0; }
-.main  { flex: 1; display: flex; flex-direction: column; background: #faf4ec; overflow-y: auto; padding: 20px 28px; gap: 12px; min-width: 0; }
+.main  {
+  flex: 1; display: flex; flex-direction: column; background: #faf4ec;
+  overflow-y: auto; overflow-x: hidden; padding: 20px 28px 32px; gap: 12px; min-width: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.main::-webkit-scrollbar { width: 6px; }
+.main::-webkit-scrollbar-track { background: transparent; }
+.main::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
+.main::-webkit-scrollbar-thumb:hover { background: #a89078; }
 
 /* Row 1: Title */
 .title { font-size: 18px; font-weight: 600; color: #2e2115; margin: 0; letter-spacing: -0.01em; }
@@ -59,7 +68,7 @@
 .chartArea  { width: 100%; height: 90px; }
 
 /* Table */
-.tableSection { display: flex; flex-direction: column; min-height: 0; }
+.tableSection { }
 .tableWrap { background: #fffdf8; border: 1px solid #dacbb4; border-radius: 12px; overflow: hidden; }
 .loading { padding: 24px; font-size: 13px; color: #7c6854; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -123,6 +132,6 @@
 }
 @media (max-width: 700px) {
   .main { padding: 14px; }
-  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .metrics { grid-template-columns: 1fr; }
   .charts  { grid-template-columns: 1fr; }
 }
