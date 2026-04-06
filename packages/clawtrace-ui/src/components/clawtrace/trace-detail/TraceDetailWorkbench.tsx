@@ -340,8 +340,7 @@ function buildExecutionParentBySpanId(spans: TraceDetailSpan[]): Map<string, str
 
 function graphNodeLabel(span: TraceDetailSpan): string {
   if (span.kind === 'llm_call') {
-    const model = span.model ? shortModelName(span.model) : '';
-    return model ? `LLM Generation: ${model}` : 'LLM Generation';
+    return span.model ? shortModelName(span.model) : 'LLM';
   }
   return spanTreeName(span);
 }
@@ -1182,11 +1181,57 @@ function ActorMapView({
     defs.appendChild(marker);
     svg.appendChild(defs);
 
+    // Zoom/pan wrapper group
+    const zoomGroup = document.createElementNS(ns, 'g');
+    svg.appendChild(zoomGroup);
+    let zoomScale = 1;
+    let panX = 0;
+    let panY = 0;
+    const applyZoom = () => { zoomGroup.setAttribute('transform', `translate(${panX},${panY}) scale(${zoomScale})`); };
+
+    // Wheel zoom
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = svg.getBoundingClientRect();
+      const mx = ((e.clientX - rect.left) / rect.width) * W;
+      const my = ((e.clientY - rect.top) / rect.height) * H;
+      const oldScale = zoomScale;
+      const factor = e.deltaY < 0 ? 1.08 : 1 / 1.08;
+      zoomScale = Math.max(0.3, Math.min(5, zoomScale * factor));
+      // Zoom toward cursor
+      panX = mx - ((mx - panX) / oldScale) * zoomScale;
+      panY = my - ((my - panY) / oldScale) * zoomScale;
+      applyZoom();
+    };
+    svg.addEventListener('wheel', onWheel, { passive: false });
+
+    // Middle-mouse or background drag to pan
+    let panning = false;
+    let panStartX = 0;
+    let panStartY = 0;
+    const onBgDown = (e: MouseEvent) => {
+      if (e.target !== svg && e.target !== zoomGroup) return;
+      panning = true;
+      panStartX = e.clientX - panX;
+      panStartY = e.clientY - panY;
+      e.preventDefault();
+    };
+    const onBgMove = (e: MouseEvent) => {
+      if (!panning) return;
+      panX = e.clientX - panStartX;
+      panY = e.clientY - panStartY;
+      applyZoom();
+    };
+    const onBgUp = () => { panning = false; };
+    svg.addEventListener('mousedown', onBgDown);
+    document.addEventListener('mousemove', onBgMove);
+    document.addEventListener('mouseup', onBgUp);
+
     const linkEls = links.map((link) => {
       const line = document.createElementNS(ns, 'line');
       line.classList.add(styles.actorGraphLink);
       line.setAttribute('marker-end', `url(#${marker.id})`);
-      svg.appendChild(line);
+      zoomGroup.appendChild(line);
       return line;
     });
 
@@ -1212,8 +1257,8 @@ function ActorMapView({
       circle.setAttribute('r', String(node.r));
       circle.setAttribute('fill', '#fffdf8');
       circle.setAttribute('stroke', strokeColors[node.kind] ?? '#dacbb4');
-      const isSelected = selectedEntityId === `entity:${node.spanId}`;
-      circle.setAttribute('stroke-width', isSelected ? '3' : '1.5');
+      circle.setAttribute('stroke-width', '1.5');
+      circle.dataset.spanId = node.spanId;
       group.appendChild(circle);
 
       // Icon image filling the circle
@@ -1236,9 +1281,7 @@ function ActorMapView({
       label.setAttribute('fill', labelColors[node.kind] ?? '#5a4534');
       label.setAttribute('font-size', '10');
       label.setAttribute('font-weight', '500');
-      const maxLabelLen = 28;
-      const labelText = node.label.length > maxLabelLen ? `${node.label.slice(0, maxLabelLen - 1)}…` : node.label;
-      label.textContent = labelText;
+      label.textContent = node.label;
       group.appendChild(label);
 
       group.addEventListener('click', () => {
@@ -1319,7 +1362,7 @@ function ActorMapView({
         tip.style.top = `${event.clientY - rect.top + 12}px`;
       });
 
-      svg.appendChild(group);
+      zoomGroup.appendChild(group);
       return group;
     });
 
@@ -1432,6 +1475,7 @@ function ActorMapView({
 
     rafId = requestAnimationFrame(tick);
     const onResize = () => {
+      if (frozen) return; // never restart after freeze
       if (rafId) cancelAnimationFrame(rafId);
       rafId = requestAnimationFrame(tick);
     };
@@ -1441,10 +1485,27 @@ function ActorMapView({
       clearTimeout(freezeTimer);
       if (rafId) cancelAnimationFrame(rafId);
       window.removeEventListener('resize', onResize);
+      svg.removeEventListener('wheel', onWheel);
+      svg.removeEventListener('mousedown', onBgDown);
+      document.removeEventListener('mousemove', onBgMove);
+      document.removeEventListener('mouseup', onBgUp);
       documentCleanupHandlers.forEach((dispose) => dispose());
       container.innerHTML = '';
     };
-  }, [detail.spans, onSelect, selectedEntityId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail.spans, onSelect]);
+
+  // Highlight selected node without re-creating graph
+  useEffect(() => {
+    const container = graphRef.current;
+    if (!container) return;
+    const circles = container.querySelectorAll<SVGCircleElement>('circle[data-span-id]');
+    circles.forEach((circle) => {
+      const isSelected = selectedEntityId === `entity:${circle.dataset.spanId}`;
+      circle.setAttribute('stroke-width', isSelected ? '3' : '1.5');
+      circle.setAttribute('stroke', isSelected ? '#8b5e3c' : '#dacbb4');
+    });
+  }, [selectedEntityId]);
 
   if (!detail.spans.length) {
     return <div className={styles.viewEmpty}>No entities to graph.</div>;
