@@ -260,7 +260,7 @@
 /* ── Tree node ──────────────────────────────────────────────────────────── */
 .treeNode {}
 
-/* Clickable block covers BOTH rows — highlight spans name + metadata */
+/* Clickable block: flex row — icon | wrapping content | chevron */
 .treeNodeBlock {
   border: 0;
   width: 100%;
@@ -270,6 +270,21 @@
   padding: 4px 12px;
   font-family: inherit;
   transition: background 100ms;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  position: relative; /* for ::after connector line */
+}
+
+/* Draw vertical line from icon bottom downward when node has children */
+.treeNode:has(> .treeChildGroup) > .treeNodeBlock::after {
+  content: '';
+  position: absolute;
+  left: 24px; /* padding-left (12) + half-icon (12) = icon center */
+  top: 28px;  /* padding-top (4) + icon height (24) = icon bottom */
+  bottom: 0;
+  border-left: 1.5px solid #ddd0c0;
+  pointer-events: none;
 }
 .treeNodeBlock:hover { background: #f0e8dc; }
 .treeNodeBlockSelected { background: #e8dcc8; }
@@ -290,11 +305,14 @@
   line-height: 1;
 }
 
-/* Row 1: icon + name + badge + chevron */
-.treeNodeRow {
+/* Wrapping content area — all labels flow naturally */
+.treeNodeContent {
+  flex: 1;
+  min-width: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
+  gap: 3px 6px;
 }
 
 /* ── Icons ───────────────────────────────────────────────────────────────── */
@@ -306,11 +324,11 @@
   object-fit: cover;
 }
 
-/* White rounded-corner wrapper for LLM vendor icons */
+/* White rounded-corner wrapper for LLM vendor icons — same outer size as regular icons */
 .treeItemIconWrap {
-  width: 26px;
-  height: 26px;
-  border-radius: 7px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   background: #fff;
   border: 1px solid #e0d5c6;
   display: inline-flex;
@@ -319,8 +337,8 @@
   flex-shrink: 0;
 }
 .treeItemIconInner {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   border-radius: 3px;
   object-fit: contain;
 }
@@ -350,8 +368,6 @@
   flex-shrink: 0;
 }
 
-.treeItemSpacer { flex: 1; }
-
 .treeItemChevron {
   width: 22px;
   flex-shrink: 0;
@@ -366,14 +382,6 @@
   padding: 0;
 }
 .treeItemChevron:hover { color: #5a4534; }
-
-/* ── Row 2: metadata badges ─────────────────────────────────────────────── */
-.treeNodeMeta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 0 0 32px; /* 24px icon + 8px gap = 32px aligned under name */
-}
 
 /* Duration badge — same style as model badge */
 .treeMetaDuration {
@@ -447,23 +455,24 @@
   pointer-events: none;
 }
 
-/* Curved connector for EVERY child: L-shape from vertical line to icon */
+/* Curved L-connector for EVERY child: from vertical line to icon left border */
+/* top: 4px → bottom: 16px = exactly icon center (4px pad + 12px half-icon) */
 .treeChildGroup > .treeNode::after {
   content: '';
   position: absolute;
   left: 0;
-  top: 5px;
+  top: 4px;
   width: 12px;
-  height: 12px; /* ends at ~17px = icon vertical center */
+  height: 12px;
   border-left: 1.5px solid #ddd0c0;
   border-bottom: 1.5px solid #ddd0c0;
   border-bottom-left-radius: 10px;
   pointer-events: none;
 }
 
-/* First child: extend vertical line up to parent icon bottom */
+/* First child: parent button draws its own line down — just start from top:0 */
 .treeChildGroup > .treeNode:first-child::before {
-  top: -24px;
+  top: 0;
 }
 
 /* Last child: vertical line stops just above the curve */
@@ -472,10 +481,10 @@
   height: 6px;
 }
 
-/* Only child: extend up + short vertical */
+/* Only child: short line from top to curve */
 .treeChildGroup > .treeNode:first-child:last-child::before {
-  top: -24px;
-  height: 30px; /* 24px above + 6px below */
+  top: 0;
+  height: 6px;
 }
 
 .actorMapCanvas {
@@ -1445,7 +1454,6 @@
   .modeSwitcher { display: none !important; }
   .modeDropdown { display: flex !important; }
   .divider { display: none; }
-  .treeNodeMeta { gap: 4px; }
   .treeMetaGroup { display: none; }
   .treeChildGroup { margin-left: 18px; }
   .inspectGrid { grid-template-columns: 1fr; }
