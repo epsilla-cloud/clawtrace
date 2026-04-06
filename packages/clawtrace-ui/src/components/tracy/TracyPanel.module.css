@@ -1,0 +1,203 @@
+/* ── Tracy Panel — shared right-side chat agent ─────────────────────────── */
+
+/* Floating avatar (collapsed state) */
+.floatingAvatar {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 50;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #dacbb4;
+  border-right: none;
+  border-radius: 10px 0 0 10px;
+  background: #fffdf8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: -2px 2px 12px rgba(24, 12, 4, 0.10);
+  transition: background 140ms ease;
+}
+.floatingAvatar:hover { background: #f5e2d0; }
+.floatingAvatarImg { width: 32px; height: 32px; border-radius: 999px; object-fit: cover; }
+
+/* Rail (expanded state) */
+.rail {
+  width: 340px;
+  min-width: 340px;
+  height: 100dvh;
+  border-left: 1px solid #dacbb4;
+  background: #fdf8f2;
+  position: relative;
+  flex-shrink: 0;
+}
+
+/* Panel inner */
+.panel {
+  height: 100%;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: visible;
+  position: relative;
+}
+
+/* Collapse handle */
+.edgeToggle {
+  position: absolute;
+  left: -14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: 10px;
+  border: 1px solid #dacbb4;
+  background: #fffdf8;
+  color: #7c6854;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 3;
+  box-shadow: 0 2px 12px rgba(24, 12, 4, 0.08);
+  transition: background 140ms ease;
+}
+.edgeToggle:hover { background: #f5e2d0; color: #2e2115; }
+.edgeToggleGlyph { font-size: 16px; line-height: 1; }
+
+/* Header */
+.header {
+  padding: 14px 14px 12px;
+  border-bottom: 1px solid #e8dcc8;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fffdf8;
+}
+.headerIdentity { display: inline-flex; align-items: center; gap: 8px; }
+.avatarHeader {
+  width: 28px; height: 28px; border-radius: 999px;
+  border: 1px solid #dacbb4; background: #fff;
+  display: inline-flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.avatarBubble {
+  width: 24px; height: 24px; border-radius: 999px;
+  border: 1px solid #dacbb4; background: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin-top: 2px; flex-shrink: 0; overflow: hidden;
+}
+.avatarImage { width: 100%; height: 100%; object-fit: cover; display: block; }
+.name { margin: 0; font-size: 20px; line-height: 1.1; letter-spacing: -0.01em; font-weight: 600; color: #2e2115; }
+
+/* Transcript */
+.transcript {
+  min-height: 0; overflow-y: auto; padding: 12px;
+  display: grid; align-content: start; gap: 10px;
+  background: #faf4ec;
+  scrollbar-width: thin; scrollbar-color: #c9b8a4 transparent;
+}
+.transcript::-webkit-scrollbar { width: 4px; }
+.transcript::-webkit-scrollbar-track { background: transparent; }
+.transcript::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 2px; }
+
+/* Messages */
+.messageRow { display: flex; align-items: flex-start; gap: 8px; }
+.messageRowAssistant { justify-content: flex-start; }
+.messageRowUser { justify-content: flex-end; }
+.message {
+  width: min(94%, 100%); border: 1px solid transparent;
+  border-radius: 12px; padding: 10px; display: grid; gap: 6px;
+}
+.messageAssistant { background: #fffdf8; border-color: #e8dcc8; }
+.messageUser { max-width: 88%; background: #f5e2d0; border-color: #dacbb4; }
+.sender {
+  margin: 0; font-size: 11px; letter-spacing: .02em; color: #b89c84; font-weight: 620;
+}
+.messageText {
+  margin: 0; font-size: 13px; color: #5a4534; line-height: 1.45; white-space: pre-wrap;
+}
+
+/* Links */
+.inlineLink {
+  color: #9a4f44; font-size: 13px; font-weight: 560;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+
+/* Charts */
+.chartRow { display: grid; gap: 8px; }
+.inlineChart {
+  margin: 0; border: 1px solid #e8dcc8; border-radius: 10px;
+  background: #faf4ec; padding: 8px; display: grid; gap: 6px;
+}
+.inlineChartTitle { margin: 0; font-size: 13px; color: #2e2115; font-weight: 560; }
+.inlineChartCanvas { width: 100%; height: 120px; }
+
+/* Actions */
+.actionBlock { display: grid; gap: 6px; }
+.actionTitle {
+  margin: 0; font-size: 10px; color: #b89c84; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.actionList { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+.actionItem { font-size: 13px; color: #5a4534; line-height: 1.4; }
+
+/* Attachments */
+.attachmentRow { display: flex; flex-wrap: wrap; gap: 6px; }
+.attachmentChip {
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 24px; border-radius: 999px;
+  border: 1px solid #dacbb4; background: #faf4ec;
+  color: #5a4534; font-size: 11px; padding: 1px 8px;
+}
+.attachmentRemove {
+  border: 0; background: transparent; color: #b89c84;
+  padding: 0; font-size: 14px; line-height: 1; cursor: pointer;
+}
+
+/* Composer */
+.composer {
+  padding: 10px 12px 12px; border-top: 1px solid #e8dcc8;
+  background: #fffdf8; display: grid; gap: 8px;
+}
+.composerRow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center; gap: 8px;
+}
+.inputShell {
+  min-height: 36px; border-radius: 10px;
+  border: 1px solid #dacbb4; background: #fffdf8;
+  display: flex; align-items: center; gap: 2px; padding: 0 6px 0 4px;
+}
+.iconButton {
+  height: 28px; width: 28px; border-radius: 8px;
+  border: 0; background: transparent; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #7c6854; flex-shrink: 0;
+}
+.iconButton:hover { background: #f5e2d0; }
+.iconButton:disabled { opacity: 0.45; cursor: not-allowed; }
+.iconSvg {
+  width: 16px; height: 16px; fill: none; stroke: currentColor;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.voiceActive { background: #f5e2d0; }
+.textInput {
+  min-width: 0; width: 100%; height: 32px; border: 0; background: transparent;
+  padding: 0 6px; font-size: 13px; color: #5a4534; font-family: inherit; line-height: 1.25;
+}
+.textInput:focus { outline: none; }
+.sendButton {
+  height: 32px; border-radius: 10px; border: 1px solid transparent;
+  background: #a4532b; color: #fff; font-size: 13px; font-weight: 590;
+  padding: 0 12px; cursor: pointer;
+}
+.sendButton:hover { background: #8e4524; }
+.hiddenInput { display: none; }
+
+/* Responsive — hide on small screens */
+@media (max-width: 900px) {
+  .rail { display: none; }
+  .floatingAvatar { display: none; }
+}
