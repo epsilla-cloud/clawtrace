@@ -2275,15 +2275,23 @@ function extractOutputText(span: TraceDetailSpan): string {
   }
   const payload = extractOutputPayload(span);
   if (!payload) return '';
-  // Drill into result.content[0].text or data.details.aggregated if present
+  // Drill into nested structures to find the most useful content
   try {
-    const obj = payload as Record<string, unknown>;
-    const data = obj.data as Record<string, unknown> | undefined;
-    const details = data?.details as Record<string, unknown> | undefined;
-    const aggregated = details?.aggregated;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const obj = payload as any;
+    // Try: result.details.aggregated (tool call outputs from OpenClaw)
+    const aggregated = obj?.result?.details?.aggregated;
     if (aggregated !== undefined && aggregated !== null) {
       return typeof aggregated === 'string' ? aggregated : JSON.stringify(aggregated, null, 2);
     }
+    // Try: data.details.aggregated (alternative nesting)
+    const aggregated2 = obj?.data?.details?.aggregated;
+    if (aggregated2 !== undefined && aggregated2 !== null) {
+      return typeof aggregated2 === 'string' ? aggregated2 : JSON.stringify(aggregated2, null, 2);
+    }
+    // Try: result.content[0].text (standard tool result)
+    const text = obj?.result?.content?.[0]?.text;
+    if (typeof text === 'string' && text.length > 0) return text;
   } catch { /* fall through */ }
   return JSON.stringify(payload, null, 2);
 }
