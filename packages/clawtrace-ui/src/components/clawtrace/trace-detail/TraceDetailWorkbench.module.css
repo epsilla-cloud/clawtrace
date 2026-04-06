@@ -103,14 +103,15 @@
 .backButton:hover { background: #f5e2d0; color: #2e2115; }
 
 .modeSwitcher {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
   align-items: center;
   gap: 4px;
   padding: 4px;
   border-radius: 10px;
   border: 1px solid #dacbb4;
   background: #faf4ec;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .modeButton {
@@ -126,6 +127,9 @@
   align-items: center;
   justify-content: center;
   transition: background 140ms ease, border-color 140ms ease;
+  flex: 1 1 0;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .modeButton:hover {
