@@ -40,6 +40,8 @@
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
+  container-type: inline-size;
+  container-name: trace-content;
 }
 
 .topRow {
@@ -159,8 +161,6 @@
   align-items: stretch;
   gap: 0;
   overflow: hidden;
-  container-type: inline-size;
-  container-name: workspace;
 }
 
 .workspaceNoInspector {
@@ -1427,7 +1427,7 @@
 }
 
 /* Narrow: inspector full-width overlay, mode switcher becomes dropdown */
-@container workspace (max-width: 959px) {
+@container trace-content (max-width: 959px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr) !important;
     position: relative;
