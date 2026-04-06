@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Suspense } from 'react';
 import { siteConfig } from '../lib/site';
 import { InviteCodeCapture } from '@/components/auth/invite-code-capture';
+import { TracyPanel } from '@/components/tracy/TracyPanel';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -82,6 +83,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <InviteCodeCapture />
         </Suspense>
         {children}
+        <Suspense fallback={null}>
+          <TracyPanel />
+        </Suspense>
       </body>
     </html>
   );
