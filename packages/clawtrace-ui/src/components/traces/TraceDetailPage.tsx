@@ -62,7 +62,7 @@ export function TraceDetailPage() {
   }, [traceId, response]);
 
   return (
-    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: '#f0e4d0' }}>
+    <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden', background: '#faf4ec' }}>
       <AppNav />
 
       {loading && (

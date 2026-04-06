@@ -51,17 +51,25 @@
 }
 
 .topIdentity {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
 }
 
 .pageTitle {
   margin: 0;
-  font-size: clamp(24px, 2.4vw, 31px);
-  line-height: 1.04;
+  font-size: 18px;
+  line-height: 1.2;
   letter-spacing: -0.01em;
-  font-weight: 650;
-  color: var(--ct-text);
+  font-weight: 400;
+  color: #2e2115;
+}
+
+.traceUuid {
+  font-size: 13px;
+  color: #7c6854;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+  font-weight: 400;
 }
 
 .pageSubtitle {
@@ -83,14 +91,17 @@
   justify-content: center;
   text-decoration: none;
   height: 32px;
-  border-radius: 9px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  background: color-mix(in srgb, var(--ct-panel-subtle) 74%, white);
-  color: var(--ct-text);
-  font-size: var(--ct-text-body-sm);
-  font-weight: 600;
-  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid #dacbb4;
+  background: #fffdf8;
+  color: #7c6854;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 12px;
+  transition: background 140ms ease;
 }
+.backButtonInline:hover,
+.backButton:hover { background: #f5e2d0; color: #2e2115; }
 
 .modeSwitcher {
   display: grid;
@@ -98,45 +109,43 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
-  border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  background: color-mix(in srgb, var(--ct-panel-subtle) 70%, white);
+  border-radius: 10px;
+  border: 1px solid #dacbb4;
+  background: #faf4ec;
 }
 
 .modeButton {
   border: 1px solid transparent;
-  border-radius: 9px;
+  border-radius: 7px;
   background: transparent;
-  color: var(--ct-soft-text);
-  min-height: 42px;
-  padding: 8px 12px;
+  color: #7c6854;
+  height: 34px;
+  padding: 0 14px;
   text-align: center;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: border-color var(--ct-duration-fast) var(--ct-ease-standard),
-    box-shadow var(--ct-duration-fast) var(--ct-ease-standard),
-    transform var(--ct-duration-fast) var(--ct-ease-standard),
-    background-color var(--ct-duration-fast) var(--ct-ease-standard);
+  transition: background 140ms ease, border-color 140ms ease;
 }
 
 .modeButton:hover {
-  background: #fff;
-  border-color: color-mix(in srgb, var(--ct-primary) 20%, var(--ct-border));
+  background: #fffdf8;
+  border-color: #dacbb4;
 }
 
 .modeButtonActive {
-  background: #fff;
-  border-color: color-mix(in srgb, var(--ct-primary) 26%, var(--ct-border));
-  box-shadow: var(--ct-shadow-selected);
+  background: #fffdf8;
+  border-color: #c9a882;
+  font-weight: 600;
+  color: #2e2115;
 }
 
 .modeLabel {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.2;
-  font-weight: 600;
-  color: var(--ct-text);
+  font-weight: 500;
+  color: inherit;
 }
 
 .workspace {
@@ -151,9 +160,9 @@
 
 .viewCard,
 .inspectorCard {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  border: 1px solid #dacbb4;
   border-radius: 12px;
-  background: #fff;
+  background: #fffdf8;
   min-height: 0;
   height: 100%;
   overflow: hidden;
@@ -1235,25 +1244,16 @@
   color: var(--ct-soft-text);
 }
 
-/* ── Content-only shell (AppNav is the outer nav, no FlowLeftNav) ──────────── */
+/* ── Content-only shell (AppNav is the outer nav) ────────────────────────── */
 .workbenchShell {
   flex: 1;
   min-width: 0;
   height: 100dvh;
   min-height: 100dvh;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
-  align-items: stretch;
-  transition: grid-template-columns 180ms ease;
+  display: flex;
+  flex-direction: column;
   overflow: hidden;
-}
-
-.workbenchShellTracyOpen {
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 380px);
-}
-
-.workbenchShellTracyClosed {
-  grid-template-columns: minmax(0, 1fr) 0;
+  background: #faf4ec;
 }
 
 @media (max-width: 1500px) {
