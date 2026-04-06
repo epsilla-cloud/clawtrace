@@ -245,43 +245,114 @@
   padding: 6px 8px 10px;
 }
 
-/* ── New tree item row ──────────────────────────────────────────────────── */
-.treeItemRow {
+/* ── Tree node ──────────────────────────────────────────────────────────── */
+.treeNode {
+  position: relative;
+}
+
+.treeNodeRow {
   border: 0;
   width: 100%;
   background: transparent;
-  min-height: 48px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px 6px 12px;
+  padding: 6px 12px 2px 12px;
   text-align: left;
   cursor: pointer;
   border-radius: 8px;
   transition: background 100ms;
   font-family: inherit;
 }
-.treeItemRow:hover { background: #f5efe6; }
+.treeNodeRow:hover { background: #f5efe6; }
 .treeItemSelected { background: #ede3d4; }
 .treeItemSelected:hover { background: #e8dbc8; }
 .treeItemError { border-left: 3px solid #e53e3e; }
 
-.treeItemChevron {
-  width: 18px;
+/* ── Hierarchy guide lines ──────────────────────────────────────────────── */
+.treeGuides {
+  display: inline-flex;
+  align-items: stretch;
+  align-self: stretch;
   flex-shrink: 0;
-  font-size: 14px;
-  color: #b89c84;
-  text-align: center;
-  cursor: pointer;
-  user-select: none;
-  line-height: 1;
-  background: transparent;
-  border: 0;
-  padding: 0;
 }
-.treeItemChevron:hover { color: #5a4534; }
-.treeItemChevronSpacer { width: 18px; flex-shrink: 0; }
 
+/* Vertical line segment (ancestor has more siblings) */
+.treeGuideLine {
+  width: 20px;
+  flex-shrink: 0;
+  position: relative;
+}
+.treeGuideLine::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: #dacbb4;
+}
+
+/* Empty guide (no line) */
+.treeGuideEmpty {
+  width: 20px;
+  flex-shrink: 0;
+}
+
+/* T-connector: ├ (has more siblings below) */
+.treeGuideT {
+  width: 20px;
+  flex-shrink: 0;
+  position: relative;
+}
+.treeGuideT::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: #dacbb4;
+}
+.treeGuideT::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  width: 10px;
+  height: 1.5px;
+  background: #dacbb4;
+}
+
+/* Corner connector: └ (last child) */
+.treeGuideCorner {
+  width: 20px;
+  flex-shrink: 0;
+  position: relative;
+}
+.treeGuideCorner::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 0;
+  height: 50%;
+  width: 1.5px;
+  background: #dacbb4;
+  border-bottom-left-radius: 4px;
+}
+.treeGuideCorner::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  width: 10px;
+  height: 1.5px;
+  background: #dacbb4;
+  border-bottom-left-radius: 4px;
+}
+
+/* ── Tree item pieces ───────────────────────────────────────────────────── */
 .treeItemIcon {
   width: 24px;
   height: 24px;
@@ -291,7 +362,7 @@
 }
 
 .treeItemName {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 560;
   color: #2e2115;
   white-space: nowrap;
@@ -317,19 +388,35 @@
 
 .treeItemSpacer { flex: 1; }
 
-.treeItemMeta {
+.treeItemChevron {
+  width: 22px;
+  flex-shrink: 0;
+  font-size: 14px;
+  color: #b89c84;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1;
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.treeItemChevron:hover { color: #5a4534; }
+
+/* ── Second-row metadata badges ─────────────────────────────────────────── */
+.treeNodeMeta {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  gap: 10px;
+  padding-bottom: 6px;
 }
 
-.treeItemPill {
+.treeMetaPill {
   display: inline-flex;
   align-items: center;
   gap: 3px;
   font-size: 12px;
-  color: #7c6854;
+  color: #8c7a66;
   white-space: nowrap;
 }
 
@@ -340,8 +427,8 @@
   color: #b89c84;
 }
 
-.treeItemChildren {
-  /* Children are indented via paddingLeft on each row */
+.treeNodeChildren {
+  /* Children render inside this container */
 }
 
 .actorMapCanvas {
@@ -1342,11 +1429,11 @@
     padding: 0;
   }
 
-  .treeItemMeta {
+  .treeNodeMeta {
     gap: 4px;
   }
 
-  .treeItemPill:last-child {
+  .treeMetaPill:last-child {
     display: none;
   }
 

@@ -239,11 +239,18 @@ function resolveSpanIcon(span: TraceDetailSpan): string {
   return match ? `/icons/llms/${match}.png` : '/icons/model.png';
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function spanTreeName(span: TraceDetailSpan): string {
-  if (span.kind === 'llm_call') return span.name || 'LLM Call';
+  if (span.kind === 'llm_call') return 'LLM Generation';
   if (span.kind === 'tool_call') return span.toolName ?? span.name;
-  if (span.kind === 'subagent') return span.childAgentId ?? span.childSessionKey ?? 'Subagent';
-  return span.agentId ?? span.sessionKey ?? span.name;
+  if (span.kind === 'subagent') {
+    const name = span.childAgentId ?? span.childSessionKey ?? '';
+    return (!name || UUID_RE.test(name)) ? 'Delegate to Subagent' : name;
+  }
+  // session
+  const name = span.agentId ?? span.sessionKey ?? span.name;
+  return (!name || UUID_RE.test(name)) ? 'Session Start' : name;
 }
 
 function shortModelName(model: string): string {
@@ -2085,17 +2092,16 @@ function ExecutionPathView({
     return map;
   }, [detail.spans, executionParentBySpanId]);
 
-  // Root spans always expanded; others collapsed by default
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(rootSpanIds));
+  // All spans expanded by default
+  const allSpanIds = useMemo(() => new Set(detail.spans.map((s) => s.spanId)), [detail.spans]);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(allSpanIds));
 
-  // Keep expanded set in sync when rootSpanIds change
+  // Keep expanded set in sync when spans change
   useEffect(() => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      for (const id of rootSpanIds) next.add(id);
-      return next;
-    });
-  }, [rootSpanIds]);
+    setExpandedIds(new Set(detail.spans.map((s) => s.spanId)));
+  }, [detail.spans]);
+
+  const rootIdSet = useMemo(() => new Set(rootSpanIds), [rootSpanIds]);
 
   const toggleExpanded = useCallback((spanId: string) => {
     setExpandedIds((prev) => {
@@ -2106,37 +2112,61 @@ function ExecutionPathView({
     });
   }, []);
 
-  function renderNode(span: TraceDetailSpan, depth: number): ReactNode {
+  /**
+   * Render a tree node with hierarchy guide lines.
+   * @param ancestors — boolean[] where ancestors[i] = true means the ancestor at depth i
+   *   has more siblings below it (so a vertical line should continue at that column).
+   * @param isLast — whether this node is the last child of its parent.
+   */
+  function renderNode(
+    span: TraceDetailSpan,
+    depth: number,
+    ancestors: boolean[],
+    isLast: boolean,
+  ): ReactNode {
     const children = childrenByParent.get(span.spanId) ?? [];
     const hasChildren = children.length > 0;
     const isExpanded = expandedIds.has(span.spanId);
     const isSelected = selectedSpanId === span.spanId;
     const isError = Number(span.attributes.has_error) > 0;
+    const isRoot = rootIdSet.has(span.spanId);
     const iconSrc = resolveSpanIcon(span);
     const cost = formatSpanCost(span);
 
+    // Build guide columns for each depth level
+    const guides: ReactNode[] = [];
+    for (let i = 0; i < depth; i++) {
+      if (i === depth - 1) {
+        // Current connector: ├ or └
+        guides.push(
+          <span
+            key={i}
+            className={isLast ? styles.treeGuideCorner : styles.treeGuideT}
+          />,
+        );
+      } else {
+        // Ancestor column: │ or empty
+        guides.push(
+          <span
+            key={i}
+            className={ancestors[i] ? styles.treeGuideLine : styles.treeGuideEmpty}
+          />,
+        );
+      }
+    }
+
+    const nextAncestors = [...ancestors, !isLast];
+
     return (
-      <div key={span.spanId}>
+      <div key={span.spanId} className={styles.treeNode}>
+        {/* Row 1: icon + name + badge + chevron */}
         <button
           type="button"
           id={`span-${span.spanId}`}
-          className={`${styles.treeItemRow} ${isSelected ? styles.treeItemSelected : ''} ${isError ? styles.treeItemError : ''}`}
-          style={{ paddingLeft: `${12 + depth * 24}px` }}
+          className={`${styles.treeNodeRow} ${isSelected ? styles.treeItemSelected : ''} ${isError ? styles.treeItemError : ''}`}
           onClick={() => onSelectSpan(span.spanId)}
         >
-          {hasChildren ? (
-            <span
-              className={styles.treeItemChevron}
-              role="button"
-              tabIndex={-1}
-              onClick={(e) => { e.stopPropagation(); toggleExpanded(span.spanId); }}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleExpanded(span.spanId); } }}
-            >
-              {isExpanded ? '\u25BE' : '\u25B8'}
-            </span>
-          ) : (
-            <span className={styles.treeItemChevronSpacer} />
-          )}
+          {depth > 0 && <span className={styles.treeGuides}>{guides}</span>}
 
           <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
 
@@ -2148,24 +2178,44 @@ function ExecutionPathView({
 
           <span className={styles.treeItemSpacer} />
 
-          <span className={styles.treeItemMeta}>
-            <span className={styles.treeItemPill}>
-              <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
+          {/* Chevron on right — only for non-root nodes with children */}
+          {hasChildren && !isRoot ? (
+            <span
+              className={styles.treeItemChevron}
+              role="button"
+              tabIndex={-1}
+              onClick={(e) => { e.stopPropagation(); toggleExpanded(span.spanId); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleExpanded(span.spanId); } }}
+            >
+              {isExpanded ? '\u25BE' : '\u25B8'}
             </span>
-            {span.kind === 'llm_call' && span.totalTokens > 0 && (
-              <span className={styles.treeItemPill}>
-                <CoinIcon /> {formatCompactTokens(span.totalTokens)}
-              </span>
-            )}
-            {cost && (
-              <span className={styles.treeItemPill}>{cost}</span>
-            )}
-          </span>
+          ) : null}
         </button>
 
+        {/* Row 2: metadata badges */}
+        <div
+          className={styles.treeNodeMeta}
+          style={{ paddingLeft: `${(depth > 0 ? depth * 20 + 20 : 0) + 36}px` }}
+        >
+          <span className={styles.treeMetaPill}>
+            <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
+          </span>
+          {span.totalTokens > 0 && (
+            <span className={styles.treeMetaPill}>
+              <CoinIcon /> {formatCompactTokens(span.totalTokens)}
+            </span>
+          )}
+          {cost && (
+            <span className={styles.treeMetaPill}>/ {cost}</span>
+          )}
+        </div>
+
+        {/* Children */}
         {hasChildren && isExpanded && (
-          <div className={styles.treeItemChildren}>
-            {children.map((child) => renderNode(child, depth + 1))}
+          <div className={styles.treeNodeChildren}>
+            {children.map((child, idx) =>
+              renderNode(child, depth + 1, nextAncestors, idx === children.length - 1),
+            )}
           </div>
         )}
       </div>
@@ -2182,7 +2232,7 @@ function ExecutionPathView({
         {rootSpanIds
           .map((rootId) => spanById.get(rootId))
           .filter((span): span is TraceDetailSpan => Boolean(span))
-          .map((span) => renderNode(span, 0))}
+          .map((span, idx) => renderNode(span, 0, [], idx === rootSpanIds.length - 1))}
       </div>
     </div>
   );
