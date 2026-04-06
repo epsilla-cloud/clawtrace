@@ -2131,36 +2131,22 @@ function ExecutionPathView({
           className={`${styles.treeNodeBlock} ${isSelected ? styles.treeNodeBlockSelected : ''}`}
           onClick={() => onSelectSpan(span.spanId)}
         >
-          {/* Row 1: icon + name + badge + chevron */}
-          <div className={styles.treeNodeRow}>
-            {isVendorIcon ? (
-              <span className={styles.treeItemIconWrap}>
-                <Image src={iconSrc} width={20} height={20} alt="" className={styles.treeItemIconInner} unoptimized />
-              </span>
-            ) : (
-              <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
-            )}
+          {/* Icon */}
+          {isVendorIcon ? (
+            <span className={styles.treeItemIconWrap}>
+              <Image src={iconSrc} width={16} height={16} alt="" className={styles.treeItemIconInner} unoptimized />
+            </span>
+          ) : (
+            <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
+          )}
+
+          {/* All labels — wrap naturally to 1–3 rows */}
+          <div className={styles.treeNodeContent}>
             <span className={styles.treeItemName}>{spanTreeName(span)}</span>
             {isError && <span className={styles.treeErrorBadge}>Error</span>}
             {span.kind === 'llm_call' && span.model && (
               <span className={styles.treeItemBadge}>{shortModelName(span.model)}</span>
             )}
-            <span className={styles.treeItemSpacer} />
-            {hasChildren && !isRoot ? (
-              <span
-                className={styles.treeItemChevron}
-                role="button"
-                tabIndex={-1}
-                onClick={(e) => { e.stopPropagation(); toggleExpanded(span.spanId); }}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleExpanded(span.spanId); } }}
-              >
-                {isExpanded ? '\u25BE' : '\u25B8'}
-              </span>
-            ) : null}
-          </div>
-
-          {/* Row 2: metadata badges */}
-          <div className={styles.treeNodeMeta}>
             <span className={styles.treeMetaDuration}>
               <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
             </span>
@@ -2184,6 +2170,19 @@ function ExecutionPathView({
               </span>
             )}
           </div>
+
+          {/* Chevron — always at top-right */}
+          {hasChildren && !isRoot ? (
+            <span
+              className={styles.treeItemChevron}
+              role="button"
+              tabIndex={-1}
+              onClick={(e) => { e.stopPropagation(); toggleExpanded(span.spanId); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleExpanded(span.spanId); } }}
+            >
+              {isExpanded ? '\u25BE' : '\u25B8'}
+            </span>
+          ) : null}
         </button>
 
         {/* Children */}
@@ -2545,6 +2544,12 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [splitPct, setSplitPct] = useState(50); // left panel percentage
   const workspaceRef = useRef<HTMLElement | null>(null);
+
+  // Close inspector by default on narrow containers (< 960px)
+  useEffect(() => {
+    const el = workspaceRef.current;
+    if (el && el.offsetWidth < 960) setInspectorOpen(false);
+  }, []);
   const [selection, setSelection] = useState<SelectionSource | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
