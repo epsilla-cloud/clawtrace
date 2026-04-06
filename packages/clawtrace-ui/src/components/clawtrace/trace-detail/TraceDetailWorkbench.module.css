@@ -267,7 +267,7 @@
   background: transparent;
   text-align: left;
   cursor: pointer;
-  padding: 6px 12px;
+  padding: 8px 12px;
   font-family: inherit;
   transition: background 100ms;
   display: flex;
@@ -281,7 +281,7 @@
   content: '';
   position: absolute;
   left: 24px; /* padding-left (12) + half-icon (12) = icon center */
-  top: 30px;  /* padding-top (6) + icon height (24) = icon bottom */
+  top: 32px;  /* padding-top (8) + icon height (24) = icon bottom */
   bottom: 0;
   border-left: 1.5px solid #ddd0c0;
   pointer-events: none;
@@ -313,6 +313,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 3px 6px;
+  padding-top: 2px; /* vertically center text (~20px) with 24px icon */
 }
 
 /* ── Icons ───────────────────────────────────────────────────────────────── */
@@ -460,12 +461,12 @@
 }
 
 /* Curved L-connector for EVERY child: from vertical line to icon left border */
-/* top: 6px + height: 12px → bottom at 18px = icon center (6px pad + 12px half-icon) */
+/* top: 8px + height: 12px → bottom at 20px = icon center (8px pad + 12px half-icon) */
 .treeChildGroup > .treeNode::after {
   content: '';
   position: absolute;
   left: 0;
-  top: 6px;
+  top: 8px;
   width: 10px;  /* stop just before icon — icon z-index covers overlap */
   height: 12px;
   border-left: 1.5px solid #ddd0c0;
@@ -1537,14 +1538,14 @@
   .divider { display: none; }
   .treeMetaGroup { display: none; }
   /* Narrower indent + padding — keep connectors aligned */
-  .treeNodeBlock { padding: 6px 8px; }
+  .treeNodeBlock { padding: 8px 8px; }
   .treeChildGroup { margin-left: 20px; /* pad(8) + half-icon(12) = icon center */ }
   .treeNode:has(> .treeChildGroup) > .treeNodeBlock::after {
     left: 20px; /* 8px pad + 12px half-icon */
-    top: 30px;
+    top: 32px;
   }
   .treeChildGroup > .treeNode::after {
-    width: 6px; /* shorter arm: indent(20) - pad(8) = 12, but stop short of icon */
+    width: 6px; /* shorter arm for narrower indent */
   }
   .viewBody { padding: 8px; }
   .viewBodyFlush { padding: 0; }
