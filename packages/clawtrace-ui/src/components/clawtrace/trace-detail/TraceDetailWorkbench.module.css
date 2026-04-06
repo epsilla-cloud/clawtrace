@@ -938,13 +938,16 @@
   background: #faf4ec;
 }
 
-/* Content box — no max-height, shows full content */
+/* Content box — no max-height, shows full content, no horizontal scroll */
 .payloadBox {
   position: relative;
   border: 1px solid #dacbb4;
   border-radius: 10px;
   background: #fff;
   padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .payloadRaw {
@@ -977,7 +980,7 @@
   border-radius: 3px;
   padding: 1px 4px;
 }
-.payloadMarkdown pre { margin: 8px 0; border-radius: 8px; overflow-x: auto; }
+.payloadMarkdown pre { margin: 8px 0; border-radius: 8px; white-space: pre-wrap; word-break: break-word; }
 .payloadMarkdown pre code { border: none; padding: 0; background: transparent; }
 .payloadMarkdown blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid #dacbb4; color: #7c6854; }
 .payloadMarkdown a { color: #8b5e3c; text-decoration: underline; }

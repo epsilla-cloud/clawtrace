@@ -247,7 +247,10 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 function spanTreeName(span: TraceDetailSpan): string {
   if (span.kind === 'llm_call') return 'LLM Generation';
-  if (span.kind === 'tool_call') return span.toolName ?? span.name;
+  if (span.kind === 'tool_call') {
+    const tool = span.toolName ?? span.name;
+    return `Use Tool: ${tool}`;
+  }
   if (span.kind === 'subagent') {
     const name = span.childAgentId ?? span.childSessionKey ?? '';
     return (!name || UUID_RE.test(name)) ? 'Delegate to Subagent' : name;
@@ -2151,9 +2154,11 @@ function ExecutionPathView({
             {span.kind === 'llm_call' && span.model && (
               <span className={styles.treeItemBadge}>{shortModelName(span.model)}</span>
             )}
-            <span className={styles.treeMetaDuration}>
-              <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
-            </span>
+            {span.kind !== 'session' && (
+              <span className={styles.treeMetaDuration}>
+                <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
+              </span>
+            )}
             {(span.tokensIn > 0 || span.tokensOut > 0 || cost) && (
               <span className={styles.treeMetaGroup}>
                 {span.tokensIn > 0 && (
@@ -2269,7 +2274,18 @@ function extractOutputText(span: TraceDetailSpan): string {
     return (span.attributes.output as string[]).join('\n');
   }
   const payload = extractOutputPayload(span);
-  return payload ? JSON.stringify(payload, null, 2) : '';
+  if (!payload) return '';
+  // Drill into result.content[0].text or data.details.aggregated if present
+  try {
+    const obj = payload as Record<string, unknown>;
+    const data = obj.data as Record<string, unknown> | undefined;
+    const details = data?.details as Record<string, unknown> | undefined;
+    const aggregated = details?.aggregated;
+    if (aggregated !== undefined && aggregated !== null) {
+      return typeof aggregated === 'string' ? aggregated : JSON.stringify(aggregated, null, 2);
+    }
+  } catch { /* fall through */ }
+  return JSON.stringify(payload, null, 2);
 }
 
 /** Custom syntax highlighter style matching the warm Atelier palette */
@@ -2408,7 +2424,7 @@ function ViewInspector({
 }) {
   const iconSrc = selectedSpan ? resolveSpanIcon(selectedSpan) : '';
   const isVendorIcon = iconSrc.includes('/llms/');
-  const stepName = selectedSpan ? spanTreeName(selectedSpan) + ' Step' : '';
+  const stepName = selectedSpan ? spanTreeName(selectedSpan) : '';
   const inputText = selectedSpan ? extractInputText(selectedSpan) : '';
   const outputText = selectedSpan ? extractOutputText(selectedSpan) : '';
 
@@ -2417,7 +2433,7 @@ function ViewInspector({
   if (selectedSpan) {
     if (selectedSpan.model) badges.push({ label: 'Model', value: selectedSpan.model });
     badges.push({ label: 'Started At', value: formatDate(selectedSpan.startMs) });
-    badges.push({ label: 'Duration', value: formatDuration(selectedSpan.resolvedDurationMs) });
+    if (selectedSpan.kind !== 'session') badges.push({ label: 'Duration', value: formatDuration(selectedSpan.resolvedDurationMs) });
     if (selectedSpan.tokensIn > 0) badges.push({ label: 'Input Tokens', value: formatCompactTokens(selectedSpan.tokensIn) });
     if (selectedSpan.tokensOut > 0) badges.push({ label: 'Output Tokens', value: formatCompactTokens(selectedSpan.tokensOut) });
     const cost = formatSpanCostValue(selectedSpan);
