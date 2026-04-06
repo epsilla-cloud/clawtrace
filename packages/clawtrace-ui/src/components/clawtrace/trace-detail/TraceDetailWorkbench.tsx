@@ -2404,6 +2404,8 @@ type TraceDetailContentProps = {
 export function TraceDetailContent({ workflowId, detail }: TraceDetailContentProps) {
   const [mode, setMode] = useState<TraceDetailViewMode>('execution_path');
   const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [splitPct, setSplitPct] = useState(50); // left panel percentage
+  const workspaceRef = useRef<HTMLElement | null>(null);
   const [selection, setSelection] = useState<SelectionSource | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
@@ -2514,7 +2516,11 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
           </select>
         </div>
 
-        <section className={`${styles.workspace} ${!inspectorOpen ? styles.workspaceNoInspector : ''}`}>
+        <section
+          ref={workspaceRef}
+          className={`${styles.workspace} ${!inspectorOpen ? styles.workspaceNoInspector : ''}`}
+          style={inspectorOpen ? { gridTemplateColumns: `${splitPct}% 6px minmax(0, 1fr)` } : undefined}
+        >
           <article className={styles.viewCard}>
             <div
               className={`${styles.viewBody} ${
@@ -2555,8 +2561,35 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
           </article>
 
           {inspectorOpen && (
-            <ViewInspector detail={detail} selection={selection} selectedSpan={selectedSpan}
-              onClose={() => setInspectorOpen(false)} />
+            <>
+              <div
+                className={styles.divider}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  const ws = workspaceRef.current;
+                  if (!ws) return;
+                  const rect = ws.getBoundingClientRect();
+                  const onMove = (ev: MouseEvent) => {
+                    const pct = ((ev.clientX - rect.left) / rect.width) * 100;
+                    setSplitPct(Math.min(75, Math.max(25, pct)));
+                  };
+                  const onUp = () => {
+                    document.removeEventListener('mousemove', onMove);
+                    document.removeEventListener('mouseup', onUp);
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                  };
+                  document.body.style.cursor = 'col-resize';
+                  document.body.style.userSelect = 'none';
+                  document.addEventListener('mousemove', onMove);
+                  document.addEventListener('mouseup', onUp);
+                }}
+              >
+                <span className={styles.dividerDots}>⋮</span>
+              </div>
+              <ViewInspector detail={detail} selection={selection} selectedSpan={selectedSpan}
+                onClose={() => setInspectorOpen(false)} />
+            </>
           )}
         </section>
       </section>

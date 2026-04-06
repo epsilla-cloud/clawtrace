@@ -152,14 +152,34 @@
   min-height: 0;
   height: 100%;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(310px, 380px);
+  grid-template-columns: 50% 6px minmax(0, 1fr);
   align-items: stretch;
-  gap: 12px;
+  gap: 0;
   overflow: hidden;
 }
 
 .workspaceNoInspector {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* Draggable divider between view and inspector */
+.divider {
+  width: 6px;
+  cursor: col-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 100ms;
+  user-select: none;
+  flex-shrink: 0;
+}
+.divider:hover { background: #f0e4d0; }
+.dividerDots {
+  font-size: 14px;
+  color: #b89c84;
+  line-height: 1;
+  letter-spacing: 0;
 }
 
 .viewCard,
@@ -1296,6 +1316,7 @@
   /* Hide button-based switcher on narrow, show dropdown instead */
   .modeSwitcher { display: none; }
   .modeDropdown { display: flex; }
+  .divider { display: none; }
 }
 
 /* Mode dropdown — hidden by default, shown on narrow screens */
