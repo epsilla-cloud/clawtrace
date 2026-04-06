@@ -2077,10 +2077,12 @@ function ViewInspector({
   detail,
   selection,
   selectedSpan,
+  onClose,
 }: {
   detail: TraceDetailSnapshot;
   selection: SelectionSource | null;
   selectedSpan: TraceDetailSpan | null;
+  onClose?: () => void;
 }) {
   const outputPayload = selectedSpan ? extractOutputPayload(selectedSpan) : null;
   const selectedActions = buildImprovementActions(selectedSpan);
@@ -2088,8 +2090,17 @@ function ViewInspector({
   return (
     <aside className={styles.inspectorCard}>
       <header className={styles.inspectorHeader}>
-        <p className={styles.inspectorTitle}>Step Detail</p>
-        <p className={styles.inspectorSubtitle}>{buildSelectionSummary(selection)}</p>
+        <div>
+          <p className={styles.inspectorTitle}>Step Detail</p>
+          <p className={styles.inspectorSubtitle}>{buildSelectionSummary(selection)}</p>
+        </div>
+        {onClose && (
+          <button type="button" className={styles.inspectorClose} onClick={onClose} aria-label="Close step detail">
+            <svg viewBox="0 0 14 14" fill="none" width="14" height="14">
+              <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+        )}
       </header>
 
       {selectedSpan ? (
@@ -2392,6 +2403,7 @@ type TraceDetailContentProps = {
 
 export function TraceDetailContent({ workflowId, detail }: TraceDetailContentProps) {
   const [mode, setMode] = useState<TraceDetailViewMode>('execution_path');
+  const [inspectorOpen, setInspectorOpen] = useState(true);
   const [selection, setSelection] = useState<SelectionSource | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
@@ -2426,6 +2438,7 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
     const span = spanById.get(spanId);
     if (!span) return;
     setSelection({ type: 'span', spanId, label: spanDisplayLabel(span) });
+    setInspectorOpen(true);
   };
 
   const onSelectEntity = (entityId: string, spanId: string | null, label: string) => {
@@ -2530,7 +2543,10 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
             </div>
           </article>
 
-          <ViewInspector detail={detail} selection={selection} selectedSpan={selectedSpan} />
+          {inspectorOpen && (
+            <ViewInspector detail={detail} selection={selection} selectedSpan={selectedSpan}
+              onClose={() => setInspectorOpen(false)} />
+          )}
         </section>
       </section>
     </section>
