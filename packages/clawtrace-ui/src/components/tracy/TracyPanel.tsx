@@ -209,6 +209,15 @@ export function TracyPanel() {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, String(open));
+    // On wide screens, shrink the body so page content pushes left
+    const mq = window.matchMedia('(min-width: 901px)');
+    document.body.style.transition = 'margin-right 200ms ease-out';
+    const apply = () => {
+      document.body.style.marginRight = open && mq.matches ? '340px' : '0';
+    };
+    apply();
+    mq.addEventListener('change', apply);
+    return () => { mq.removeEventListener('change', apply); document.body.style.marginRight = '0'; };
   }, [open]);
 
   useEffect(() => {
@@ -269,20 +278,20 @@ export function TracyPanel() {
     setDraft(''); setAttachments([]);
   };
 
-  // Collapsed: floating avatar with "Ask Tracy" label
-  if (!open) {
-    return (
-      <button type="button" className={styles.floatingAvatar} onClick={() => setOpen(true)}
-        aria-label="Open Tracy" title="Ask Tracy">
-        <Image src="/tracy.png" alt="Tracy" width={36} height={36} className={styles.floatingAvatarImg} />
-        <span className={styles.floatingAvatarLabel}>Ask Tracy</span>
-      </button>
-    );
-  }
-
   return (
-    <aside className={styles.rail}>
-      <div className={styles.panel}>
+    <>
+      {/* Floating avatar — visible only when collapsed */}
+      {!open && (
+        <button type="button" className={styles.floatingAvatar} onClick={() => setOpen(true)}
+          aria-label="Open Tracy" title="Ask Tracy">
+          <Image src="/tracy.png" alt="Tracy" width={36} height={36} className={styles.floatingAvatarImg} />
+          <span className={styles.floatingAvatarLabel}>Ask Tracy</span>
+        </button>
+      )}
+
+      {/* Rail — always rendered, slides in/out */}
+      <aside className={`${styles.rail} ${open ? styles.railOpen : styles.railClosed}`}>
+        <div className={styles.panel}>
         {/* Handle — mirrors AppNav handle style (left edge, chevron SVG) */}
         <button type="button" className={styles.handle} onClick={() => setOpen(false)}
           aria-label="Collapse Tracy panel">
@@ -393,5 +402,6 @@ export function TracyPanel() {
         </footer>
       </div>
     </aside>
+    </>
   );
 }

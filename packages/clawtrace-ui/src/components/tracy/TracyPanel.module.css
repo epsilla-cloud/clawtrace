@@ -1,9 +1,9 @@
 /* ── Tracy Panel — global right-side chat agent ─────────────────────────── */
 
-/* Floating avatar (collapsed state) — with "Ask Tracy" label */
+/* Floating avatar (collapsed state) — stuck to right window edge */
 .floatingAvatar {
   position: fixed;
-  right: 12px;
+  right: 0;
   top: 50%;
   transform: translateY(-50%);
   z-index: 50;
@@ -13,22 +13,18 @@
   gap: 4px;
   background: #fffdf8;
   border: 1px solid #dacbb4;
-  border-radius: 12px;
+  border-right: none;
+  border-radius: 12px 0 0 12px;
   padding: 8px 8px 6px;
   cursor: pointer;
-  box-shadow: 0 2px 12px rgba(24, 12, 4, 0.12);
+  box-shadow: -2px 2px 12px rgba(24, 12, 4, 0.12);
   transition: background 140ms ease, box-shadow 140ms ease;
 }
-.floatingAvatar:hover { background: #f5e2d0; box-shadow: 0 4px 16px rgba(24, 12, 4, 0.18); }
+.floatingAvatar:hover { background: #f5e2d0; box-shadow: -2px 4px 16px rgba(24, 12, 4, 0.18); }
 .floatingAvatarImg { width: 36px; height: 36px; border-radius: 999px; object-fit: cover; }
 .floatingAvatarLabel { font-size: 9px; font-weight: 600; color: #7c6854; white-space: nowrap; }
 
-/* Rail (expanded state) — slides in from right */
-@keyframes slideIn {
-  from { transform: translateX(100%); }
-  to   { transform: translateX(0); }
-}
-
+/* Rail — always rendered, slides in/out */
 .rail {
   position: fixed;
   right: 0;
@@ -39,8 +35,10 @@
   background: #fdf8f2;
   z-index: 40;
   flex-shrink: 0;
-  animation: slideIn 200ms ease-out;
+  transition: transform 200ms ease-out;
 }
+.railOpen  { transform: translateX(0); }
+.railClosed { transform: translateX(100%); pointer-events: none; }
 
 /* Panel inner */
 .panel {
