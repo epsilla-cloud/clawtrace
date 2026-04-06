@@ -142,22 +142,41 @@ function msToDateInput(ms: number): string {
 }
 
 /** Bucket trends by adaptive time range */
-function bucketTrends(trends: TrendPoint[], rangeDays: number): TrendPoint[] {
-  if (rangeDays <= 15) return trends; // daily — already bucketed
+function bucketTrends(trends: TrendPoint[], rangeDays: number, traces: TraceRow[]): TrendPoint[] {
+  // 1 day: bucket by hour from the traces list (backend only has daily granularity)
+  if (rangeDays <= 1) {
+    const hourBuckets = new Map<string, TrendPoint>();
+    for (const t of traces) {
+      if (!t.started_at_ms) continue;
+      const d = new Date(t.started_at_ms);
+      const key = `${String(d.getHours()).padStart(2, '0')}:00`;
+      const existing = hourBuckets.get(key);
+      if (existing) {
+        existing.run_count += 1;
+        existing.input_tokens += t.input_tokens;
+        existing.output_tokens += t.output_tokens;
+      } else {
+        hourBuckets.set(key, { date: key, run_count: 1, input_tokens: t.input_tokens, output_tokens: t.output_tokens });
+      }
+    }
+    return [...hourBuckets.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, v]) => v);
+  }
 
-  // Group by week or month
+  // 2-15 days: daily (already bucketed by backend)
+  if (rangeDays <= 15) return trends;
+
+  // 16+ days: group by week or month
   const buckets = new Map<string, TrendPoint>();
   for (const t of trends) {
     let key: string;
     if (rangeDays <= 90) {
-      // Weekly: ISO week start
       const d = new Date(t.date);
-      const day = d.getDay();
-      d.setDate(d.getDate() - day);
+      d.setDate(d.getDate() - d.getDay());
       key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     } else {
-      // Monthly
-      key = t.date.slice(0, 7); // YYYY-MM
+      key = t.date.slice(0, 7);
     }
     const existing = buckets.get(key);
     if (existing) {
@@ -180,7 +199,7 @@ export function TracesPage() {
 
   const [agents, setAgents]     = useState<Agent[]>([]);
   const [agentId, setAgentId]   = useState(initialAgentId);
-  const [presetIdx, setPresetIdx] = useState<number | null>(1);
+  const [presetIdx, setPresetIdx] = useState<number | null>(0); // default 1 day
   const [customFrom, setCustomFrom] = useState(msToDateInput(Date.now() - 7 * MS_PER_DAY));
   const [customTo,   setCustomTo]   = useState(msToDateInput(Date.now()));
   const [data, setData]   = useState<TracesResponse | null>(null);
@@ -246,7 +265,7 @@ export function TracesPage() {
 
   // Compute chart data
   const rangeDays = presetIdx !== null ? PRESETS[presetIdx].ms / MS_PER_DAY : Math.max(1, (dateToMs(customTo, true) - dateToMs(customFrom)) / MS_PER_DAY);
-  const bucketed = bucketTrends(data?.trends ?? [], rangeDays);
+  const bucketed = bucketTrends(data?.trends ?? [], rangeDays, data?.traces ?? []);
   const chartLabels = bucketed.map(t => t.date);
   const trajValues = bucketed.map(t => t.run_count);
   const inputValues = bucketed.map(t => t.input_tokens);
@@ -382,22 +401,23 @@ export function TracesPage() {
                 </table>
 
                 <div className={styles.pagination}>
-                  <div className={styles.pageSizeWrap}>
-                    <span className={styles.pageSizeLabel}>Per page:</span>
-                    {PAGE_SIZES.map(s => (
-                      <button key={s} type="button"
-                        className={`${styles.pageSizeBtn} ${pageSize === s ? styles.pageSizeBtnActive : ''}`}
-                        onClick={() => { setPageSize(s); setPage(0); }}>{s}</button>
+                  <div className={styles.pageNumbers}>
+                    <button type="button" className={styles.pageArrow} disabled={page === 0}
+                      onClick={() => setPage(p => p - 1)}>‹</button>
+                    {Array.from({ length: totalPages }, (_, i) => (
+                      <button key={i} type="button"
+                        className={`${styles.pageNumBtn} ${page === i ? styles.pageNumBtnActive : ''}`}
+                        onClick={() => setPage(i)}>{i + 1}</button>
                     ))}
+                    <button type="button" className={styles.pageArrow} disabled={page >= totalPages - 1}
+                      onClick={() => setPage(p => p + 1)}>›</button>
                   </div>
-                  <span className={styles.pageInfo}>
-                    Page {page + 1} of {totalPages} ({traces.length} total)
-                  </span>
-                  <div className={styles.pageControls}>
-                    <button type="button" className={styles.pageBtn} disabled={page === 0}
-                      onClick={() => setPage(p => p - 1)}>← Prev</button>
-                    <button type="button" className={styles.pageBtn} disabled={page >= totalPages - 1}
-                      onClick={() => setPage(p => p + 1)}>Next →</button>
+                  <div className={styles.pageSizeWrap}>
+                    <span className={styles.pageSizeLabel}>Per page</span>
+                    <select className={styles.pageSizeSelect} value={pageSize}
+                      onChange={e => { setPageSize(Number(e.target.value)); setPage(0); }}>
+                      {PAGE_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
                   </div>
                 </div>
               </>
