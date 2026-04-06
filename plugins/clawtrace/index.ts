@@ -89,6 +89,9 @@ const plugin = {
     api.on("subagent_ended", (event, ctx) => {
       tracker.onSubagentEnded(event, ctx);
     });
+    api.on("agent_end", (event, ctx) => {
+      tracker.onAgentEnd(event, ctx);
+    });
   },
 };
 

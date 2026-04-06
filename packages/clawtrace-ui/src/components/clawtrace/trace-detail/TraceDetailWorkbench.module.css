@@ -259,6 +259,11 @@
   background: color-mix(in srgb, var(--ct-accent) 78%, white);
 }
 
+.treeRowError {
+  background: color-mix(in srgb, var(--ct-trust-blocked-bg) 40%, white);
+  border-left: 3px solid var(--ct-trust-blocked-border, #e53e3e);
+}
+
 .treeStepCell {
   min-width: 0;
   display: inline-flex;

@@ -4,9 +4,10 @@ Traces API — backed by PuppyGraph Cypher queries via POST /submitCypher.
 Schema facts (from puppygraph/schema.json):
   Trace vertex  id=trace_id, attributes: tenant_id, agent_id,
                 trace_start_ts_ms, trace_end_ts_ms, duration_ms,
-                event_count, trace_date
+                event_count, trace_date, agent_name, session_key
   Span  vertex  id=span_id,  attributes: tenant_id, agent_id, trace_id,
-                total_tokens, input_tokens, output_tokens, cost_usd, has_error
+                total_tokens, input_tokens, output_tokens, has_error,
+                input_payload, output_payload
   Edges: Agent-[:OWNS]->Trace, Trace-[:HAS_SPAN]->Span
 
 Rules confirmed by testing:
@@ -44,14 +45,16 @@ def _default_range() -> tuple[int, int]:
 class TraceMetrics(BaseModel):
     total_traces: int
     total_tokens: int
-    total_cost_usd: float
+    total_input_tokens: int
+    total_output_tokens: int
     success_rate: float
 
 
 class TrendPoint(BaseModel):
     date: str
     run_count: int
-    cost_usd: float
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 class TraceRow(BaseModel):
@@ -62,8 +65,8 @@ class TraceRow(BaseModel):
     total_tokens: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
-    cost_usd: float = 0.0
     has_error: int = 0
+    category: str = "Work"
 
 
 class TracesResponse(BaseModel):
@@ -103,6 +106,16 @@ def _safe_float(v: object) -> float:
         return 0.0
 
 
+def _classify_category(payloads: list) -> str:
+    """Classify trace category from collected span input_payload snippets."""
+    combined = " ".join(str(p) for p in payloads if p)
+    if "HEARTBEAT" in combined or "heartbeat.md" in combined.lower():
+        return "Heartbeat"
+    if "Pre-compaction memory flush" in combined or "pre-compaction" in combined.lower():
+        return "Memory Compact"
+    return "Work"
+
+
 # ── Endpoint ──────────────────────────────────────────────────────────────────
 
 @router.get("", response_model=TracesResponse)
@@ -122,7 +135,6 @@ async def get_traces(
     to_ms   = to_ms   or _to
 
     # ── 1. Metrics ────────────────────────────────────────────────────────────
-    # Filter Trace by agent_id + tenant_id attributes (both are non-id attrs)
     metrics_q = f"""
 MATCH (t:Trace)
 WHERE t.agent_id   = '{agent_id}'
@@ -133,7 +145,8 @@ OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
   count(DISTINCT elementId(t))                          AS total_traces,
   coalesce(sum(s.total_tokens), 0)                      AS total_tokens,
-  coalesce(sum(s.cost_usd), 0.0)                        AS total_cost,
+  coalesce(sum(s.input_tokens), 0)                      AS total_input_tokens,
+  coalesce(sum(s.output_tokens), 0)                     AS total_output_tokens,
   sum(CASE WHEN s.has_error = 1 THEN 1 ELSE 0 END)      AS error_spans
 """
     m_rows = await run_cypher(metrics_q, settings)
@@ -147,7 +160,8 @@ RETURN
     metrics = TraceMetrics(
         total_traces=total_traces,
         total_tokens=_safe_int(m.get("total_tokens", 0)),
-        total_cost_usd=_safe_float(m.get("total_cost", 0.0)),
+        total_input_tokens=_safe_int(m.get("total_input_tokens", 0)),
+        total_output_tokens=_safe_int(m.get("total_output_tokens", 0)),
         success_rate=success_rate,
     )
 
@@ -162,7 +176,8 @@ OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
   t.trace_date                         AS date,
   count(DISTINCT elementId(t))         AS run_count,
-  coalesce(sum(s.cost_usd), 0.0)       AS cost_usd
+  coalesce(sum(s.input_tokens), 0)     AS input_tokens,
+  coalesce(sum(s.output_tokens), 0)    AS output_tokens
 ORDER BY date
 """
     t_rows = await run_cypher(trends_q, settings)
@@ -170,7 +185,8 @@ ORDER BY date
         TrendPoint(
             date=str(r.get("date", "")),
             run_count=_safe_int(r.get("run_count", 0)),
-            cost_usd=_safe_float(r.get("cost_usd", 0.0)),
+            input_tokens=_safe_int(r.get("input_tokens", 0)),
+            output_tokens=_safe_int(r.get("output_tokens", 0)),
         )
         for r in t_rows if r.get("date")
     ]
@@ -191,12 +207,14 @@ RETURN
   coalesce(sum(s.input_tokens),  0)         AS input_tokens,
   coalesce(sum(s.output_tokens), 0)         AS output_tokens,
   coalesce(sum(s.total_tokens),  0)         AS total_tokens,
-  coalesce(sum(s.cost_usd),      0.0)       AS cost_usd,
-  max(coalesce(s.has_error,      0))        AS has_error
+  max(coalesce(s.has_error,      0))        AS has_error,
+  collect(substring(coalesce(s.input_payload, ''), 0, 300)) AS payload_snippets
 ORDER BY started_at_ms DESC
-LIMIT {limit}
+LIMIT {limit + 50}
 """
     tr_rows = await run_cypher(traces_q, settings)
+    # Filter out orphan traces (single dangling tool calls with no session root)
+    tr_rows = [r for r in tr_rows if _safe_int(r.get("event_count", 0)) > 1][:limit]
     traces = [
         TraceRow(
             trace_id=str(r.get("trace_id", "")),
@@ -206,8 +224,8 @@ LIMIT {limit}
             input_tokens=_safe_int(r.get("input_tokens", 0)),
             output_tokens=_safe_int(r.get("output_tokens", 0)),
             total_tokens=_safe_int(r.get("total_tokens", 0)),
-            cost_usd=_safe_float(r.get("cost_usd", 0.0)),
             has_error=_safe_int(r.get("has_error", 0)),
+            category=_classify_category(r.get("payload_snippets", [])),
         )
         for r in tr_rows
     ]
@@ -228,13 +246,16 @@ class SpanDetail(BaseModel):
     input_tokens: int = 0
     output_tokens: int = 0
     total_tokens: int = 0
-    cost_usd: float = 0.0
     has_error: int = 0
+    input_payload: Optional[str] = None
+    output_payload: Optional[str] = None
 
 
 class TraceMeta(BaseModel):
     trace_id: str
     agent_id: Optional[str] = None
+    agent_name: Optional[str] = None
+    session_key: Optional[str] = None
     trace_start_ts_ms: Optional[int] = None
     trace_end_ts_ms: Optional[int] = None
     duration_ms: int = 0
@@ -269,6 +290,8 @@ WHERE elementId(t) = '{eid}'
   AND t.tenant_id  = '{tid}'
 RETURN elementId(t)        AS trace_id,
        t.agent_id           AS agent_id,
+       t.agent_name         AS agent_name,
+       t.session_key        AS session_key,
        t.trace_start_ts_ms  AS trace_start_ts_ms,
        t.trace_end_ts_ms    AS trace_end_ts_ms,
        t.duration_ms        AS duration_ms,
@@ -282,6 +305,8 @@ RETURN elementId(t)        AS trace_id,
     meta = TraceMeta(
         trace_id=str(m.get("trace_id", eid)),
         agent_id=m.get("agent_id"),
+        agent_name=m.get("agent_name"),
+        session_key=m.get("session_key"),
         trace_start_ts_ms=m.get("trace_start_ts_ms"),
         trace_end_ts_ms=m.get("trace_end_ts_ms"),
         duration_ms=_safe_int(m.get("duration_ms", 0)),
@@ -303,8 +328,9 @@ RETURN elementId(s)        AS span_id,
        s.input_tokens      AS input_tokens,
        s.output_tokens     AS output_tokens,
        s.total_tokens      AS total_tokens,
-       s.cost_usd          AS cost_usd,
-       s.has_error         AS has_error
+       s.has_error         AS has_error,
+       s.input_payload     AS input_payload,
+       s.output_payload    AS output_payload
 ORDER BY s.span_start_ts_ms
 """
     span_rows = await run_cypher(spans_q, settings)
@@ -320,8 +346,9 @@ ORDER BY s.span_start_ts_ms
             input_tokens=_safe_int(r.get("input_tokens", 0)),
             output_tokens=_safe_int(r.get("output_tokens", 0)),
             total_tokens=_safe_int(r.get("total_tokens", 0)),
-            cost_usd=_safe_float(r.get("cost_usd", 0.0)),
             has_error=_safe_int(r.get("has_error", 0)),
+            input_payload=r.get("input_payload") or None,
+            output_payload=r.get("output_payload") or None,
         )
         for r in span_rows
     ]
