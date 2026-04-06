@@ -159,6 +159,8 @@
   align-items: stretch;
   gap: 0;
   overflow: hidden;
+  container-type: inline-size;
+  container-name: workspace;
 }
 
 .workspaceNoInspector {
@@ -1425,7 +1427,7 @@
 }
 
 /* Narrow: inspector full-width overlay, mode switcher becomes dropdown */
-@media (max-width: 1400px) {
+@container workspace (max-width: 959px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr) !important;
     position: relative;
@@ -1443,6 +1445,12 @@
   .modeSwitcher { display: none !important; }
   .modeDropdown { display: flex !important; }
   .divider { display: none; }
+  .treeNodeMeta { gap: 4px; }
+  .treeMetaGroup { display: none; }
+  .treeChildGroup { margin-left: 18px; }
+  .inspectGrid { grid-template-columns: 1fr; }
+  .viewBody { padding: 8px; }
+  .viewBodyFlush { padding: 0; }
 }
 
 @media (max-width: 1280px) {
@@ -1469,20 +1477,3 @@
   }
 }
 
-@media (max-width: 760px) {
-  .viewBody {
-    padding: 8px;
-  }
-
-  .viewBodyFlush {
-    padding: 0;
-  }
-
-  .treeNodeMeta { gap: 4px; }
-  .treeMetaGroup { display: none; }
-  .treeChildGroup { margin-left: 18px; }
-
-  .inspectGrid {
-    grid-template-columns: 1fr;
-  }
-}
