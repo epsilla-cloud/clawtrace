@@ -953,6 +953,13 @@
   overflow-wrap: break-word;
   word-break: break-word;
 }
+/* Force all nested pre/code (e.g. from react-syntax-highlighter) to wrap */
+.payloadBox pre,
+.payloadBox code {
+  white-space: pre-wrap !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+}
 
 .payloadRaw {
   margin: 0;

@@ -2244,6 +2244,9 @@ function detectPayloadFormat(text: string): PayloadFormat {
   }
   // Explicit shell patterns
   if (/^(\$\s|#!\/)/.test(trimmed)) return 'command';
+  // Terminal / CLI output: box-drawing chars, ANSI-style output, progress bars
+  if (/[│├╮╯╰╭─┌┐└┘┬┤◇◆▶►]/.test(trimmed)) return 'command';
+  if (/\r/.test(trimmed)) return 'command'; // carriage returns = progress output
   // Everything else → markdown (the fallback)
   return 'markdown';
 }
