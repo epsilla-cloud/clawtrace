@@ -813,17 +813,17 @@
 }
 
 .inspectorHeader {
-  padding: 12px 12px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid #dacbb4;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
 .inspectorClose {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -938,51 +938,58 @@
   background: #faf4ec;
 }
 
-/* Content box */
+/* Content box — no max-height, shows full content */
 .payloadBox {
   position: relative;
   border: 1px solid #dacbb4;
   border-radius: 10px;
   background: #fff;
-  min-height: 80px;
-  max-height: 400px;
-  overflow: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #c9b8a4 transparent;
-}
-.payloadBox::-webkit-scrollbar { width: 6px; }
-.payloadBox::-webkit-scrollbar-track { background: transparent; }
-.payloadBox::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
-
-.payloadCode {
-  margin: 0;
   padding: 12px;
+}
+
+.payloadRaw {
+  margin: 0;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 12px;
-  line-height: 1.5;
-  color: #3b3128;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.payloadCommand {
-  color: #1a5c2e;
-}
-.payloadMarkdown {
-  padding: 12px;
-  font-size: 13px;
   line-height: 1.55;
   color: #3b3128;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-/* Copy button — top-right of payload box */
+.payloadMarkdown {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #3b3128;
+  word-break: break-word;
+}
+/* Markdown prose spacing */
+.payloadMarkdown p { margin: 0 0 8px; }
+.payloadMarkdown p:last-child { margin: 0; }
+.payloadMarkdown h1, .payloadMarkdown h2, .payloadMarkdown h3 { margin: 12px 0 6px; font-size: 14px; font-weight: 620; color: #2e2115; }
+.payloadMarkdown ul, .payloadMarkdown ol { margin: 4px 0; padding-left: 20px; }
+.payloadMarkdown li { margin: 2px 0; }
+.payloadMarkdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  background: #faf4ec;
+  border: 1px solid #e8d9c8;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.payloadMarkdown pre { margin: 8px 0; border-radius: 8px; overflow-x: auto; }
+.payloadMarkdown pre code { border: none; padding: 0; background: transparent; }
+.payloadMarkdown blockquote { margin: 8px 0; padding-left: 12px; border-left: 3px solid #dacbb4; color: #7c6854; }
+.payloadMarkdown a { color: #8b5e3c; text-decoration: underline; }
+.payloadMarkdown table { border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+.payloadMarkdown th, .payloadMarkdown td { border: 1px solid #dacbb4; padding: 4px 8px; text-align: left; }
+.payloadMarkdown th { background: #faf4ec; font-weight: 600; }
+
+/* Copy button — top-right corner of payload box */
 .copyButton {
-  position: sticky;
-  float: right;
+  position: absolute;
   top: 8px;
   right: 8px;
-  margin: -24px 8px 0 0;
   width: 28px;
   height: 28px;
   border: 1px solid #dacbb4;
