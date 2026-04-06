@@ -25,8 +25,9 @@ export type BackendSpanData = {
   input_tokens?: number;
   output_tokens?: number;
   total_tokens?: number;
-  cost_usd?: number;
   has_error?: number;
+  input_payload?: string | null;
+  output_payload?: string | null;
 };
 
 export type BackendMetaData = {
@@ -50,45 +51,68 @@ function extractUuid(elementId: string): string {
   return m ? m[1] : elementId;
 }
 
+/* ── Cost pricing table (USD per 1M tokens) ──────────────────────────────── */
+const MODEL_PRICING: Array<{ pattern: RegExp; input: number; output: number }> = [
+  { pattern: /claude.*opus/i,     input: 15.0,  output: 75.0  },
+  { pattern: /claude.*sonnet/i,   input: 3.0,   output: 15.0  },
+  { pattern: /claude.*haiku/i,    input: 0.25,  output: 1.25  },
+  { pattern: /gpt-4o-mini/i,     input: 0.15,  output: 0.60  },
+  { pattern: /gpt-4o/i,          input: 2.5,   output: 10.0  },
+  { pattern: /gpt-4/i,           input: 30.0,  output: 60.0  },
+  { pattern: /o3-mini/i,         input: 1.1,   output: 4.4   },
+  { pattern: /o3/i,              input: 10.0,  output: 40.0  },
+  { pattern: /gemini.*flash/i,   input: 0.075, output: 0.30  },
+  { pattern: /gemini.*pro/i,     input: 1.25,  output: 5.0   },
+  { pattern: /deepseek/i,        input: 0.27,  output: 1.10  },
+];
+const FALLBACK_PRICING = { input: 4.0, output: 12.0 };
+
+function estimateSpanCost(
+  model: string | null,
+  tokensIn: number,
+  tokensOut: number,
+): number {
+  if (!model || (tokensIn <= 0 && tokensOut <= 0)) return 0;
+  const pricing =
+    MODEL_PRICING.find((p) => p.pattern.test(model)) ?? FALLBACK_PRICING;
+  return (tokensIn * pricing.input + tokensOut * pricing.output) / 1_000_000;
+}
+
 /* ── Span mapping ────────────────────────────────────────────────────────── */
 
 /**
- * Map the silver-table actor_type string to a TraceDetailSpanKind.
- *
- * The silver table previously used 'model' / 'tool' (3-value enum).
- * After the SQL fix it emits 'llm_call' / 'tool_call' / 'subagent' / 'session'
- * to match TraceDetailSpanKind directly.  Both old and new values are handled
- * here so the UI keeps working for data not yet re-processed by the pipeline.
- *
- * Subagent detection fallback: a 'session' span that has a parent_span_id is
- * a spawned child session — classify it as 'subagent' even if the silver table
- * hasn't been re-run yet.
+ * Map the silver-table actor_type to TraceDetailSpanKind.
+ * Silver table emits exactly: 'llm_call' | 'tool_call' | 'subagent' | 'session'.
  */
-function resolveKind(
-  actorType: string,
-  parentSpanId: string | null,
-): TraceDetailSpanKind {
+function resolveKind(actorType: string): TraceDetailSpanKind {
   switch (actorType) {
     case 'llm_call':  return 'llm_call';
-    case 'model':     return 'llm_call';   // legacy silver table value
     case 'tool_call': return 'tool_call';
-    case 'tool':      return 'tool_call';  // legacy silver table value
     case 'subagent':  return 'subagent';
-    case 'session':   return parentSpanId ? 'subagent' : 'session';
-    default:          return parentSpanId ? 'subagent' : 'session';
+    default:          return 'session';
   }
 }
 
 function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan {
   const spanId = extractUuid(s.span_id);
   const parentSpanId = s.parent_span_id ? extractUuid(s.parent_span_id) : null;
-  const kind = resolveKind(s.actor_type, parentSpanId);
+  const kind = resolveKind(s.actor_type);
   const startMs = toNum(s.span_start_ts_ms);
   const endMs = s.span_end_ts_ms != null ? toNum(s.span_end_ts_ms) : null;
   const durMs = toNum(s.duration_ms) > 0 ? toNum(s.duration_ms) : null;
   const resolvedEndMs = endMs ?? (durMs ? startMs + durMs : startMs);
   const resolvedDurationMs = Math.max(0, durMs ?? (resolvedEndMs - startMs));
   const label = s.actor_label ?? '';
+
+  // Parse input/output payloads for detail inspection
+  let inputPayload: Record<string, unknown> = {};
+  let outputPayload: Record<string, unknown> = {};
+  if (s.input_payload) {
+    try { inputPayload = JSON.parse(s.input_payload) as Record<string, unknown>; } catch { /* ignore */ }
+  }
+  if (s.output_payload) {
+    try { outputPayload = JSON.parse(s.output_payload) as Record<string, unknown>; } catch { /* ignore */ }
+  }
 
   return {
     traceId: traceUuid,
@@ -105,17 +129,25 @@ function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan 
     resolvedEndMs,
     resolvedDurationMs,
     toolName: kind === 'tool_call' ? (label || null) : null,
-    toolParams: null,
+    toolParams: (inputPayload.params ?? outputPayload.params) as Record<string, unknown> | null ?? null,
     childSessionKey: kind === 'subagent' ? (label !== 'session' ? label : spanId) : null,
     childAgentId: kind === 'subagent' ? (label !== 'session' ? label : spanId) : null,
-    provider: null,
-    model: kind === 'llm_call' ? (label || null) : null,
+    provider: (outputPayload.provider ?? inputPayload.provider) as string ?? null,
+    model: kind === 'llm_call' ? (label || (outputPayload.model ?? inputPayload.model) as string || null) : null,
     tokensIn: toNum(s.input_tokens),
     tokensOut: toNum(s.output_tokens),
     totalTokens: toNum(s.total_tokens),
     attributes: {
       has_error: s.has_error ?? 0,
-      cost_usd: s.cost_usd ?? 0,
+      // Input (from before-call payload)
+      prompt: inputPayload.prompt ?? undefined,
+      systemPrompt: inputPayload.systemPrompt ?? undefined,
+      // Output (from after-call payload)
+      result: outputPayload.result ?? undefined,
+      output: outputPayload.assistantTexts ?? outputPayload.outcome ?? undefined,
+      response: outputPayload.lastAssistant ?? undefined,
+      error: outputPayload.error ?? undefined,
+      usage: outputPayload.usage ?? undefined,
     },
     sourceCount: 1,
     hasClosedRecord: endMs !== null,
@@ -412,15 +444,17 @@ export function buildSnapshot(
   const quickInsights = createQuickInsights(spans);
 
   // 6. Trace-level aggregates
-  const hasError = spans.some((s) => Number(s.attributes.has_error) > 0);
+  // No trace-level success/failure — individual span errors are shown per-step.
   const totalTokens = spans.reduce((sum, s) => sum + s.totalTokens, 0);
-  const totalCostUsd = spans.reduce(
-    (sum, s) => sum + toNum(s.attributes.cost_usd),
-    0,
-  );
   const models = [
     ...new Set(spans.filter((s) => s.model).map((s) => s.model as string)),
   ];
+
+  // Cost calculated locally from model + tokens (backend does not store cost)
+  const estimatedCostUsd = spans.reduce(
+    (sum, s) => sum + estimateSpanCost(s.model, s.tokensIn, s.tokensOut),
+    0,
+  );
 
   return {
     snapshotGeneratedAtMs: Date.now(),
@@ -435,11 +469,11 @@ export function buildSnapshot(
       startedAtMs: windowStartMs,
       endedAtMs: windowEndMs,
       durationMs: meta.duration_ms ?? windowEndMs - windowStartMs,
-      status: hasError ? 'failure' : 'success',
+      status: 'success',
       inputTokens: spans.reduce((sum, s) => sum + s.tokensIn, 0),
       outputTokens: spans.reduce((sum, s) => sum + s.tokensOut, 0),
       totalTokens,
-      estimatedCostUsd: totalCostUsd,
+      estimatedCostUsd,
       models,
       signals: [],
     },

@@ -25,11 +25,8 @@
 --   from clustering — no benefit and breaks trace-level co-location.
 --   actor_label excluded from dataSkippingStatsColumns: free-text model/tool
 --   name (e.g. "gemini-3.1-pro-preview"), never used as a range filter.
---   cost_usd uses MAX() not SUM(): each span wraps exactly one LLM call
---   (plugin creates a fresh spanId per llm_before_call), so at most one
---   llm_after_call event contributes cost per span — MAX == SUM.
---   OpenClaw pre-calculates cost in USD (cacheRead + cacheWrite + input +
---   output tokens × per-model rates) before emitting the event.
+--   cost_usd removed: OpenClaw reports raw token counts only (no USD).
+--   Cost is calculated on the UI side using a local pricing table.
 --
 -- pg_child_of_edges:
 --   CLUSTER BY (trace_id, parent_span_id) — most frequent traversal is
@@ -77,7 +74,12 @@ USING (
     MAX(event_ts_ms)                      AS trace_end_ts_ms,
     MAX(event_ts_ms) - MIN(event_ts_ms)   AS duration_ms,
     COUNT(*)                              AS event_count,
-    MIN(event_date)                       AS trace_date
+    MIN(event_date)                       AS trace_date,
+    -- agent_name + session_key: emitted by plugin in session_start payload
+    MAX(CASE WHEN event_type = 'session_start'
+         THEN get_json_object(payload_json, '$.agentName') END) AS agent_name,
+    MAX(CASE WHEN event_type = 'session_start'
+         THEN get_json_object(payload_json, '$.sessionKey') END) AS session_key
   FROM clawtrace.silver.events_all
   WHERE trace_id IN (
     -- Only recompute traces that got new events since the last pg refresh
@@ -96,7 +98,9 @@ WHEN MATCHED THEN UPDATE SET
   trace_end_ts_ms   = s.trace_end_ts_ms,
   duration_ms       = s.duration_ms,
   event_count       = s.event_count,
-  trace_date        = s.trace_date
+  trace_date        = s.trace_date,
+  agent_name        = s.agent_name,
+  session_key       = s.session_key
 WHEN NOT MATCHED THEN INSERT *;
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -128,8 +132,16 @@ USING (
     MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)) AS input_tokens,
     MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)) AS output_tokens,
     MAX(CAST(get_json_object(payload_json, '$.usage.total')  AS BIGINT)) AS total_tokens,
-    MAX(CAST(get_json_object(payload_json, '$.lastAssistant.usage.cost.total') AS DOUBLE)) AS cost_usd,
-    MAX(CASE WHEN event_type = 'error' THEN 1 ELSE 0 END)               AS has_error
+    MAX(CASE WHEN event_type = 'error' THEN 1 ELSE 0 END)               AS has_error,
+    -- Store both input (before-call) and output (after-call) payloads.
+    -- Before-call has prompt/params; after-call has result/response.
+    MAX(CASE WHEN event_type IN ('llm_before_call','tool_before_call','subagent_spawn','session_start')
+             THEN payload_json END)                                      AS input_payload,
+    COALESCE(
+      MAX(CASE WHEN event_type IN ('llm_after_call','tool_after_call','subagent_join','session_end')
+               THEN payload_json END),
+      MAX(payload_json)
+    )                                                                    AS output_payload
   FROM clawtrace.silver.events_all
   WHERE trace_id IN (
     SELECT DISTINCT trace_id
@@ -151,8 +163,9 @@ WHEN MATCHED THEN UPDATE SET
   input_tokens     = s.input_tokens,
   output_tokens    = s.output_tokens,
   total_tokens     = s.total_tokens,
-  cost_usd         = s.cost_usd,
-  has_error        = s.has_error
+  has_error        = s.has_error,
+  input_payload    = s.input_payload,
+  output_payload   = s.output_payload
 WHEN NOT MATCHED THEN INSERT *;
 
 -- ─────────────────────────────────────────────────────────────────────────────

@@ -3,3 +3,4 @@
 .gstack/
 .vercel
 .env*.local
+plugins/clawtrace/node_modules/

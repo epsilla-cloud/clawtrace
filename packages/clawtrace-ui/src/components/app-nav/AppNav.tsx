@@ -24,7 +24,7 @@ const MAIN_NAV = [
   },
   {
     href: '/traces',
-    label: 'Traces',
+    label: 'Dashboard',
     match: (p: string) => p === '/traces' || p.startsWith('/traces/'),
     icon: (
       <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">

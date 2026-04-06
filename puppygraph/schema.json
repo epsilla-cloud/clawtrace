@@ -69,7 +69,9 @@
             { "type": "Long",   "field": "trace_end_ts_ms",   "alias": "trace_end_ts_ms"   },
             { "type": "Long",   "field": "duration_ms",       "alias": "duration_ms"       },
             { "type": "Long",   "field": "event_count",       "alias": "event_count"       },
-            { "type": "Date",   "field": "trace_date",        "alias": "trace_date"        }
+            { "type": "Date",   "field": "trace_date",        "alias": "trace_date"        },
+            { "type": "String", "field": "agent_name",        "alias": "agent_name"        },
+            { "type": "String", "field": "session_key",       "alias": "session_key"       }
           ]
         }
       },
@@ -100,8 +102,9 @@
             { "type": "Long",   "field": "input_tokens",     "alias": "input_tokens"     },
             { "type": "Long",   "field": "output_tokens",    "alias": "output_tokens"    },
             { "type": "Long",   "field": "total_tokens",     "alias": "total_tokens"     },
-            { "type": "Double", "field": "cost_usd",         "alias": "cost_usd"         },
-            { "type": "Int",    "field": "has_error",        "alias": "has_error"        }
+            { "type": "Int",    "field": "has_error",        "alias": "has_error"        },
+            { "type": "String", "field": "input_payload",    "alias": "input_payload"    },
+            { "type": "String", "field": "output_payload",   "alias": "output_payload"   }
           ]
         }
       }
