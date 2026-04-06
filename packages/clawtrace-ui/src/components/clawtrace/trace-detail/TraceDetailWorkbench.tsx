@@ -102,22 +102,22 @@ type EChartsLike = {
 const MODE_ITEMS: Array<{ id: TraceDetailViewMode; label: string; description: string }> = [
   {
     id: 'execution_path',
-    label: 'Execution Path',
+    label: 'Trace View',
     description: 'Step-by-step run path.',
   },
   {
     id: 'actor_map',
-    label: 'Actor Map',
+    label: 'Call Graph View',
     description: 'Who acted in this run: agents, tools, and models.',
   },
   {
     id: 'step_timeline',
-    label: 'Step Timeline',
+    label: 'Timeline View',
     description: 'Timing view to spot bottlenecks and waiting time.',
   },
   {
     id: 'run_efficiency',
-    label: 'Run Efficiency',
+    label: 'Efficiency View',
     description: 'Quality-pressure profile by phase for this run.',
   },
 ];
@@ -2088,7 +2088,7 @@ function ViewInspector({
   return (
     <aside className={styles.inspectorCard}>
       <header className={styles.inspectorHeader}>
-        <p className={styles.inspectorTitle}>Detail Inspector</p>
+        <p className={styles.inspectorTitle}>Step Detail</p>
         <p className={styles.inspectorSubtitle}>{buildSelectionSummary(selection)}</p>
       </header>
 
@@ -2392,7 +2392,6 @@ type TraceDetailContentProps = {
 
 export function TraceDetailContent({ workflowId, detail }: TraceDetailContentProps) {
   const [mode, setMode] = useState<TraceDetailViewMode>('execution_path');
-  const [tracyOpen, setTracyOpen] = useState(true);
   const [selection, setSelection] = useState<SelectionSource | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
   const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
@@ -2464,25 +2463,16 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
   }
 
   return (
-    <section
-      className={`${styles.workbenchShell} ${tracyOpen ? styles.workbenchShellTracyOpen : styles.workbenchShellTracyClosed}`}
-    >
+    <section className={styles.workbenchShell}>
       <section className={styles.content}>
         <header className={styles.topRow}>
           <div className={styles.topIdentity}>
-            <h1 className={styles.pageTitle}>Tracing Detail</h1>
-            <p className={styles.pageSubtitle}>
-              {detail.workflow.name} · {formatDate(detail.trace.startedAtMs)}
-            </p>
+            <h1 className={styles.pageTitle}>Trajectory Detail</h1>
+            <code className={styles.traceUuid}>{workflowId.slice(0, 12)}…</code>
           </div>
-          <div className={styles.topActions}>
-            <span className={`${styles.statusPill} ${statusClass(detail.trace.status)}`}>
-              {statusLabel(detail.trace.status)}
-            </span>
-            <Link href="/traces" className={styles.backButtonInline}>
-              Back to Traces
-            </Link>
-          </div>
+          <Link href="/traces" className={styles.backButtonInline}>
+            ← Back
+          </Link>
         </header>
 
         <section className={styles.modeSwitcher} role="tablist" aria-label="Trace detail views">
@@ -2543,17 +2533,6 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
           <ViewInspector detail={detail} selection={selection} selectedSpan={selectedSpan} />
         </section>
       </section>
-
-      <aside
-        className={`${styles.tracyRail} ${tracyOpen ? styles.tracyRailOpen : styles.tracyRailClosed}`}
-      >
-        <TracyRunQualityPanel
-          detail={detail}
-          open={tracyOpen}
-          onToggleOpen={() => setTracyOpen((c) => !c)}
-          onSelectSpan={onSelectSpan}
-        />
-      </aside>
     </section>
   );
 }
