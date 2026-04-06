@@ -153,7 +153,6 @@
 
 .workspace {
   min-height: 0;
-  height: 100%;
   display: grid;
   grid-template-columns: 50% 6px minmax(0, 1fr);
   align-items: stretch;
@@ -1357,25 +1356,11 @@
   .tracyRail {
     display: none;
   }
-
-  .modeSwitcher {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 980px) {
   .content {
     padding: 14px 12px;
-  }
-
-  .topRow {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .modeSwitcher,
-  .efficiencySummaryRow {
-    grid-template-columns: 1fr;
   }
 
   .actorMapCanvas,
@@ -1386,10 +1371,6 @@
 }
 
 @media (max-width: 760px) {
-  .pageTitle {
-    font-size: clamp(20px, 6vw, 24px);
-  }
-
   .viewBody {
     padding: 8px;
   }
