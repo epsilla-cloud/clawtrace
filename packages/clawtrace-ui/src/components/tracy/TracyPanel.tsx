@@ -269,12 +269,13 @@ export function TracyPanel() {
     setDraft(''); setAttachments([]);
   };
 
-  // Collapsed: floating avatar button
+  // Collapsed: floating avatar with "Ask Tracy" label
   if (!open) {
     return (
       <button type="button" className={styles.floatingAvatar} onClick={() => setOpen(true)}
         aria-label="Open Tracy" title="Ask Tracy">
         <Image src="/tracy.png" alt="Tracy" width={36} height={36} className={styles.floatingAvatarImg} />
+        <span className={styles.floatingAvatarLabel}>Ask Tracy</span>
       </button>
     );
   }
@@ -282,10 +283,12 @@ export function TracyPanel() {
   return (
     <aside className={styles.rail}>
       <div className={styles.panel}>
-        {/* Collapse handle on left edge */}
-        <button type="button" className={styles.edgeToggle} onClick={() => setOpen(false)}
+        {/* Handle — mirrors AppNav handle style (left edge, chevron SVG) */}
+        <button type="button" className={styles.handle} onClick={() => setOpen(false)}
           aria-label="Collapse Tracy panel">
-          <span className={styles.edgeToggleGlyph}>⟩</span>
+          <svg viewBox="0 0 8 14" fill="none" aria-hidden="true">
+            <path d="M2 1l4 6-4 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
 
         {/* Header */}
@@ -296,6 +299,11 @@ export function TracyPanel() {
             </span>
             <p className={styles.name}>Tracy</p>
           </div>
+          <button type="button" className={styles.closeButton} onClick={() => setOpen(false)} aria-label="Close Tracy">
+            <svg viewBox="0 0 14 14" fill="none" aria-hidden="true" width="14" height="14">
+              <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
         </header>
 
         {/* Transcript */}

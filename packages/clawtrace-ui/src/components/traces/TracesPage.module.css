@@ -69,7 +69,7 @@
 
 /* Table */
 .tableSection { }
-.tableWrap { background: #fffdf8; border: 1px solid #dacbb4; border-radius: 12px; overflow: hidden; }
+.tableWrap { background: #fffdf8; border: 1px solid #dacbb4; border-radius: 12px; overflow-x: auto; overflow-y: visible; }
 .loading { padding: 24px; font-size: 13px; color: #7c6854; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th {

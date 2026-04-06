@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { AppNav } from '../app-nav/AppNav';
-import { TracyPanel } from '../tracy/TracyPanel';
 import styles from './TracesPage.module.css';
 
 /* ── Types ───────────────────────────────────────────────────────────────── */
@@ -285,7 +284,7 @@ export function TracesPage() {
 
   const catClass = (cat: string) => {
     if (cat === 'Heartbeat') return styles.catHeartbeat;
-    if (cat === 'Memory Compact') return styles.catCompact;
+    if (cat === 'Compact Memory') return styles.catCompact;
     return styles.catWork;
   };
 
@@ -427,7 +426,6 @@ export function TracesPage() {
           </div>
         </div>
       </main>
-      <TracyPanel />
     </div>
   );
 }

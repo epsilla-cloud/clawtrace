@@ -112,7 +112,7 @@ def _classify_category(payloads: list) -> str:
     if "HEARTBEAT" in combined or "heartbeat.md" in combined.lower():
         return "Heartbeat"
     if "Pre-compaction memory flush" in combined or "pre-compaction" in combined.lower():
-        return "Memory Compact"
+        return "Compact Memory"
     return "Work"
 
 
