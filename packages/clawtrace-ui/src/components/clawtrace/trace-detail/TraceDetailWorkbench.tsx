@@ -2,6 +2,10 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { duotoneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import {
   Fragment,
   useCallback,
@@ -2211,31 +2215,38 @@ function ExecutionPathView({
   );
 }
 
-/* ── Payload format auto-detection ──────────────────────────────────────── */
-type PayloadFormat = 'markdown' | 'json' | 'command' | 'raw';
+/* ── Payload format detection ───────────────────────────────────────────── */
+type PayloadFormat = 'markdown' | 'json' | 'command';
+
+/** Command-shaped JSON: has a "command" string field */
+function isCommandJson(text: string): string | null {
+  try {
+    const obj = JSON.parse(text.trim());
+    if (obj && typeof obj === 'object' && !Array.isArray(obj) && typeof obj.command === 'string') {
+      return obj.command;
+    }
+  } catch { /* not json */ }
+  return null;
+}
 
 function detectPayloadFormat(text: string): PayloadFormat {
   const trimmed = text.trim();
-  // JSON: starts with { or [
+  // Command-shaped JSON (e.g. { "command": "...", "yieldMs": 30000 })
+  if (isCommandJson(trimmed)) return 'command';
+  // Pure JSON (starts with { or [)
   if (/^[\[{]/.test(trimmed)) {
-    try { JSON.parse(trimmed); return 'json'; } catch { /* not valid json */ }
+    try { JSON.parse(trimmed); return 'json'; } catch { /* fall through */ }
   }
-  // Command line: starts with $ or contains common shell patterns
-  if (/^(\$|#!\/)/.test(trimmed) || /^\s*(sudo|cd|ls|cat|curl|npm|pip|docker|git|python|node)\s/m.test(trimmed)) {
-    return 'command';
-  }
-  // Markdown: contains headers, lists, bold, links, code blocks
-  if (/^#{1,6}\s|^\s*[-*]\s|\*\*|```|\[.+\]\(.+\)/m.test(trimmed)) {
-    return 'markdown';
-  }
-  return 'raw';
+  // Explicit shell patterns
+  if (/^(\$\s|#!\/)/.test(trimmed)) return 'command';
+  // Everything else → markdown (the fallback)
+  return 'markdown';
 }
 
 function formatPayloadLabel(fmt: PayloadFormat): string {
-  if (fmt === 'markdown') return 'Markdown';
   if (fmt === 'json') return 'JSON';
   if (fmt === 'command') return 'Command';
-  return 'Raw';
+  return 'Markdown';
 }
 
 /** Extract raw input text from a span */
@@ -2261,6 +2272,25 @@ function extractOutputText(span: TraceDetailSpan): string {
   return payload ? JSON.stringify(payload, null, 2) : '';
 }
 
+/** Custom syntax highlighter style matching the warm Atelier palette */
+const atelierHighlightStyle: Record<string, React.CSSProperties> = {
+  ...duotoneLight,
+  'pre[class*="language-"]': {
+    ...(duotoneLight['pre[class*="language-"]'] as React.CSSProperties),
+    background: 'transparent',
+    margin: 0,
+    padding: 0,
+    fontSize: '12px',
+    lineHeight: '1.55',
+  },
+  'code[class*="language-"]': {
+    ...(duotoneLight['code[class*="language-"]'] as React.CSSProperties),
+    background: 'transparent',
+    fontSize: '12px',
+    lineHeight: '1.55',
+  },
+};
+
 /* ── Copy-to-clipboard button ──────────────────────────────────────────── */
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
@@ -2274,31 +2304,51 @@ function CopyButton({ text }: { text: string }) {
   return (
     <button type="button" className={styles.copyButton} onClick={handleCopy} aria-label="Copy to clipboard">
       {copied ? (
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none">
-          <path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
       ) : (
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="none">
-          <rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
-          <path d="M3 11V3a2 2 0 012-2h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
       )}
     </button>
   );
 }
 
-/* ── Payload section with format toggle + copy ─────────────────────────── */
-function PayloadSection({
-  label,
-  rawText,
-}: {
-  label: string;
-  rawText: string;
-}) {
-  const autoFormat = useMemo(() => detectPayloadFormat(rawText), [rawText]);
-  const [viewMode, setViewMode] = useState<'auto' | 'raw'>(rawText ? 'auto' : 'raw');
+/* ── Rendered content by format ────────────────────────────────────────── */
+function PayloadContent({ rawText, format }: { rawText: string; format: PayloadFormat | 'raw' }) {
+  if (format === 'command') {
+    // Extract command string from JSON wrapper if present
+    const cmd = isCommandJson(rawText.trim()) ?? rawText;
+    return (
+      <SyntaxHighlighter language="bash" style={atelierHighlightStyle} wrapLongLines>
+        {cmd}
+      </SyntaxHighlighter>
+    );
+  }
+  if (format === 'json') {
+    let pretty = rawText;
+    try { pretty = JSON.stringify(JSON.parse(rawText), null, 2); } catch { /* keep as-is */ }
+    return (
+      <SyntaxHighlighter language="json" style={atelierHighlightStyle} wrapLongLines>
+        {pretty}
+      </SyntaxHighlighter>
+    );
+  }
+  if (format === 'markdown') {
+    return (
+      <div className={styles.payloadMarkdown}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{rawText}</ReactMarkdown>
+      </div>
+    );
+  }
+  // raw
+  return <pre className={styles.payloadRaw}>{rawText}</pre>;
+}
 
-  // Reset view mode when span changes
+/* ── Payload section with format toggle + copy ─────────────────────────── */
+function PayloadSection({ label, rawText }: { label: string; rawText: string }) {
+  const autoFormat = useMemo(() => detectPayloadFormat(rawText), [rawText]);
+  const [viewMode, setViewMode] = useState<'auto' | 'raw'>('auto');
+
+  // Reset on span change
   useEffect(() => { setViewMode('auto'); }, [rawText]);
 
   if (!rawText) {
@@ -2312,24 +2362,8 @@ function PayloadSection({
     );
   }
 
-  const showFormatted = viewMode === 'auto' && autoFormat !== 'raw';
+  const activeFormat = viewMode === 'auto' ? autoFormat : 'raw';
   const formatLabel = formatPayloadLabel(autoFormat);
-
-  let renderedContent: ReactNode;
-  if (showFormatted && autoFormat === 'json') {
-    try {
-      renderedContent = <pre className={styles.payloadCode}>{JSON.stringify(JSON.parse(rawText), null, 2)}</pre>;
-    } catch {
-      renderedContent = <pre className={styles.payloadCode}>{rawText}</pre>;
-    }
-  } else if (showFormatted && autoFormat === 'markdown') {
-    // Render as pre with markdown-ish styling (simple — no heavy deps)
-    renderedContent = <div className={styles.payloadMarkdown}>{rawText}</div>;
-  } else if (showFormatted && autoFormat === 'command') {
-    renderedContent = <pre className={`${styles.payloadCode} ${styles.payloadCommand}`}>{rawText}</pre>;
-  } else {
-    renderedContent = <pre className={styles.payloadCode}>{rawText}</pre>;
-  }
 
   return (
     <section className={styles.payloadSection}>
@@ -2353,8 +2387,8 @@ function PayloadSection({
         </div>
       </div>
       <div className={styles.payloadBox}>
-        {renderedContent}
         <CopyButton text={rawText} />
+        <PayloadContent rawText={rawText} format={activeFormat} />
       </div>
     </section>
   );
@@ -2396,9 +2430,7 @@ function ViewInspector({
         <p className={styles.inspectorTitle}>Step Detail</p>
         {onClose && (
           <button type="button" className={styles.inspectorClose} onClick={onClose} aria-label="Close step detail">
-            <svg viewBox="0 0 14 14" fill="none" width="14" height="14">
-              <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
           </button>
         )}
       </header>
