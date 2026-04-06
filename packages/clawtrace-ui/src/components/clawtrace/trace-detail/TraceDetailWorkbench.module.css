@@ -359,29 +359,30 @@
   padding: 3px 0 0 32px; /* 24px icon + 8px gap = 32px aligned under name */
 }
 
-/* Duration pill — green background */
+/* Duration badge — same style as model badge */
 .treeMetaDuration {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  height: 22px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: #e8f0e4;
-  color: #4a6b42;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 4px;
+  border: 1px solid #dacbb4;
+  background: #faf4ec;
+  color: #7c6854;
   font-size: 11px;
-  font-weight: 520;
+  font-weight: 500;
   white-space: nowrap;
 }
 
-/* Token/cost group — bordered pill */
+/* Token/cost group — same badge style, with internal separators */
 .treeMetaGroup {
   display: inline-flex;
   align-items: center;
-  height: 22px;
-  border-radius: 999px;
+  height: 20px;
+  border-radius: 4px;
   border: 1px solid #dacbb4;
-  background: #fff;
+  background: #faf4ec;
   font-size: 11px;
   color: #7c6854;
   overflow: hidden;
@@ -389,7 +390,7 @@
 .treeMetaGroupItem {
   padding: 0 7px;
   white-space: nowrap;
-  font-weight: 480;
+  font-weight: 500;
 }
 .treeMetaSep {
   width: 1px;
@@ -409,17 +410,17 @@
 
 /* ── Hierarchy connectors ───────────────────────────────────────────────── */
 /* Child group: indented under parent icon center.
-   Connectors are drawn by per-child pseudo-elements for precise control. */
+   Every child gets a curved connector (::after).
+   ::before handles the vertical line that continues past non-last children. */
 .treeChildGroup {
   margin-left: 24px; /* = parent icon center (12px pad + 12px half-icon) */
 }
 
-/* Each child node in a group */
 .treeChildGroup > .treeNode {
   position: relative;
 }
 
-/* Vertical line: full height for intermediate children */
+/* Vertical line: continues full height for non-last children */
 .treeChildGroup > .treeNode::before {
   content: '';
   position: absolute;
@@ -430,14 +431,17 @@
   pointer-events: none;
 }
 
-/* Horizontal arm to child icon center-left */
+/* Curved connector for EVERY child: L-shape from vertical line to icon */
 .treeChildGroup > .treeNode::after {
   content: '';
   position: absolute;
   left: 0;
-  top: 16px; /* icon vertical center: 4px block-pad + 12px half-icon */
-  width: 12px; /* reaches block padding-left where icon starts */
-  border-top: 1.5px solid #ddd0c0;
+  top: 5px;
+  width: 12px;
+  height: 12px; /* ends at ~17px = icon vertical center */
+  border-left: 1.5px solid #ddd0c0;
+  border-bottom: 1.5px solid #ddd0c0;
+  border-bottom-left-radius: 10px;
   pointer-events: none;
 }
 
@@ -446,22 +450,16 @@
   top: -24px;
 }
 
-/* Last child: L-shaped rounded corner — line stops at icon center */
+/* Last child: vertical line stops just above the curve */
 .treeChildGroup > .treeNode:last-child::before {
   bottom: auto;
-  height: 17px;
-  border-bottom: 1.5px solid #ddd0c0;
-  border-bottom-left-radius: 10px;
-  width: 12px;
-}
-.treeChildGroup > .treeNode:last-child::after {
-  display: none; /* L-corner already provides the horizontal arm */
+  height: 6px;
 }
 
-/* Only child: extend up to parent AND L-corner at bottom */
+/* Only child: extend up + short vertical */
 .treeChildGroup > .treeNode:first-child:last-child::before {
   top: -24px;
-  height: calc(24px + 17px);
+  height: 30px; /* 24px above + 6px below */
 }
 
 .actorMapCanvas {

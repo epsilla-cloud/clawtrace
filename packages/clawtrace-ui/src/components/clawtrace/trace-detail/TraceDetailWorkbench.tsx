@@ -2290,7 +2290,7 @@ function ViewInspector({
               </div>
               <div>
                 <dt>Estimated step cost</dt>
-                <dd>{formatCurrency(detail.trace.totalTokens > 0 ? (detail.trace.estimatedCostUsd * selectedSpan.totalTokens) / detail.trace.totalTokens : 0)}</dd>
+                <dd>{formatCurrency(estimateSpanCost(selectedSpan.model, selectedSpan.tokensIn, selectedSpan.tokensOut))}</dd>
               </div>
             </dl>
           </section>
