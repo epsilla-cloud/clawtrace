@@ -106,9 +106,14 @@ function BarChart({ title, categories, values, barColor, valueMode }: BarChartPr
 /* ── Helpers ─────────────────────────────────────────────────────────────── */
 function fmtDuration(ms: number | null) {
   if (!ms) return '—';
-  if (ms < 1000) return `${ms}ms`;
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`;
-  return `${(ms / 60000).toFixed(1)}m`;
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  const totalSec = Math.round(ms / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${m}m ${s}s`;
+  if (m > 0) return s > 0 ? `${m}m ${s}s` : `${m}m`;
+  return `${s}s`;
 }
 function fmtTs(ms: number | null) {
   if (!ms) return '—';
