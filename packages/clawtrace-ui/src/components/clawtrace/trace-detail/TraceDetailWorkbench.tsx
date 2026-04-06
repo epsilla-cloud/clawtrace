@@ -2112,18 +2112,7 @@ function ExecutionPathView({
     });
   }, []);
 
-  /**
-   * Render a tree node with hierarchy guide lines.
-   * @param ancestors — boolean[] where ancestors[i] = true means the ancestor at depth i
-   *   has more siblings below it (so a vertical line should continue at that column).
-   * @param isLast — whether this node is the last child of its parent.
-   */
-  function renderNode(
-    span: TraceDetailSpan,
-    depth: number,
-    ancestors: boolean[],
-    isLast: boolean,
-  ): ReactNode {
+  function renderNode(span: TraceDetailSpan): ReactNode {
     const children = childrenByParent.get(span.spanId) ?? [];
     const hasChildren = children.length > 0;
     const isExpanded = expandedIds.has(span.spanId);
@@ -2133,52 +2122,21 @@ function ExecutionPathView({
     const iconSrc = resolveSpanIcon(span);
     const cost = formatSpanCost(span);
 
-    // Build guide columns for each depth level
-    const guides: ReactNode[] = [];
-    for (let i = 0; i < depth; i++) {
-      if (i === depth - 1) {
-        // Current connector: ├ or └
-        guides.push(
-          <span
-            key={i}
-            className={isLast ? styles.treeGuideCorner : styles.treeGuideT}
-          />,
-        );
-      } else {
-        // Ancestor column: │ or empty
-        guides.push(
-          <span
-            key={i}
-            className={ancestors[i] ? styles.treeGuideLine : styles.treeGuideEmpty}
-          />,
-        );
-      }
-    }
-
-    const nextAncestors = [...ancestors, !isLast];
-
     return (
       <div key={span.spanId} className={styles.treeNode}>
         {/* Row 1: icon + name + badge + chevron */}
         <button
           type="button"
           id={`span-${span.spanId}`}
-          className={`${styles.treeNodeRow} ${isSelected ? styles.treeItemSelected : ''} ${isError ? styles.treeItemError : ''}`}
+          className={`${styles.treeNodeRow} ${isSelected ? styles.treeNodeRowSelected : ''} ${isError ? styles.treeNodeRowError : ''}`}
           onClick={() => onSelectSpan(span.spanId)}
         >
-          {depth > 0 && <span className={styles.treeGuides}>{guides}</span>}
-
           <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
-
           <span className={styles.treeItemName}>{spanTreeName(span)}</span>
-
           {span.kind === 'llm_call' && span.model && (
             <span className={styles.treeItemBadge}>{shortModelName(span.model)}</span>
           )}
-
           <span className={styles.treeItemSpacer} />
-
-          {/* Chevron on right — only for non-root nodes with children */}
           {hasChildren && !isRoot ? (
             <span
               className={styles.treeItemChevron}
@@ -2192,11 +2150,8 @@ function ExecutionPathView({
           ) : null}
         </button>
 
-        {/* Row 2: metadata badges */}
-        <div
-          className={styles.treeNodeMeta}
-          style={{ paddingLeft: `${(depth > 0 ? depth * 20 + 20 : 0) + 36}px` }}
-        >
+        {/* Row 2: metadata badges — aligned under the name */}
+        <div className={styles.treeNodeMeta}>
           <span className={styles.treeMetaPill}>
             <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
           </span>
@@ -2210,12 +2165,10 @@ function ExecutionPathView({
           )}
         </div>
 
-        {/* Children */}
+        {/* Children — wrapped in a container with left-border for hierarchy */}
         {hasChildren && isExpanded && (
-          <div className={styles.treeNodeChildren}>
-            {children.map((child, idx) =>
-              renderNode(child, depth + 1, nextAncestors, idx === children.length - 1),
-            )}
+          <div className={styles.treeChildGroup}>
+            {children.map((child) => renderNode(child))}
           </div>
         )}
       </div>
@@ -2232,7 +2185,7 @@ function ExecutionPathView({
         {rootSpanIds
           .map((rootId) => spanById.get(rootId))
           .filter((span): span is TraceDetailSpan => Boolean(span))
-          .map((span, idx) => renderNode(span, 0, [], idx === rootSpanIds.length - 1))}
+          .map((span) => renderNode(span))}
       </div>
     </div>
   );

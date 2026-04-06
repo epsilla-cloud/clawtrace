@@ -246,111 +246,26 @@
 }
 
 /* ── Tree node ──────────────────────────────────────────────────────────── */
-.treeNode {
-  position: relative;
-}
+.treeNode {}
 
+/* Main clickable row — full width, no side margin, so highlight spans edge-to-edge */
 .treeNodeRow {
   border: 0;
   width: 100%;
   background: transparent;
-  min-height: 36px;
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 12px 2px 12px;
+  padding: 5px 12px 2px;
   text-align: left;
   cursor: pointer;
-  border-radius: 8px;
   transition: background 100ms;
   font-family: inherit;
 }
-.treeNodeRow:hover { background: #f5efe6; }
-.treeItemSelected { background: #ede3d4; }
-.treeItemSelected:hover { background: #e8dbc8; }
-.treeItemError { border-left: 3px solid #e53e3e; }
-
-/* ── Hierarchy guide lines ──────────────────────────────────────────────── */
-.treeGuides {
-  display: inline-flex;
-  align-items: stretch;
-  align-self: stretch;
-  flex-shrink: 0;
-}
-
-/* Vertical line segment (ancestor has more siblings) */
-.treeGuideLine {
-  width: 20px;
-  flex-shrink: 0;
-  position: relative;
-}
-.treeGuideLine::before {
-  content: '';
-  position: absolute;
-  left: 9px;
-  top: 0;
-  bottom: 0;
-  width: 1.5px;
-  background: #dacbb4;
-}
-
-/* Empty guide (no line) */
-.treeGuideEmpty {
-  width: 20px;
-  flex-shrink: 0;
-}
-
-/* T-connector: ├ (has more siblings below) */
-.treeGuideT {
-  width: 20px;
-  flex-shrink: 0;
-  position: relative;
-}
-.treeGuideT::before {
-  content: '';
-  position: absolute;
-  left: 9px;
-  top: 0;
-  bottom: 0;
-  width: 1.5px;
-  background: #dacbb4;
-}
-.treeGuideT::after {
-  content: '';
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  width: 10px;
-  height: 1.5px;
-  background: #dacbb4;
-}
-
-/* Corner connector: └ (last child) */
-.treeGuideCorner {
-  width: 20px;
-  flex-shrink: 0;
-  position: relative;
-}
-.treeGuideCorner::before {
-  content: '';
-  position: absolute;
-  left: 9px;
-  top: 0;
-  height: 50%;
-  width: 1.5px;
-  background: #dacbb4;
-  border-bottom-left-radius: 4px;
-}
-.treeGuideCorner::after {
-  content: '';
-  position: absolute;
-  left: 9px;
-  top: 50%;
-  width: 10px;
-  height: 1.5px;
-  background: #dacbb4;
-  border-bottom-left-radius: 4px;
-}
+.treeNodeRow:hover { background: #f0e8dc; }
+.treeNodeRowSelected { background: #e8dcc8; }
+.treeNodeRowSelected:hover { background: #e2d4bc; }
+.treeNodeRowError { box-shadow: inset 3px 0 0 #e53e3e; }
 
 /* ── Tree item pieces ───────────────────────────────────────────────────── */
 .treeItemIcon {
@@ -403,12 +318,12 @@
 }
 .treeItemChevron:hover { color: #5a4534; }
 
-/* ── Second-row metadata badges ─────────────────────────────────────────── */
+/* ── Second-row metadata badges — aligned under the name text ───────────── */
 .treeNodeMeta {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding-bottom: 6px;
+  padding: 0 12px 4px 44px; /* 12px row-pad + 24px icon + 8px gap = 44px */
 }
 
 .treeMetaPill {
@@ -427,8 +342,15 @@
   color: #b89c84;
 }
 
-.treeNodeChildren {
-  /* Children render inside this container */
+/* ── Child group container — the hierarchy indicator ────────────────────── */
+/* Uses left-border with rounded bottom-left corner to show parent→children.
+   Nesting these containers naturally produces multi-level hierarchy lines. */
+.treeChildGroup {
+  margin-left: 22px;
+  padding-left: 12px;
+  border-left: 1.5px solid #ddd0c0;
+  border-bottom-left-radius: 12px;
+  padding-bottom: 2px;
 }
 
 .actorMapCanvas {
@@ -1429,13 +1351,9 @@
     padding: 0;
   }
 
-  .treeNodeMeta {
-    gap: 4px;
-  }
-
-  .treeMetaPill:last-child {
-    display: none;
-  }
+  .treeNodeMeta { gap: 4px; }
+  .treeMetaPill:last-child { display: none; }
+  .treeChildGroup { margin-left: 14px; padding-left: 10px; }
 
   .inspectGrid {
     grid-template-columns: 1fr;
