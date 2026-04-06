@@ -267,7 +267,7 @@
   background: transparent;
   text-align: left;
   cursor: pointer;
-  padding: 4px 12px;
+  padding: 6px 12px;
   font-family: inherit;
   transition: background 100ms;
   display: flex;
@@ -281,7 +281,7 @@
   content: '';
   position: absolute;
   left: 24px; /* padding-left (12) + half-icon (12) = icon center */
-  top: 28px;  /* padding-top (4) + icon height (24) = icon bottom */
+  top: 30px;  /* padding-top (6) + icon height (24) = icon bottom */
   bottom: 0;
   border-left: 1.5px solid #ddd0c0;
   pointer-events: none;
@@ -322,6 +322,8 @@
   border-radius: 6px;
   flex-shrink: 0;
   object-fit: cover;
+  position: relative;
+  z-index: 1; /* above connector lines */
 }
 
 /* White rounded-corner wrapper for LLM vendor icons — same outer size as regular icons */
@@ -335,6 +337,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  position: relative;
+  z-index: 1; /* above connector lines */
 }
 .treeItemIconInner {
   width: 16px;
@@ -456,13 +460,13 @@
 }
 
 /* Curved L-connector for EVERY child: from vertical line to icon left border */
-/* top: 4px → bottom: 16px = exactly icon center (4px pad + 12px half-icon) */
+/* top: 6px + height: 12px → bottom at 18px = icon center (6px pad + 12px half-icon) */
 .treeChildGroup > .treeNode::after {
   content: '';
   position: absolute;
   left: 0;
-  top: 4px;
-  width: 12px;
+  top: 6px;
+  width: 10px;  /* stop just before icon — icon z-index covers overlap */
   height: 12px;
   border-left: 1.5px solid #ddd0c0;
   border-bottom: 1.5px solid #ddd0c0;
@@ -1525,7 +1529,16 @@
   .modeDropdown { display: flex !important; }
   .divider { display: none; }
   .treeMetaGroup { display: none; }
-  .treeChildGroup { margin-left: 18px; }
+  /* Narrower indent + padding — keep connectors aligned */
+  .treeNodeBlock { padding: 6px 8px; }
+  .treeChildGroup { margin-left: 20px; /* pad(8) + half-icon(12) = icon center */ }
+  .treeNode:has(> .treeChildGroup) > .treeNodeBlock::after {
+    left: 20px; /* 8px pad + 12px half-icon */
+    top: 30px;
+  }
+  .treeChildGroup > .treeNode::after {
+    width: 6px; /* shorter arm: indent(20) - pad(8) = 12, but stop short of icon */
+  }
   .viewBody { padding: 8px; }
   .viewBodyFlush { padding: 0; }
 }
