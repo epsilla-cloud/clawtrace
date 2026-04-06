@@ -480,16 +480,16 @@
   top: 0;
 }
 
-/* Last child: vertical line stops just above the curve */
+/* Last child: vertical line extends into the curve (no gap) */
 .treeChildGroup > .treeNode:last-child::before {
   bottom: auto;
-  height: 6px;
+  height: 10px; /* overlaps with L-curve ::after at top:8px */
 }
 
-/* Only child: short line from top to curve */
+/* Only child: line from top into the curve */
 .treeChildGroup > .treeNode:first-child:last-child::before {
   top: 0;
-  height: 6px;
+  height: 10px;
 }
 
 .actorMapCanvas {
