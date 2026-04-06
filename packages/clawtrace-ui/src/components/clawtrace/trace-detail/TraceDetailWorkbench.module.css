@@ -838,110 +838,170 @@
 
 .inspectorTitle {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.1;
   font-weight: 620;
   color: var(--ct-text);
 }
 
-.inspectorSubtitle {
-  margin: 0;
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
-}
-
 .inspectorBody {
   min-height: 0;
   overflow: auto;
-  padding: 10px;
-  display: grid;
-  gap: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
   scrollbar-width: thin;
   scrollbar-color: #c9b8a4 transparent;
 }
+.inspectorBody::-webkit-scrollbar { width: 6px; }
+.inspectorBody::-webkit-scrollbar-track { background: transparent; }
+.inspectorBody::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
 
-.inspectSection {
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--ct-panel-subtle) 44%, white);
-  padding: 10px;
-  display: grid;
-  gap: 8px;
+/* ── Step identity: icon + name ────────────────────────────────────────── */
+.stepIdentity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.stepIdentityName {
+  font-size: 16px;
+  font-weight: 620;
+  color: var(--ct-text);
 }
 
+/* ── Metadata badges (flex-wrap) ───────────────────────────────────────── */
+.stepBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.stepBadge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 5px;
+  border: 1px solid #dacbb4;
+  background: #faf4ec;
+  color: #5a4534;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ── Payload section (Input / Output) ──────────────────────────────────── */
+.payloadSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.payloadHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 .inspectTitle {
   margin: 0;
-  font-size: var(--ct-text-body-sm);
+  font-size: 14px;
   color: var(--ct-text);
   font-weight: 620;
 }
 
-.inspectGrid {
-  margin: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px 8px;
-}
-
-.inspectGrid div {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.inspectGrid dt {
-  margin: 0;
-  font-size: var(--ct-text-meta);
-  color: var(--ct-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-}
-
-.inspectGrid dd {
-  margin: 0;
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-soft-text);
+/* Format toggle: Markdown|JSON|Raw */
+.payloadToggle {
+  display: flex;
+  border: 1px solid #dacbb4;
+  border-radius: 6px;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.payloadToggleBtn {
+  border: none;
+  background: transparent;
+  color: #7c6854;
+  font-size: 11px;
+  font-weight: 550;
+  padding: 3px 10px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 80ms, color 80ms;
+}
+.payloadToggleBtn:not(:last-child) {
+  border-right: 1px solid #dacbb4;
+}
+.payloadToggleBtnActive {
+  background: #f0e4d0;
+  color: #3b2e1f;
+}
+.payloadToggleBtn:hover:not(.payloadToggleBtnActive) {
+  background: #faf4ec;
 }
 
-.codeValue {
+/* Content box */
+.payloadBox {
+  position: relative;
+  border: 1px solid #dacbb4;
+  border-radius: 10px;
+  background: #fff;
+  min-height: 80px;
+  max-height: 400px;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.payloadBox::-webkit-scrollbar { width: 6px; }
+.payloadBox::-webkit-scrollbar-track { background: transparent; }
+.payloadBox::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
+
+.payloadCode {
+  margin: 0;
+  padding: 12px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 12px;
+  line-height: 1.5;
+  color: #3b3128;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.payloadCommand {
+  color: #1a5c2e;
+}
+.payloadMarkdown {
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: #3b3128;
+  white-space: pre-wrap;
+  word-break: break-word;
 }
 
-.inspectCode {
-  margin: 0;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
-  border-radius: 9px;
-  background: #fff;
-  padding: 9px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 11px;
-  line-height: 1.42;
-  color: #3b3128;
-  max-height: 180px;
-  overflow: auto;
+/* Copy button — top-right of payload box */
+.copyButton {
+  position: sticky;
+  float: right;
+  top: 8px;
+  right: 8px;
+  margin: -24px 8px 0 0;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #dacbb4;
+  border-radius: 6px;
+  background: #fffdf8;
+  cursor: pointer;
+  color: #b89c84;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: background 80ms, color 80ms;
 }
+.copyButton:hover { background: #f0e4d0; color: #5a4534; }
 
 .inspectEmpty {
   margin: 0;
-  font-size: var(--ct-text-body-sm);
+  font-size: 13px;
   color: var(--ct-muted);
-}
-
-.inspectActionList {
-  margin: 0;
-  padding-left: 18px;
-  display: grid;
-  gap: 4px;
-}
-
-.inspectActionItem {
-  font-size: var(--ct-text-body-sm);
-  color: var(--ct-soft-text);
-  line-height: 1.4;
 }
 
 .statusPill {
@@ -1456,7 +1516,6 @@
   .divider { display: none; }
   .treeMetaGroup { display: none; }
   .treeChildGroup { margin-left: 18px; }
-  .inspectGrid { grid-template-columns: 1fr; }
   .viewBody { padding: 8px; }
   .viewBodyFlush { padding: 0; }
 }

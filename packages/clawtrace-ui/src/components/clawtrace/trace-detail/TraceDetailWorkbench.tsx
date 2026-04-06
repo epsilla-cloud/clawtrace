@@ -2211,6 +2211,156 @@ function ExecutionPathView({
   );
 }
 
+/* ── Payload format auto-detection ──────────────────────────────────────── */
+type PayloadFormat = 'markdown' | 'json' | 'command' | 'raw';
+
+function detectPayloadFormat(text: string): PayloadFormat {
+  const trimmed = text.trim();
+  // JSON: starts with { or [
+  if (/^[\[{]/.test(trimmed)) {
+    try { JSON.parse(trimmed); return 'json'; } catch { /* not valid json */ }
+  }
+  // Command line: starts with $ or contains common shell patterns
+  if (/^(\$|#!\/)/.test(trimmed) || /^\s*(sudo|cd|ls|cat|curl|npm|pip|docker|git|python|node)\s/m.test(trimmed)) {
+    return 'command';
+  }
+  // Markdown: contains headers, lists, bold, links, code blocks
+  if (/^#{1,6}\s|^\s*[-*]\s|\*\*|```|\[.+\]\(.+\)/m.test(trimmed)) {
+    return 'markdown';
+  }
+  return 'raw';
+}
+
+function formatPayloadLabel(fmt: PayloadFormat): string {
+  if (fmt === 'markdown') return 'Markdown';
+  if (fmt === 'json') return 'JSON';
+  if (fmt === 'command') return 'Command';
+  return 'Raw';
+}
+
+/** Extract raw input text from a span */
+function extractInputText(span: TraceDetailSpan): string {
+  if (span.kind === 'tool_call') {
+    return span.toolParams ? JSON.stringify(span.toolParams, null, 2) : '';
+  }
+  if (span.kind === 'llm_call') {
+    if (typeof span.attributes.prompt === 'string' && span.attributes.prompt.length > 0) {
+      return span.attributes.prompt as string;
+    }
+    return JSON.stringify({ provider: span.provider, model: span.model, tokensIn: span.tokensIn }, null, 2);
+  }
+  return JSON.stringify(span.attributes, null, 2);
+}
+
+/** Extract raw output text from a span */
+function extractOutputText(span: TraceDetailSpan): string {
+  if (span.kind === 'llm_call' && Array.isArray(span.attributes.output) && (span.attributes.output as string[]).length > 0) {
+    return (span.attributes.output as string[]).join('\n');
+  }
+  const payload = extractOutputPayload(span);
+  return payload ? JSON.stringify(payload, null, 2) : '';
+}
+
+/* ── Copy-to-clipboard button ──────────────────────────────────────────── */
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  }, [text]);
+
+  return (
+    <button type="button" className={styles.copyButton} onClick={handleCopy} aria-label="Copy to clipboard">
+      {copied ? (
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none">
+          <path d="M3 8.5l3 3 7-7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 16 16" width="14" height="14" fill="none">
+          <rect x="5" y="5" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2" />
+          <path d="M3 11V3a2 2 0 012-2h6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      )}
+    </button>
+  );
+}
+
+/* ── Payload section with format toggle + copy ─────────────────────────── */
+function PayloadSection({
+  label,
+  rawText,
+}: {
+  label: string;
+  rawText: string;
+}) {
+  const autoFormat = useMemo(() => detectPayloadFormat(rawText), [rawText]);
+  const [viewMode, setViewMode] = useState<'auto' | 'raw'>(rawText ? 'auto' : 'raw');
+
+  // Reset view mode when span changes
+  useEffect(() => { setViewMode('auto'); }, [rawText]);
+
+  if (!rawText) {
+    return (
+      <section className={styles.payloadSection}>
+        <div className={styles.payloadHeader}>
+          <h3 className={styles.inspectTitle}>{label}</h3>
+        </div>
+        <p className={styles.inspectEmpty}>Not captured in this run.</p>
+      </section>
+    );
+  }
+
+  const showFormatted = viewMode === 'auto' && autoFormat !== 'raw';
+  const formatLabel = formatPayloadLabel(autoFormat);
+
+  let renderedContent: ReactNode;
+  if (showFormatted && autoFormat === 'json') {
+    try {
+      renderedContent = <pre className={styles.payloadCode}>{JSON.stringify(JSON.parse(rawText), null, 2)}</pre>;
+    } catch {
+      renderedContent = <pre className={styles.payloadCode}>{rawText}</pre>;
+    }
+  } else if (showFormatted && autoFormat === 'markdown') {
+    // Render as pre with markdown-ish styling (simple — no heavy deps)
+    renderedContent = <div className={styles.payloadMarkdown}>{rawText}</div>;
+  } else if (showFormatted && autoFormat === 'command') {
+    renderedContent = <pre className={`${styles.payloadCode} ${styles.payloadCommand}`}>{rawText}</pre>;
+  } else {
+    renderedContent = <pre className={styles.payloadCode}>{rawText}</pre>;
+  }
+
+  return (
+    <section className={styles.payloadSection}>
+      <div className={styles.payloadHeader}>
+        <h3 className={styles.inspectTitle}>{label}</h3>
+        <div className={styles.payloadToggle}>
+          <button
+            type="button"
+            className={`${styles.payloadToggleBtn} ${viewMode === 'auto' ? styles.payloadToggleBtnActive : ''}`}
+            onClick={() => setViewMode('auto')}
+          >
+            {formatLabel}
+          </button>
+          <button
+            type="button"
+            className={`${styles.payloadToggleBtn} ${viewMode === 'raw' ? styles.payloadToggleBtnActive : ''}`}
+            onClick={() => setViewMode('raw')}
+          >
+            Raw
+          </button>
+        </div>
+      </div>
+      <div className={styles.payloadBox}>
+        {renderedContent}
+        <CopyButton text={rawText} />
+      </div>
+    </section>
+  );
+}
+
+/* ── Step Detail panel (redesigned) ────────────────────────────────────── */
 function ViewInspector({
   detail,
   selection,
@@ -2222,16 +2372,28 @@ function ViewInspector({
   selectedSpan: TraceDetailSpan | null;
   onClose?: () => void;
 }) {
-  const outputPayload = selectedSpan ? extractOutputPayload(selectedSpan) : null;
-  const selectedActions = buildImprovementActions(selectedSpan);
+  const iconSrc = selectedSpan ? resolveSpanIcon(selectedSpan) : '';
+  const isVendorIcon = iconSrc.includes('/llms/');
+  const stepName = selectedSpan ? spanTreeName(selectedSpan) + ' Step' : '';
+  const inputText = selectedSpan ? extractInputText(selectedSpan) : '';
+  const outputText = selectedSpan ? extractOutputText(selectedSpan) : '';
+
+  /* Build metadata badge entries */
+  const badges: { label: string; value: string }[] = [];
+  if (selectedSpan) {
+    if (selectedSpan.model) badges.push({ label: 'Model', value: selectedSpan.model });
+    badges.push({ label: 'Started At', value: formatDate(selectedSpan.startMs) });
+    badges.push({ label: 'Duration', value: formatDuration(selectedSpan.resolvedDurationMs) });
+    if (selectedSpan.tokensIn > 0) badges.push({ label: 'Input Tokens', value: formatCompactTokens(selectedSpan.tokensIn) });
+    if (selectedSpan.tokensOut > 0) badges.push({ label: 'Output Tokens', value: formatCompactTokens(selectedSpan.tokensOut) });
+    const cost = formatSpanCostValue(selectedSpan);
+    if (cost) badges.push({ label: 'Cost', value: cost });
+  }
 
   return (
     <aside className={styles.inspectorCard}>
       <header className={styles.inspectorHeader}>
-        <div>
-          <p className={styles.inspectorTitle}>Step Detail</p>
-          <p className={styles.inspectorSubtitle}>{buildSelectionSummary(selection)}</p>
-        </div>
+        <p className={styles.inspectorTitle}>Step Detail</p>
         {onClose && (
           <button type="button" className={styles.inspectorClose} onClick={onClose} aria-label="Close step detail">
             <svg viewBox="0 0 14 14" fill="none" width="14" height="14">
@@ -2243,112 +2405,36 @@ function ViewInspector({
 
       {selectedSpan ? (
         <div className={styles.inspectorBody}>
-          <section className={styles.inspectSection}>
-            <h3 className={styles.inspectTitle}>What happened</h3>
-            <dl className={styles.inspectGrid}>
-              <div>
-                <dt>Step</dt>
-                <dd>{spanDisplayLabel(selectedSpan)}</dd>
-              </div>
-              <div>
-                <dt>Type</dt>
-                <dd>{spanKindLabel(selectedSpan)}</dd>
-              </div>
-              <div>
-                <dt>Started</dt>
-                <dd>{formatDate(selectedSpan.startMs)}</dd>
-              </div>
-              <div>
-                <dt>Duration</dt>
-                <dd>{formatDuration(selectedSpan.resolvedDurationMs)}</dd>
-              </div>
-              <div>
-                <dt>Actor</dt>
-                <dd>{selectedSpan.agentId ?? selectedSpan.sessionKey ?? 'n/a'}</dd>
-              </div>
-              <div>
-                <dt>Span ID</dt>
-                <dd className={styles.codeValue}>{selectedSpan.spanId}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className={styles.inspectSection}>
-            <h3 className={styles.inspectTitle}>Cost and load</h3>
-            <dl className={styles.inspectGrid}>
-              <div>
-                <dt>Input tokens</dt>
-                <dd>{formatNumber(selectedSpan.tokensIn)}</dd>
-              </div>
-              <div>
-                <dt>Output tokens</dt>
-                <dd>{formatNumber(selectedSpan.tokensOut)}</dd>
-              </div>
-              <div>
-                <dt>Total tokens</dt>
-                <dd>{formatNumber(selectedSpan.totalTokens)}</dd>
-              </div>
-              <div>
-                <dt>Estimated step cost</dt>
-                <dd>{formatCurrency(estimateSpanCost(selectedSpan.model, selectedSpan.tokensIn, selectedSpan.tokensOut))}</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section className={styles.inspectSection}>
-            <h3 className={styles.inspectTitle}>Input / request</h3>
-            {selectedSpan.kind === 'tool_call' ? (
-              selectedSpan.toolParams ? (
-                <pre className={styles.inspectCode}>{JSON.stringify(selectedSpan.toolParams, null, 2)}</pre>
-              ) : (
-                <p className={styles.inspectEmpty}>Not captured in this run.</p>
-              )
-            ) : selectedSpan.kind === 'llm_call' ? (
-              typeof selectedSpan.attributes.prompt === 'string' && selectedSpan.attributes.prompt.length > 0 ? (
-                <pre className={styles.inspectCode}>{selectedSpan.attributes.prompt as string}</pre>
-              ) : (
-                <pre className={styles.inspectCode}>
-{JSON.stringify(
-  {
-    provider: selectedSpan.provider,
-    model: selectedSpan.model,
-    tokensIn: selectedSpan.tokensIn,
-  },
-  null,
-  2,
-)}
-                </pre>
-              )
+          {/* Identity: icon + step name */}
+          <div className={styles.stepIdentity}>
+            {isVendorIcon ? (
+              <span className={styles.treeItemIconWrap}>
+                <Image src={iconSrc} width={16} height={16} alt="" className={styles.treeItemIconInner} unoptimized />
+              </span>
             ) : (
-              <pre className={styles.inspectCode}>{JSON.stringify(selectedSpan.attributes, null, 2)}</pre>
+              <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
             )}
-          </section>
+            <span className={styles.stepIdentityName}>{stepName}</span>
+          </div>
 
-          <section className={styles.inspectSection}>
-            <h3 className={styles.inspectTitle}>Output / response</h3>
-            {selectedSpan.kind === 'llm_call' && Array.isArray(selectedSpan.attributes.output) && (selectedSpan.attributes.output as string[]).length > 0 ? (
-              <pre className={styles.inspectCode}>{(selectedSpan.attributes.output as string[]).join('\n')}</pre>
-            ) : outputPayload ? (
-              <pre className={styles.inspectCode}>{JSON.stringify(outputPayload, null, 2)}</pre>
-            ) : (
-              <p className={styles.inspectEmpty}>Not captured in this run.</p>
-            )}
-          </section>
+          {/* Metadata badges */}
+          <div className={styles.stepBadges}>
+            {badges.map((b) => (
+              <span key={b.label} className={styles.stepBadge}>
+                {b.label}: {b.value}
+              </span>
+            ))}
+          </div>
 
-          <section className={styles.inspectSection}>
-            <h3 className={styles.inspectTitle}>Action to improve</h3>
-            <ol className={styles.inspectActionList}>
-              {selectedActions.map((action) => (
-                <li key={action} className={styles.inspectActionItem}>
-                  {action}
-                </li>
-              ))}
-            </ol>
-          </section>
+          {/* Input */}
+          <PayloadSection label="Input" rawText={inputText} />
+
+          {/* Output */}
+          <PayloadSection label="Output" rawText={outputText} />
         </div>
       ) : (
         <div className={styles.inspectorBody}>
-          <p className={styles.inspectEmpty}>Select a step, actor, or phase to inspect this run deeply.</p>
+          <p className={styles.inspectEmpty}>Select a step to inspect.</p>
         </div>
       )}
     </aside>
