@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   Fragment,
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -13,6 +14,7 @@ import {
 } from 'react';
 import { FlowLeftNav } from '../flow/FlowLeftNav';
 import type { ClawTraceFlowDefinition } from '../../../lib/flow-pages';
+import { estimateSpanCost } from '../../../lib/trace-builder';
 import type { OpenClawDiscoverySnapshot } from '../../../lib/openclaw-discovery';
 import type {
   TraceDetailEntityNode,
@@ -216,6 +218,62 @@ function spanDisplayLabel(span: TraceDetailSpan): string {
     return `Subagent handoff · ${span.childAgentId ?? span.childSessionKey ?? 'delegated'}`;
   }
   return `Session · ${span.agentId ?? span.sessionKey ?? span.name}`;
+}
+
+/* ── Icon helpers for the tree view ────────────────────────────────────── */
+const LLM_ICON_NAMES = [
+  'aws','azure','claude','cohere','deepseek','doubao','fireworks','gcp',
+  'gemini','glm','gpt','grok','huggingface','kimi','llama','minimax',
+  'mistral','ollama','qwen','together',
+];
+
+function resolveSpanIcon(span: TraceDetailSpan): string {
+  if (span.kind === 'session') return '/icons/session.png';
+  if (span.kind === 'tool_call') return '/icons/tool.png';
+  if (span.kind === 'subagent') return '/icons/subagent.png';
+  const model = (span.model ?? '').toLowerCase();
+  const provider = (span.provider ?? '').toLowerCase();
+  const match =
+    LLM_ICON_NAMES.find((n) => model.includes(n)) ??
+    LLM_ICON_NAMES.find((n) => provider.includes(n));
+  return match ? `/icons/llms/${match}.png` : '/icons/model.png';
+}
+
+function spanTreeName(span: TraceDetailSpan): string {
+  if (span.kind === 'llm_call') return span.name || 'LLM Call';
+  if (span.kind === 'tool_call') return span.toolName ?? span.name;
+  if (span.kind === 'subagent') return span.childAgentId ?? span.childSessionKey ?? 'Subagent';
+  return span.agentId ?? span.sessionKey ?? span.name;
+}
+
+function shortModelName(model: string): string {
+  return model.length > 24 ? model.slice(0, 24) + '\u2026' : model;
+}
+
+function formatSpanCost(span: TraceDetailSpan): string | null {
+  if (span.kind !== 'llm_call' || span.totalTokens <= 0) return null;
+  const cost = estimateSpanCost(span.model, span.tokensIn, span.tokensOut);
+  if (cost <= 0) return null;
+  if (cost < 0.01) return `<$${cost.toFixed(4)}`;
+  return `$${cost.toFixed(4)}`;
+}
+
+function ClockIcon() {
+  return (
+    <svg className={styles.treeItemPillIcon} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M8 4.5V8l2.5 1.5" />
+    </svg>
+  );
+}
+
+function CoinIcon() {
+  return (
+    <svg className={styles.treeItemPillIcon} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="8" cy="8" r="6.5" />
+      <path d="M6 6.5a2.2 2.2 0 0 1 4 0c0 1.5-2 1.5-2 3M8 12v.01" />
+    </svg>
+  );
 }
 
 function buildExecutionParentBySpanId(spans: TraceDetailSpan[]): Map<string, string | null> {
@@ -2027,28 +2085,90 @@ function ExecutionPathView({
     return map;
   }, [detail.spans, executionParentBySpanId]);
 
-  function renderNode(span: TraceDetailSpan, depth: number, path: string): ReactNode {
+  // Root spans always expanded; others collapsed by default
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(rootSpanIds));
+
+  // Keep expanded set in sync when rootSpanIds change
+  useEffect(() => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      for (const id of rootSpanIds) next.add(id);
+      return next;
+    });
+  }, [rootSpanIds]);
+
+  const toggleExpanded = useCallback((spanId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(spanId)) next.delete(spanId);
+      else next.add(spanId);
+      return next;
+    });
+  }, []);
+
+  function renderNode(span: TraceDetailSpan, depth: number): ReactNode {
     const children = childrenByParent.get(span.spanId) ?? [];
+    const hasChildren = children.length > 0;
+    const isExpanded = expandedIds.has(span.spanId);
+    const isSelected = selectedSpanId === span.spanId;
+    const isError = Number(span.attributes.has_error) > 0;
+    const iconSrc = resolveSpanIcon(span);
+    const cost = formatSpanCost(span);
 
     return (
-      <Fragment key={span.spanId}>
+      <div key={span.spanId}>
         <button
           type="button"
           id={`span-${span.spanId}`}
-          className={`${styles.treeRow} ${selectedSpanId === span.spanId ? styles.treeRowSelected : ''} ${Number(span.attributes.has_error) > 0 ? styles.treeRowError : ''}`}
-          style={{ paddingLeft: `${12 + depth * 18}px` }}
+          className={`${styles.treeItemRow} ${isSelected ? styles.treeItemSelected : ''} ${isError ? styles.treeItemError : ''}`}
+          style={{ paddingLeft: `${12 + depth * 24}px` }}
           onClick={() => onSelectSpan(span.spanId)}
         >
-          <span className={styles.treeStepCell}>
-            <span className={`${styles.treeKindDot} ${styles[`kindDot${span.kind}`]}`} aria-hidden="true" />
-            <span className={styles.treeLabel}>{spanDisplayLabel(span)}</span>
+          {hasChildren ? (
+            <span
+              className={styles.treeItemChevron}
+              role="button"
+              tabIndex={-1}
+              onClick={(e) => { e.stopPropagation(); toggleExpanded(span.spanId); }}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggleExpanded(span.spanId); } }}
+            >
+              {isExpanded ? '\u25BE' : '\u25B8'}
+            </span>
+          ) : (
+            <span className={styles.treeItemChevronSpacer} />
+          )}
+
+          <Image src={iconSrc} width={24} height={24} alt="" className={styles.treeItemIcon} unoptimized />
+
+          <span className={styles.treeItemName}>{spanTreeName(span)}</span>
+
+          {span.kind === 'llm_call' && span.model && (
+            <span className={styles.treeItemBadge}>{shortModelName(span.model)}</span>
+          )}
+
+          <span className={styles.treeItemSpacer} />
+
+          <span className={styles.treeItemMeta}>
+            <span className={styles.treeItemPill}>
+              <ClockIcon /> {formatDuration(span.resolvedDurationMs)}
+            </span>
+            {span.kind === 'llm_call' && span.totalTokens > 0 && (
+              <span className={styles.treeItemPill}>
+                <CoinIcon /> {formatCompactTokens(span.totalTokens)}
+              </span>
+            )}
+            {cost && (
+              <span className={styles.treeItemPill}>{cost}</span>
+            )}
           </span>
-          <span className={styles.treeDuration}>{formatDuration(span.resolvedDurationMs)}</span>
-          <span className={styles.treeTokens}>{formatSpanTokenCell(span)}</span>
         </button>
 
-        {children.map((childSpan, childIndex) => renderNode(childSpan, depth + 1, `${path}-${childIndex}`))}
-      </Fragment>
+        {hasChildren && isExpanded && (
+          <div className={styles.treeItemChildren}>
+            {children.map((child) => renderNode(child, depth + 1))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -2058,16 +2178,11 @@ function ExecutionPathView({
 
   return (
     <div className={styles.treePanel}>
-      <header className={styles.treeHeader}>
-        <span className={styles.treeHeaderStep}>Step</span>
-        <span className={styles.treeHeaderMetric}>Duration</span>
-        <span className={styles.treeHeaderMetric}>Tokens (LLM)</span>
-      </header>
       <div className={styles.treeRows}>
         {rootSpanIds
           .map((rootId) => spanById.get(rootId))
           .filter((span): span is TraceDetailSpan => Boolean(span))
-          .map((span, index) => renderNode(span, 0, `root-${index}`))}
+          .map((span) => renderNode(span, 0))}
       </div>
     </div>
   );
@@ -2415,23 +2530,32 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
     [detail?.spans],
   );
 
+  // Find the first root span (no parent or parent not in the span set)
+  const firstRootSpanId = useMemo(() => {
+    if (!detail) return null;
+    const ids = new Set(detail.spans.map((s) => s.spanId));
+    const root = detail.spans
+      .filter((s) => !s.parentSpanId || !ids.has(s.parentSpanId))
+      .sort((a, b) => a.startMs - b.startMs)[0];
+    return root?.spanId ?? detail.spans[0]?.spanId ?? null;
+  }, [detail]);
+
   const selectedSpan = useMemo(() => {
     if (!detail) return null;
     if (selection?.spanId) return spanById.get(selection.spanId) ?? null;
-    if (detail.quickInsights.hottestSpanId)
-      return spanById.get(detail.quickInsights.hottestSpanId) ?? null;
+    if (firstRootSpanId) return spanById.get(firstRootSpanId) ?? null;
     return detail.spans[0] ?? null;
-  }, [detail, selection, spanById]);
+  }, [detail, selection, spanById, firstRootSpanId]);
 
   useEffect(() => {
     if (!detail) return;
-    const initialSpanId =
-      detail.quickInsights.hottestSpanId ?? detail.spans[0]?.spanId ?? null;
+    const initialSpanId = firstRootSpanId ?? detail.spans[0]?.spanId ?? null;
     if (!initialSpanId) return;
+    const span = spanById.get(initialSpanId) ?? detail.spans[0];
     setSelection({
       type: 'span',
       spanId: initialSpanId,
-      label: spanDisplayLabel(spanById.get(initialSpanId) ?? detail.spans[0]),
+      label: spanDisplayLabel(span),
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [detail?.trace.trajectoryTraceId]);

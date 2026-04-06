@@ -67,7 +67,7 @@ const MODEL_PRICING: Array<{ pattern: RegExp; input: number; output: number }> =
 ];
 const FALLBACK_PRICING = { input: 4.0, output: 12.0 };
 
-function estimateSpanCost(
+export function estimateSpanCost(
   model: string | null,
   tokensIn: number,
   tokensOut: number,
