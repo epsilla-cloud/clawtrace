@@ -91,6 +91,8 @@ Design tokens and component contracts live in `docs/design-specs/`:
 
 Core philosophy from `DESIGN.md`: evidence-centered, calm (not alarmist), operationally legible in 5 seconds. Built on the Atelier Operator design language. Desktop-first; mobile is triage-only.
 
+**Typography rule:** Never use bold (font-weight > 550) for titles, headers, or labels in the UI. The design language favors light, understated type. Bold text looks over-emphasized and ugly. Use font-weight 400–520 for all text elements.
+
 ## Deployment
 - **UI**: Vercel (`clawtrace.ai`), root dir `packages/clawtrace-ui`, build command `npm run build`
 - **Ingest**: Docker + Kubernetes (`services/clawtrace-ingest/k8s/`)

@@ -2647,21 +2647,23 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
           className={`${styles.workspace} ${!inspectorOpen ? styles.workspaceNoInspector : ''}`}
         >
           <article className={styles.viewCard}>
-            {/* Mode switcher — always inside left panel */}
-            <section className={styles.modeSwitcher} role="tablist" aria-label="Trace detail views">
-              {MODE_ITEMS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  className={`${styles.modeButton} ${mode === item.id ? styles.modeButtonActive : ''}`}
-                  onClick={() => setMode(item.id)}
-                  role="tab"
-                  aria-selected={mode === item.id}
-                >
-                  <span className={styles.modeLabel}>{item.label}</span>
-                </button>
-              ))}
-            </section>
+            {/* Header with centered mode switcher + divider aligned with inspector header */}
+            <div className={styles.viewCardHeader}>
+              <section className={styles.modeSwitcher} role="tablist" aria-label="Trace detail views">
+                {MODE_ITEMS.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`${styles.modeButton} ${mode === item.id ? styles.modeButtonActive : ''}`}
+                    onClick={() => setMode(item.id)}
+                    role="tab"
+                    aria-selected={mode === item.id}
+                  >
+                    <span className={styles.modeLabel}>{item.label}</span>
+                  </button>
+                ))}
+              </section>
+            </div>
 
             <div
               className={`${styles.viewBody} ${
