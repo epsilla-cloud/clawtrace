@@ -49,15 +49,13 @@
 }
 .connectBtn:hover { background: #7c3a0f; }
 
-/* ── Grid: max 4 per row ────────────────────────────────────────────────── */
+/* ── Grid: auto-fill, max 4 per row ─────────────────────────────────────── */
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  max-width: calc(280px * 4 + 16px * 3); /* cap at 4 columns */
   gap: 16px;
 }
-@media (max-width: 1200px) { .grid { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
 
 /* ── Agent card ─────────────────────────────────────────────────────────── */
 .card {
