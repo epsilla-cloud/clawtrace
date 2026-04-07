@@ -1624,7 +1624,7 @@
 }
 
 /* Narrow: inspector full-width overlay, mode switcher becomes dropdown */
-@container trace-content (max-width: 959px) {
+@container trace-content (max-width: 760px) {
   .workspace {
     grid-template-columns: minmax(0, 1fr) !important;
     position: relative;
