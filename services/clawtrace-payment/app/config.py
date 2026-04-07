@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     default_signup_credits: float = 200.0
     referral_new_user_credits: float = 200.0
     referral_referrer_credits: float = 200.0
-    credit_expiration_days: int = 730
+    credit_expiration_days: int = 365
     low_credit_threshold: float = 50.0
 
     # Credit packages (JSON array — each: id, label, price_usd, credits, badge)
