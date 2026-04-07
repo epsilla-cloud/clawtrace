@@ -38,12 +38,12 @@ export function AppNav() {
     if (saved === '1') setExpanded(true);
     // Fetch user info
     fetch('/api/auth/me', { cache: 'no-store' })
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
       .then((d) => { if (d) setUser(d); })
       .catch(() => {});
     // Fetch credits
     fetch('/api/referral/info', { cache: 'no-store' })
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
       .then((d) => { if (d?.points_balance != null) setCredits(d.points_balance); })
       .catch(() => {});
   }, []);

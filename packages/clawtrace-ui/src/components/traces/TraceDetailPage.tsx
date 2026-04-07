@@ -26,7 +26,7 @@ export function TraceDetailPage() {
   const traceId      = extractUuid(rawParam);
 
   const [response, setResponse] = useState<TraceDetailResponse | null>(null);
-  const [loading, setLoading]   = useState(false);
+  const [loading, setLoading]   = useState(true);
   const [error, setError]       = useState('');
 
   const load = useCallback(async () => {
@@ -38,6 +38,9 @@ export function TraceDetailPage() {
         `/api/traces/${encodeURIComponent(traceId)}`,
         { cache: 'no-store' },
       );
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (res.status === 404) throw new Error('Trajectory not found. It may have expired or the ID may be incorrect.');
+      if (res.status >= 500) { window.location.href = '/trace'; return; }
       if (!res.ok) {
         const e = await res.json().catch(() => ({})) as { detail?: string };
         throw new Error(e.detail ?? `HTTP ${res.status}`);

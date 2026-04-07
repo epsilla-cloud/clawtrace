@@ -24,6 +24,7 @@ export function ObserveKeys() {
 
   async function loadKeys() {
     const res = await fetch('/api/keys', { cache: 'no-store' });
+    if (res.status === 401) { window.location.href = '/login'; return; }
     if (res.ok) {
       const data = await res.json();
       setKeys((data.keys ?? []).filter((k: ApiKey) => !k.revoked));

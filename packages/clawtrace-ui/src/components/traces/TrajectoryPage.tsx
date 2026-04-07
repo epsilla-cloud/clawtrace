@@ -18,13 +18,14 @@ export function TrajectoryPage({
   const { agentId, trajectoryId } = use(paramsPromise);
   const [agentName, setAgentName] = useState<string>(agentId);
   const [response, setResponse] = useState<TraceDetailResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     fetch('/api/agents', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d: { agents?: Agent[] }) => {
+      .then((r) => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.json(); })
+      .then((d: { agents?: Agent[] } | null) => {
+        if (!d) return;
         const match = d.agents?.find((a) => a.id === agentId);
         if (match) setAgentName(match.name);
       })
@@ -40,6 +41,9 @@ export function TrajectoryPage({
         `/api/traces/${encodeURIComponent(trajectoryId)}`,
         { cache: 'no-store' },
       );
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (res.status === 404) throw new Error('Trajectory not found. It may have expired or the ID may be incorrect.');
+      if (res.status >= 500) { window.location.href = `/trace/${agentId}`; return; }
       if (!res.ok) {
         const e = (await res.json().catch(() => ({}))) as { detail?: string };
         throw new Error(e.detail ?? `HTTP ${res.status}`);
@@ -50,7 +54,7 @@ export function TrajectoryPage({
     } finally {
       setLoading(false);
     }
-  }, [trajectoryId]);
+  }, [agentId, trajectoryId]);
 
   useEffect(() => { void load(); }, [load]);
 
