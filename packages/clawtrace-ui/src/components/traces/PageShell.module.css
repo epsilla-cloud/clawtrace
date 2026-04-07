@@ -9,21 +9,21 @@
   background: #faf4ec;
 }
 
-/* Top bar: breadcrumb / title row — identical height + padding on all pages */
+/* Top bar: breadcrumb row — identical on all pages */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 20px;
+  padding: 14px 20px;
   flex-shrink: 0;
 }
 
-/* Breadcrumb nav */
+/* Breadcrumb nav — 16px to match "OpenClaw Agents" title on Level 1 */
 .breadcrumb {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 14px;
+  gap: 8px;
+  font-size: 16px;
   color: #7c6854;
   min-width: 0;
 }
@@ -52,7 +52,7 @@
   white-space: nowrap;
 }
 
-/* Body: fills remaining space below header — same padding on all pages */
+/* Body: scrollable content — same padding on all pages */
 .body {
   flex: 1;
   min-height: 0;
@@ -62,7 +62,7 @@
   scrollbar-color: #c9b8a4 transparent;
 }
 
-/* Variant: body that uses flex instead of scroll (trajectory detail) */
+/* Body variant: flex layout (trajectory detail panels) */
 .bodyFlex {
   flex: 1;
   min-height: 0;
