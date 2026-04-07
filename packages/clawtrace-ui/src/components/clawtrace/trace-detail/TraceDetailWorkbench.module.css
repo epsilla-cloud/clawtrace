@@ -106,7 +106,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 10px;
+  height: 40px;
+  padding: 0 10px;
   border-bottom: 1px solid #dacbb4;
   flex-shrink: 0;
 }
@@ -163,9 +164,9 @@
   min-height: 0;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: 50% 6px minmax(0, 1fr);
   align-items: stretch;
-  gap: 8px;
+  gap: 0;
   overflow: hidden;
 }
 
@@ -935,7 +936,8 @@
 
 .inspectorHeader {
   position: relative;
-  padding: 8px 10px;
+  height: 40px;
+  padding: 0 10px;
   border-bottom: 1px solid #dacbb4;
   display: flex;
   align-items: center;
