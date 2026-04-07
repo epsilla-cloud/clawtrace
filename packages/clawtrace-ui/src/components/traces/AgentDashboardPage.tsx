@@ -17,8 +17,9 @@ export function AgentDashboardPage({
 
   useEffect(() => {
     fetch('/api/agents', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((d: { agents?: Agent[] }) => {
+      .then((r) => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.json(); })
+      .then((d: { agents?: Agent[] } | null) => {
+        if (!d) return;
         const match = d.agents?.find((a) => a.id === agentId);
         if (match) setAgentName(match.name);
       })

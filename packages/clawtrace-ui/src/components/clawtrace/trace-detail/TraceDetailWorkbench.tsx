@@ -2624,12 +2624,12 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
       <section className={styles.emptyShell} style={{ flex: 1, minWidth: 0 }}>
         <article className={styles.emptyCard}>
           <p className={styles.emptyKicker}>Trace detail</p>
-          <h1 className={styles.emptyTitle}>No trace loaded</h1>
+          <h1 className={styles.emptyTitle}>Trace not found</h1>
           <p className={styles.emptyBody}>
-            Could not load trace <code>{decodeURIComponent(workflowId)}</code>.
+            The trajectory <code>{decodeURIComponent(workflowId)}</code> could not be found or has no recorded spans. It may have expired or the ID may be incorrect.
           </p>
-          <Link href="/traces" className={styles.backButton}>
-            Back to Traces
+          <Link href="/trace" className={styles.backButton}>
+            Back to Agents
           </Link>
         </article>
       </section>

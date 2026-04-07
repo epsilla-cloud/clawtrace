@@ -224,8 +224,9 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
 
   useEffect(() => {
     fetch('/api/agents', { cache: 'no-store' })
-      .then(r => r.json())
+      .then(r => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.json(); })
       .then(d => {
+        if (!d) return;
         const list: Agent[] = d.agents ?? [];
         setAgents(list);
         if (!agentId && list.length > 0) setAgentId(list[0].id);
@@ -247,6 +248,8 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
         `/api/traces?agent_id=${aid}&from_ms=${fromMs}&to_ms=${toMs}&limit=500`,
         { cache: 'no-store', signal: controller.signal }
       );
+      if (res.status === 401) { window.location.href = '/login'; return; }
+      if (res.status >= 500) { window.location.href = '/trace'; return; }
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
         throw new Error(e.detail ?? `HTTP ${res.status}`);
