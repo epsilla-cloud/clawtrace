@@ -619,32 +619,42 @@ function createWaterfallRows(spans: TraceDetailSpan[], windowStartMs: number): T
     bucket.push(span);
   }
 
-  // Sort children at each level by startMs.
-  // At root level (null parent): session spans always come first.
-  for (const [parentKey, bucket] of childrenOf.entries()) {
-    if (parentKey === null) {
-      // Roots: sessions first, then by startMs
-      bucket.sort((a, b) => {
-        const aSession = a.kind === 'session' ? 0 : 1;
-        const bSession = b.kind === 'session' ? 0 : 1;
-        return aSession - bSession || a.startMs - b.startMs;
-      });
-    } else {
-      bucket.sort((a, b) => a.startMs - b.startMs);
-    }
+  // Sort children at each level by startMs
+  for (const bucket of childrenOf.values()) {
+    bucket.sort((a, b) => a.startMs - b.startMs);
   }
 
   // DFS pre-order traversal — parents appear before their children
   const ordered: TraceDetailSpan[] = [];
-  const visit = (parentId: string | null) => {
-    const children = childrenOf.get(parentId);
+  const rootBucket = childrenOf.get(null) ?? [];
+
+  // Debug: log root composition for troubleshooting
+  if (typeof console !== 'undefined') {
+    console.log('[waterfall] roots:', rootBucket.map((s) => `${s.kind}:${s.name}:${s.spanId.slice(0, 8)}`));
+  }
+
+  // Guarantee: session roots always first, then others by startMs
+  const sessionRoots = rootBucket.filter((s) => s.kind === 'session');
+  const otherRoots = rootBucket.filter((s) => s.kind !== 'session');
+
+  const visit = (spanId: string) => {
+    const children = childrenOf.get(spanId);
     if (!children) return;
-    for (const span of children) {
-      ordered.push(span);
-      visit(span.spanId);
+    for (const child of children) {
+      ordered.push(child);
+      visit(child.spanId);
     }
   };
-  visit(null);
+
+  // Visit session roots first, then other roots
+  for (const root of sessionRoots) {
+    ordered.push(root);
+    visit(root.spanId);
+  }
+  for (const root of otherRoots) {
+    ordered.push(root);
+    visit(root.spanId);
+  }
 
   return ordered.map((span) => {
     const shortModel = span.model ? span.model.replace(/\s+/g, ' ').slice(0, 28) : null;
