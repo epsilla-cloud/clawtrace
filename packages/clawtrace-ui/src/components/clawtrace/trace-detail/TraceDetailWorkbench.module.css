@@ -114,6 +114,7 @@
   flex-wrap: nowrap;
   overflow: hidden;
   flex-shrink: 0;
+  width: 240px;
 }
 
 .modeButton {
