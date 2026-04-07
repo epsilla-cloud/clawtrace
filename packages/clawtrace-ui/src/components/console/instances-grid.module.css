@@ -64,8 +64,8 @@
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  gap: 16px;
-  min-height: 150px;
+  gap: 12px;
+  min-height: 120px;
   transition: box-shadow 120ms;
 }
 .card:hover { box-shadow: 0 2px 12px rgba(46,33,21,0.08); }
@@ -244,7 +244,7 @@
   justify-content: center;
   gap: 8px;
   text-decoration: none;
-  min-height: 150px;
+  min-height: 120px;
   cursor: pointer;
   transition: border-color 120ms, background 120ms;
 }

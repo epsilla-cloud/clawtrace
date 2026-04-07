@@ -42,7 +42,7 @@
 .divider {
   height: 1px;
   background: #e8d9c4;
-  margin: 0 8px;
+  margin: 0;
   flex-shrink: 0;
 }
 
