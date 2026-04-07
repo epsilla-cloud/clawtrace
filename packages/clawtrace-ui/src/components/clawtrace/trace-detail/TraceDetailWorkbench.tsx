@@ -1560,7 +1560,13 @@ function StepTimelineView({
     return () => ro.disconnect();
   }, []);
 
-  const rows = detail.waterfall.rows;
+  // Hardcode: session rows always first
+  const rows = useMemo(() => {
+    const raw = detail.waterfall.rows;
+    const sessions = raw.filter((r) => r.kind === 'session');
+    const rest = raw.filter((r) => r.kind !== 'session');
+    return [...sessions, ...rest];
+  }, [detail.waterfall.rows]);
 
   const BAR_HEIGHT = 28;
   const ROW_HEIGHT = 36;
