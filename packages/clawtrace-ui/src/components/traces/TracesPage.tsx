@@ -198,9 +198,9 @@ function bucketTrends(trends: TrendPoint[], rangeDays: number, traces: TraceRow[
 const DEBOUNCE_MS = 400;
 
 /* ── Main component ──────────────────────────────────────────────────────── */
-export function TracesPage() {
+export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
   const searchParams   = useSearchParams();
-  const initialAgentId = searchParams.get('agentId') ?? '';
+  const initialAgentId = initialAgent || searchParams.get('agentId') || '';
 
   const [agents, setAgents]     = useState<Agent[]>([]);
   const [agentId, setAgentId]   = useState(initialAgentId);
@@ -387,10 +387,10 @@ export function TracesPage() {
                     )}
                     {pagedTraces.map(t => (
                       <tr key={t.trace_id} className={styles.traceRow}
-                        onClick={() => { window.location.href = `/trace?traceId=${traceUuid(t.trace_id)}`; }}
+                        onClick={() => { window.location.href = `/trace/${agentId}/${traceUuid(t.trace_id)}`; }}
                         title="Click to drill into trace">
                         <td className={styles.traceId}>
-                          <a href={`/trace?traceId=${traceUuid(t.trace_id)}`} className={styles.traceLink}
+                          <a href={`/trace/${agentId}/${traceUuid(t.trace_id)}`} className={styles.traceLink}
                             onClick={e => e.stopPropagation()}>
                             <code>{traceUuid(t.trace_id).slice(0, 8)}…</code>
                           </a>

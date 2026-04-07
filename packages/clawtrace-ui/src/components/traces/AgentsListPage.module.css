@@ -1,0 +1,30 @@
+.shell {
+  flex: 1;
+  min-width: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #faf4ec;
+}
+
+.header {
+  padding: 18px 24px 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 500;
+  color: #2e2115;
+  letter-spacing: -0.01em;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 24px 24px;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}

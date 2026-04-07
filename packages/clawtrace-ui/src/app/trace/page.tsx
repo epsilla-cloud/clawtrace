@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
-import { TraceDetailPage } from '@/components/traces/TraceDetailPage';
+import { AgentsListPage } from '@/components/traces/AgentsListPage';
 
-export const metadata = { title: 'Trace — ClawTrace' };
+export const metadata = { title: 'OpenClaw Agents — ClawTrace' };
 
-export default function TracePage() {
+export default function Page() {
   return (
     <Suspense>
-      <TraceDetailPage />
+      <AgentsListPage />
     </Suspense>
   );
 }
