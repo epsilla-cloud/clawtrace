@@ -293,20 +293,22 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
     return styles.catWork;
   };
 
+  const embedded = !!initialAgent;
+
   return (
-    <div className={styles.shell}>
-      <AppNav />
+    <div className={embedded ? styles.main : styles.shell}>
+      {!embedded && <AppNav />}
       <main className={styles.main}>
 
-        {/* Row 1: Title */}
-        <h1 className={styles.title}>Agent Trajectories Dashboard</h1>
+        {!embedded && <h1 className={styles.title}>Agent Trajectories Dashboard</h1>}
 
-        {/* Row 2: Controls */}
         <div className={styles.controls}>
-          <select className={styles.agentSelect} value={agentId}
-            onChange={e => setAgentId(e.target.value)}>
-            {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
+          {!embedded && (
+            <select className={styles.agentSelect} value={agentId}
+              onChange={e => setAgentId(e.target.value)}>
+              {agents.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          )}
 
           <div className={styles.timeRange}>
             {PRESETS.map((p, i) => (

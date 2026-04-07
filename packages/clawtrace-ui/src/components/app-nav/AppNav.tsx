@@ -11,43 +11,41 @@ const STORAGE_KEY = 'clawtrace:nav-expanded';
 const MAIN_NAV = [
   {
     href: '/trace',
-    label: 'Trace',
+    label: 'Trajectories',
     match: (p: string) => p === '/trace' || p.startsWith('/trace/'),
     icon: (
       <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-        {/* Branching trace icon */}
-        <path d="M4 4v14" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        <path d="M4 7h6c2 0 3 1 3 3v0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        <path d="M4 13h4c2 0 3 1 3 3v0" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-        <circle cx="13" cy="10" r="2" stroke="currentColor" strokeWidth="1.4"/>
-        <circle cx="11" cy="16" r="2" stroke="currentColor" strokeWidth="1.4"/>
-        <circle cx="4" cy="4" r="1.5" fill="currentColor"/>
+        {/* Three horizontal bars — timeline trace */}
+        <rect x="2" y="4" width="14" height="3" rx="1.5" fill="currentColor" opacity="0.85"/>
+        <rect x="5" y="9.5" width="10" height="3" rx="1.5" fill="currentColor" opacity="0.6"/>
+        <rect x="3" y="15" width="12" height="3" rx="1.5" fill="currentColor" opacity="0.4"/>
       </svg>
     ),
   },
 ];
 
-const BOTTOM_NAV = [
-  {
-    href: '/account',
-    label: 'Account',
-    match: (p: string) => p === '/account' || p.startsWith('/account/'),
-    icon: (
-      <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-        <circle cx="11" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6"/>
-        <path d="M4 19c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
-      </svg>
-    ),
-  },
-];
+
+interface UserInfo { name: string; avatar: string; points_balance?: number }
 
 export function AppNav() {
   const [expanded, setExpanded] = useState(false);
+  const [user, setUser] = useState<UserInfo | null>(null);
+  const [credits, setCredits] = useState<number>(0);
   const pathname = usePathname();
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === '1') setExpanded(true);
+    // Fetch user info
+    fetch('/api/auth/me', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d) setUser(d); })
+      .catch(() => {});
+    // Fetch credits
+    fetch('/api/referral/info', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.points_balance != null) setCredits(d.points_balance); })
+      .catch(() => {});
   }, []);
 
   const toggle = () => {
@@ -99,20 +97,40 @@ export function AppNav() {
         ))}
       </nav>
 
-      {/* Divider + bottom account nav */}
+      {/* Bottom: credits + account */}
       <div className={styles.divider} />
       <nav className={styles.bottomItems}>
-        {BOTTOM_NAV.map((item) => (
-          <Link
-            key={item.href + item.label}
-            href={item.href}
-            className={`${styles.item} ${item.match(pathname ?? '') ? styles.itemActive : ''}`}
-            title={!expanded ? item.label : undefined}
-          >
-            <span className={styles.itemIcon}>{item.icon}</span>
-            <span className={styles.itemLabel}>{item.label}</span>
-          </Link>
-        ))}
+        <Link
+          href="/overview/billing"
+          className={`${styles.item} ${pathname?.startsWith('/overview/billing') ? styles.itemActive : ''}`}
+          title={!expanded ? `${credits} credits` : undefined}
+        >
+          <span className={styles.itemIcon}>
+            <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+              <ellipse cx="11" cy="14" rx="7" ry="3" stroke="currentColor" strokeWidth="1.5"/>
+              <ellipse cx="11" cy="11" rx="7" ry="3" stroke="currentColor" strokeWidth="1.5"/>
+              <ellipse cx="11" cy="8" rx="7" ry="3" stroke="currentColor" strokeWidth="1.5"/>
+            </svg>
+          </span>
+          <span className={styles.itemLabel}>{credits}</span>
+        </Link>
+        <Link
+          href="/account"
+          className={`${styles.item} ${pathname?.startsWith('/account') ? styles.itemActive : ''}`}
+          title={!expanded ? (user?.name ?? 'Account') : undefined}
+        >
+          <span className={styles.itemIcon}>
+            {user?.avatar ? (
+              <Image src={user.avatar} alt="" width={20} height={20} className={styles.avatarImg} unoptimized />
+            ) : (
+              <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
+                <circle cx="11" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6"/>
+                <path d="M4 19c0-3.87 3.13-7 7-7s7 3.13 7 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/>
+              </svg>
+            )}
+          </span>
+          <span className={styles.itemLabel}>{user?.name ?? 'Account'}</span>
+        </Link>
       </nav>
 
       {/* Handle — half-inserted into right border */}
