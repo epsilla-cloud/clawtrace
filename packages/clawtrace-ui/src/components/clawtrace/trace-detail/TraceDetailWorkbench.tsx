@@ -280,6 +280,20 @@ function ClockIcon() {
   );
 }
 
+/* ── Timeline bar colors — matched to icon background colors ────────────── */
+const KIND_BAR_COLORS: Record<string, string> = {
+  session: '#a4532b',
+  llm_call: '#4a3628',
+  tool_call: '#2a7f7f',
+  subagent: '#5c4a7a',
+};
+
+function niceTimeStep(maxMs: number): number {
+  const target = maxMs / 4;
+  const steps = [10, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 30000, 60000, 120000, 300000, 600000];
+  return steps.find((s) => s >= target) ?? steps[steps.length - 1]!;
+}
+
 function CoinIcon() {
   return (
     <svg className={styles.treeItemPillIcon} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
@@ -1524,402 +1538,155 @@ function StepTimelineView({
   selectedSpanId: string | null;
   onSelectSpan: (spanId: string) => void;
 }) {
-  const chartRef = useRef<HTMLDivElement | null>(null);
-  const timelineRows = useMemo(() => detail.waterfall.rows.slice(0, 160), [detail.waterfall.rows]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(800);
+  const [tooltip, setTooltip] = useState<{ spanId: string; x: number; y: number } | null>(null);
 
-  const timelineNormalization = useMemo(() => {
-    const percentile = (values: number[], ratio: number): number => {
-      if (!values.length) return 0;
-      const sorted = [...values].sort((a, b) => a - b);
-      const index = Math.max(0, Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * ratio)));
-      return sorted[index] ?? 0;
-    };
-
-    const rowEnds = timelineRows.map((row) => row.startOffsetMs + row.durationMs);
-    const nonSessionEnds = timelineRows
-      .filter((row) => row.kind !== 'session')
-      .map((row) => row.startOffsetMs + row.durationMs);
-    const hardMaxEnd = Math.max(...rowEnds, 1);
-
-    let maxAllowedEnd = Math.max(...nonSessionEnds, hardMaxEnd, 1);
-    if (nonSessionEnds.length >= 8) {
-      const p90End = percentile(nonSessionEnds, 0.9);
-      const p98End = percentile(nonSessionEnds, 0.98);
-      if (hardMaxEnd > p90End * 4) {
-        maxAllowedEnd = Math.max(1, p98End * 1.08, p90End * 1.5);
-      }
-    }
-
-    const traceDuration = Number.isFinite(detail.trace.durationMs) ? Math.max(0, detail.trace.durationMs) : 0;
-    if (traceDuration > 0 && traceDuration <= maxAllowedEnd * 2.2) {
-      maxAllowedEnd = Math.max(maxAllowedEnd, traceDuration);
-    }
-
-    const rows = timelineRows.map((row) => {
-      let normalizedStartMs = Number.isFinite(row.startOffsetMs) ? Math.max(0, row.startOffsetMs) : 0;
-      let normalizedDurationMs = Number.isFinite(row.durationMs) ? Math.max(1, row.durationMs) : 1;
-      let hadTimeMismatch = false;
-
-      if (normalizedStartMs > maxAllowedEnd) {
-        normalizedStartMs = Math.max(0, maxAllowedEnd - 1);
-        hadTimeMismatch = true;
-      }
-
-      if (normalizedStartMs + normalizedDurationMs > maxAllowedEnd) {
-        normalizedDurationMs = Math.max(1, maxAllowedEnd - normalizedStartMs);
-        hadTimeMismatch = true;
-      }
-
-      return {
-        ...row,
-        normalizedStartMs,
-        normalizedDurationMs,
-        hadTimeMismatch,
-      };
-    });
-
-    const mismatchCount = rows.filter((row) => row.hadTimeMismatch).length;
-    const normalizedNonSessionEndMax = Math.max(
-      ...rows
-        .filter((row) => row.kind !== 'session')
-        .map((row) => row.normalizedStartMs + row.normalizedDurationMs),
-      0,
-    );
-    const normalizedMaxEnd = Math.max(
-      ...rows.map((row) => row.normalizedStartMs + row.normalizedDurationMs),
-      1,
-    );
-
-    return {
-      rows,
-      mismatchCount,
-      normalizedNonSessionEndMax,
-      normalizedMaxEnd,
-      maxAllowedEnd,
-    };
-  }, [detail.trace.durationMs, timelineRows]);
-
-  const timelineSummary = useMemo(() => {
-    const summary = {
-      total: timelineRows.length,
-      session: 0,
-      llm: 0,
-      tool: 0,
-      subagent: 0,
-      mismatched: timelineNormalization.mismatchCount,
-    };
-    for (const row of timelineRows) {
-      if (row.kind === 'session') summary.session += 1;
-      if (row.kind === 'llm_call') summary.llm += 1;
-      if (row.kind === 'tool_call') summary.tool += 1;
-      if (row.kind === 'subagent') summary.subagent += 1;
-    }
-    return summary;
-  }, [timelineNormalization.mismatchCount, timelineRows]);
+  const spanById = useMemo(
+    () => new Map(detail.spans.map((s) => [s.spanId, s])),
+    [detail.spans],
+  );
 
   useEffect(() => {
-    const dom = chartRef.current;
-    if (!dom) return;
+    const el = containerRef.current;
+    if (!el) return;
+    setContainerWidth(el.clientWidth);
+    const ro = new ResizeObserver(([entry]) => {
+      if (entry) setContainerWidth(entry.contentRect.width);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-    let disposed = false;
-    let chartInstance: ReturnType<EChartsLike['init']> | null = null;
+  const rows = detail.waterfall.rows;
 
-    const onResize = () => chartInstance?.resize();
+  const BAR_HEIGHT = 28;
+  const ROW_HEIGHT = 36;
+  const ICON_SIZE = 20;
+  const MIN_BAR_WIDTH = BAR_HEIGHT;
+  const RIGHT_RESERVE = 100;
+  const AXIS_HEIGHT = 28;
 
-    void (async () => {
-      const echarts = (await import('echarts')) as unknown as EChartsLike;
-      if (disposed || !dom) return;
+  const { pxPerMs, ticks } = useMemo(() => {
+    if (!rows.length) return { pxPerMs: 1, ticks: [] };
+    const maxEnd = Math.max(...rows.map((r) => r.startOffsetMs + r.durationMs), 1);
+    const availW = Math.max(100, containerWidth - RIGHT_RESERVE);
+    const scale = availW / maxEnd;
+    const step = niceTimeStep(maxEnd);
+    const tickMarks: Array<{ ms: number; label: string; left: number }> = [];
+    for (let t = 0; t <= maxEnd + step * 0.5; t += step) {
+      tickMarks.push({ ms: t, label: formatDuration(t), left: t * scale });
+    }
+    return { pxPerMs: scale, ticks: tickMarks };
+  }, [rows, containerWidth]);
 
-      chartInstance = echarts.init(dom);
-
-      const rows = timelineNormalization.rows;
-      const categories = rows.map((row, index) => {
-        const prefix = row.kind === 'llm_call'
-          ? 'M'
-          : row.kind === 'tool_call'
-            ? 'T'
-            : row.kind === 'subagent'
-              ? 'S'
-              : 'C';
-        const compactLabel = row.label
-          .replace(/^session · /, '')
-          .replace(/^model step · /, '')
-          .replace(/^tool action · /, '')
-          .replace(/^subagent · /, '');
-        return `${prefix}${index + 1} · ${compactLabel}`;
-      });
-
-      const offsetSeries = rows.map((row) => ({
-        value: row.normalizedStartMs,
-        spanId: row.spanId,
-      }));
-
-      const nonSessionEndMax = timelineNormalization.normalizedNonSessionEndMax;
-      const fullEndMax = timelineNormalization.normalizedMaxEnd;
-      const maxValue = nonSessionEndMax > 0
-        ? Math.max(nonSessionEndMax * 1.06, 1)
-        : Math.max(fullEndMax, 1);
-      const chartHeight = Math.max(360, dom.clientHeight || 0);
-      const gridTopPx = 12;
-      const gridBottomPx = 36;
-      const availableGridHeightPx = Math.max(120, chartHeight - gridTopPx - gridBottomPx);
-      const maxRowHeightPx = 48;
-      const gridHeightPx = Math.min(availableGridHeightPx, rows.length * maxRowHeightPx);
-      const targetRowPitchPx = 26;
-      const visibleRowsByHeight = Math.max(
-        10,
-        Math.floor(gridHeightPx / targetRowPitchPx),
-      );
-      const visibleRowCount = Math.max(10, Math.min(visibleRowsByHeight, rows.length, 30));
-      const useVerticalZoom = rows.length > visibleRowCount;
-      const gridLeftPx = 186;
-      const gridRightPx = useVerticalZoom ? 36 : 18;
-      const plotWidthPx = Math.max(1, (dom.clientWidth || 960) - gridLeftPx - gridRightPx);
-      const minVisibleBarPx = 10;
-      const minVisibleDurationMs = (maxValue / plotWidthPx) * minVisibleBarPx;
-
-      const durationSeries = rows.map((row) => {
-        const remaining = Math.max(1, maxValue - row.normalizedStartMs);
-        const clipped = row.normalizedDurationMs > remaining;
-        const rawDuration = clipped ? remaining : row.normalizedDurationMs;
-        const minVisibleDuration = Math.min(remaining, Math.max(rawDuration, minVisibleDurationMs));
-        const durationWasExpanded = minVisibleDuration > rawDuration + 0.0001;
-        const kindColor =
-          row.kind === 'llm_call'
-            ? '#b26a45'
-            : row.kind === 'tool_call'
-              ? '#6f9569'
-              : row.kind === 'subagent'
-                ? '#7663ad'
-                : '#667085';
-        return {
-          value: minVisibleDuration,
-          spanId: row.spanId,
-          label: row.label,
-          kind: row.kind,
-          tokens: row.totalTokens,
-          clipped,
-          durationWasExpanded,
-          hadTimeMismatch: row.hadTimeMismatch,
-          actualDurationMs: row.durationMs,
-          itemStyle: {
-            color: kindColor,
-            borderRadius: [0, 7, 7, 0],
-            borderColor: selectedSpanId === row.spanId ? '#2e2115' : 'rgba(255,255,255,0.72)',
-            borderWidth: selectedSpanId === row.spanId ? 2 : 1,
-            opacity: selectedSpanId && selectedSpanId !== row.spanId ? 0.56 : 0.94,
-            shadowBlur: selectedSpanId === row.spanId ? 10 : 0,
-            shadowColor: selectedSpanId === row.spanId ? 'rgba(46,33,21,0.22)' : 'transparent',
-          },
-        };
-      });
-
-      chartInstance.setOption(
-        {
-          animation: false,
-          grid: {
-            top: gridTopPx,
-            left: 186,
-            right: useVerticalZoom ? 36 : 18,
-            bottom: gridBottomPx,
-            height: gridHeightPx,
-            containLabel: false,
-          },
-          tooltip: {
-            trigger: 'item',
-            formatter: (params: { data?: { label?: string; kind?: string; value?: number; tokens?: number; clipped?: boolean; durationWasExpanded?: boolean; hadTimeMismatch?: boolean; actualDurationMs?: number } }) => {
-              const item = params.data;
-              if (!item) return '';
-              const kindText =
-                item.kind === 'llm_call'
-                  ? 'Model step'
-                  : item.kind === 'tool_call'
-                    ? 'Tool action'
-                    : item.kind === 'subagent'
-                      ? 'Subagent handoff'
-                      : 'Session';
-              return [
-                `<strong>${item.label ?? 'step'}</strong>`,
-                `${kindText} · ${formatDuration(item.actualDurationMs ?? item.value ?? 0)}${item.hadTimeMismatch ? ' (normalized due to span mismatch)' : item.clipped ? ' (clipped for readability)' : item.durationWasExpanded ? ' (rendered with minimum width)' : ''}`,
-                `${formatNumber(item.tokens ?? 0)} tokens`,
-              ].join('<br/>');
-            },
-            backgroundColor: '#2b2522',
-            borderWidth: 0,
-            textStyle: {
-              color: '#f7efe9',
-              fontSize: 12,
-            },
-          },
-          xAxis: {
-            type: 'value',
-            min: 0,
-            max: maxValue,
-            axisLine: {
-              lineStyle: {
-                color: '#d7c7bb',
-              },
-            },
-            axisTick: {
-              show: false,
-            },
-            axisLabel: {
-              color: '#7b6b60',
-              fontSize: 12,
-              formatter: (value: number) => formatDuration(value),
-            },
-            splitLine: {
-              lineStyle: {
-                color: '#eadfd5',
-                type: 'dashed',
-              },
-            },
-          },
-          yAxis: {
-            type: 'category',
-            inverse: true,
-            data: categories,
-            axisLabel: {
-              color: '#7e6f63',
-              fontSize: 11,
-              lineHeight: 16,
-              interval: 0,
-              formatter: (value: string) => {
-                if (value.length <= 28) return value;
-                return `${value.slice(0, 27)}…`;
-              },
-            },
-            axisTick: {
-              show: false,
-            },
-            axisLine: {
-              lineStyle: {
-                color: '#e2d4c9',
-              },
-            },
-            splitLine: {
-              show: true,
-              lineStyle: {
-                color: 'rgba(224, 208, 196, 0.35)',
-                type: 'solid',
-              },
-            },
-          },
-          dataZoom: useVerticalZoom
-            ? [
-                {
-                  type: 'inside',
-                  yAxisIndex: 0,
-                  startValue: 0,
-                  endValue: visibleRowCount - 1,
-                  zoomOnMouseWheel: 'shift',
-                  moveOnMouseMove: true,
-                  moveOnMouseWheel: true,
-                },
-                {
-                  type: 'slider',
-                  yAxisIndex: 0,
-                  right: 8,
-                  top: 12,
-                  bottom: 36,
-                  width: 10,
-                  showDetail: false,
-                  brushSelect: false,
-                  fillerColor: 'rgba(164,83,43,0.18)',
-                  backgroundColor: 'rgba(217,201,188,0.32)',
-                  borderColor: 'transparent',
-                  handleSize: 0,
-                  moveHandleSize: 0,
-                  dataBackground: {
-                    lineStyle: { color: 'transparent' },
-                    areaStyle: { color: 'transparent' },
-                  },
-                  startValue: 0,
-                  endValue: visibleRowCount - 1,
-                },
-              ]
-            : [],
-          series: [
-            {
-              name: 'offset',
-              type: 'bar',
-              stack: 'timeline',
-              data: offsetSeries,
-              itemStyle: {
-                color: 'rgba(0,0,0,0)',
-              },
-              emphasis: {
-                disabled: true,
-              },
-              silent: true,
-            },
-            {
-              name: 'duration',
-              type: 'bar',
-              stack: 'timeline',
-              barWidth: '56%',
-              barCategoryGap: '58%',
-              data: durationSeries,
-              emphasis: {
-                focus: 'series',
-              },
-            },
-          ],
-        },
-        true,
-      );
-
-      chartInstance.off('click');
-      chartInstance.on('click', (params: unknown) => {
-        const payload = params as { seriesName?: string; data?: { spanId?: string } };
-        if (payload.seriesName !== 'duration') return;
-        const spanId = payload.data?.spanId;
-        if (!spanId) return;
-        onSelectSpan(spanId);
-      });
-
-      window.addEventListener('resize', onResize);
-    })();
-
-    return () => {
-      disposed = true;
-      window.removeEventListener('resize', onResize);
-      chartInstance?.dispose();
-    };
-  }, [onSelectSpan, selectedSpanId, timelineNormalization, timelineRows]);
-
-  if (!detail.waterfall.rows.length) {
+  if (!rows.length) {
     return <div className={styles.viewEmpty}>No timed steps captured for this run.</div>;
   }
 
   return (
     <section className={styles.timelineView}>
-      <header className={styles.timelineTopRow}>
-        <p className={styles.timelineSummary}>
-          {timelineSummary.total} steps · {timelineSummary.session} session · {timelineSummary.llm} model · {timelineSummary.tool} tool
-          {timelineSummary.subagent ? ` · ${timelineSummary.subagent} subagent` : ''}
-          {timelineSummary.mismatched ? ` · normalized ${timelineSummary.mismatched} span${timelineSummary.mismatched > 1 ? 's' : ''}` : ''}
-        </p>
-        <div className={styles.timelineLegend}>
-          <span className={styles.timelineLegendItem}>
-            <span className={`${styles.timelineLegendDot} ${styles.timelineLegendSession}`} />
-            Session
-          </span>
-          <span className={styles.timelineLegendItem}>
-            <span className={`${styles.timelineLegendDot} ${styles.timelineLegendModel}`} />
-            Model
-          </span>
-          <span className={styles.timelineLegendItem}>
-            <span className={`${styles.timelineLegendDot} ${styles.timelineLegendTool}`} />
-            Tool
-          </span>
-          <span className={styles.timelineLegendItem}>
-            <span className={`${styles.timelineLegendDot} ${styles.timelineLegendSubagent}`} />
-            Subagent
-          </span>
+      <div ref={containerRef} className={styles.tlContainer}>
+        {/* Time axis header */}
+        <div className={styles.tlAxis} style={{ height: AXIS_HEIGHT }}>
+          {ticks.map((tick, i) => (
+            <span
+              key={tick.ms}
+              className={styles.tlAxisTick}
+              style={{ left: tick.left, transform: i === 0 ? 'none' : 'translateX(-50%)' }}
+            >
+              {tick.label}
+            </span>
+          ))}
         </div>
-      </header>
-      <div ref={chartRef} className={styles.timelineCanvas} aria-label="Step timeline" />
+
+        {/* Scrollable body */}
+        <div className={styles.tlBody}>
+          <div className={styles.tlBodyInner} style={{ height: rows.length * ROW_HEIGHT + 8 }}>
+            {/* Vertical grid lines */}
+            {ticks.map((tick) => (
+              <div key={tick.ms} className={styles.tlGridLine} style={{ left: tick.left }} />
+            ))}
+
+            {/* Rows */}
+            {rows.map((row, i) => {
+              const span = spanById.get(row.spanId);
+              const barLeft = row.startOffsetMs * pxPerMs;
+              const barWidth = Math.max(MIN_BAR_WIDTH, row.durationMs * pxPerMs);
+              const isWide = barWidth > BAR_HEIGHT * 2;
+              const color = KIND_BAR_COLORS[row.kind] ?? '#667085';
+              const iconSrc = span ? resolveSpanIcon(span) : '/icons/session.png';
+              const isVendorIcon = iconSrc.includes('/llms/');
+              const label = span ? spanTreeName(span) : row.label;
+              const duration = formatDuration(row.durationMs);
+              const isSelected = selectedSpanId === row.spanId;
+
+              return (
+                <div
+                  key={row.spanId}
+                  className={`${styles.tlRow} ${isSelected ? styles.tlRowSelected : ''}`}
+                  style={{ top: i * ROW_HEIGHT, height: ROW_HEIGHT }}
+                  onClick={() => onSelectSpan(row.spanId)}
+                  onMouseEnter={(e) => setTooltip({ spanId: row.spanId, x: e.clientX, y: e.clientY })}
+                  onMouseMove={(e) => { if (tooltip?.spanId === row.spanId) setTooltip({ spanId: row.spanId, x: e.clientX, y: e.clientY }); }}
+                  onMouseLeave={() => setTooltip(null)}
+                >
+                  {/* Bar */}
+                  <div
+                    className={`${styles.tlBar} ${isSelected ? styles.tlBarSelected : ''}`}
+                    style={{ left: barLeft, width: barWidth, height: BAR_HEIGHT, background: color }}
+                  >
+                    {isWide ? (
+                      <>
+                        {isVendorIcon ? (
+                          <span className={styles.tlBarIconWrap}>
+                            <Image src={iconSrc} width={14} height={14} alt="" unoptimized style={{ borderRadius: 2, objectFit: 'contain' }} />
+                          </span>
+                        ) : (
+                          <Image src={iconSrc} width={ICON_SIZE} height={ICON_SIZE} alt="" className={styles.tlBarIcon} unoptimized />
+                        )}
+                        <span className={styles.tlBarLabel}>{label}</span>
+                      </>
+                    ) : (
+                      <>
+                        {isVendorIcon ? (
+                          <span className={styles.tlBarIconWrapCenter}>
+                            <Image src={iconSrc} width={14} height={14} alt="" unoptimized style={{ borderRadius: 2, objectFit: 'contain' }} />
+                          </span>
+                        ) : (
+                          <Image src={iconSrc} width={ICON_SIZE} height={ICON_SIZE} alt="" className={styles.tlBarIconCenter} unoptimized />
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* After-bar: outside label + duration */}
+                  <div className={styles.tlAfterBar} style={{ left: barLeft + barWidth + 6 }}>
+                    {!isWide && <span className={styles.tlOutsideLabel}>{label}</span>}
+                    <span className={styles.tlDuration}>{duration}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Tooltip */}
+        {tooltip && (() => {
+          const span = spanById.get(tooltip.spanId);
+          const row = rows.find((r) => r.spanId === tooltip.spanId);
+          if (!span || !row) return null;
+          return (
+            <div className={styles.tlTooltip} style={{ left: tooltip.x + 12, top: tooltip.y - 8 }}>
+              <strong>{spanTreeName(span)}</strong>
+              {span.model && <span className={styles.tlTooltipBadge}>{span.model}</span>}
+              <br />
+              {formatDuration(row.durationMs)}
+              {span.totalTokens > 0 && <> · {formatCompactTokens(span.totalTokens)} tokens</>}
+            </div>
+          );
+        })()}
+      </div>
     </section>
   );
 }
