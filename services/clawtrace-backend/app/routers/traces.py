@@ -21,7 +21,7 @@ import time
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 
 from ..auth import get_current_user, get_settings
@@ -120,6 +120,7 @@ def _classify_category(payloads: list) -> str:
 
 @router.get("", response_model=TracesResponse)
 async def get_traces(
+    request: Request,
     agent_id: str = Query(...),
     from_ms: Optional[int] = Query(None),
     to_ms: Optional[int] = Query(None),
@@ -128,6 +129,7 @@ async def get_traces(
     settings: Settings = Depends(get_settings),
 ) -> TracesResponse:
     tid = session.db_id
+    await request.app.state.deficit_guard.check(tid)
     await _verify_agent_ownership(agent_id, tid, settings)
 
     _from, _to = _default_range()
@@ -269,6 +271,7 @@ class TraceDetailResponse(BaseModel):
 
 @router.get("/{trace_id}", response_model=TraceDetailResponse)
 async def get_trace_detail(
+    request: Request,
     trace_id: str,
     session: UserSession = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
@@ -281,6 +284,7 @@ async def get_trace_detail(
     Tenant ownership verified by including tenant_id in the WHERE clause.
     """
     tid  = session.db_id
+    await request.app.state.deficit_guard.check(tid)
     eid  = f"Trace[{trace_id}]"
 
     # 1. Trace metadata — single vertex lookup by elementId

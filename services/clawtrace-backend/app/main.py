@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .config import Settings
 from .database import close_pool, run_migrations
+from .deficit_guard import DeficitGuard
 from .models import HealthResponse
 from .routers import agents, auth, keys, tenant, traces
 
@@ -44,6 +45,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     # Bind this settings instance to the dependency so all routers share it
     from .auth import get_settings as _get_settings
     app.dependency_overrides[_get_settings] = lambda: cfg
+
+    # Deficit guard: shared across all routers via app.state
+    app.state.deficit_guard = DeficitGuard(
+        payment_url=cfg.payment_url,
+        internal_secret=cfg.internal_secret,
+        check_interval_s=cfg.deficit_check_interval_seconds,
+    )
 
     app.include_router(auth.router)
     app.include_router(keys.router)

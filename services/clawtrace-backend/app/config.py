@@ -33,3 +33,7 @@ class Settings(BaseSettings):
     puppygraph_url: str = "https://puppy.clawtrace.ai"
     puppygraph_user: str = "puppygraph"
     puppygraph_password: str = "REDACTED"
+
+    # Payment service — deficit guard
+    payment_url: str = ""  # e.g. http://localhost:8083
+    deficit_check_interval_seconds: int = 900  # 15 minutes
