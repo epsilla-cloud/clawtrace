@@ -107,11 +107,13 @@
   align-items: center;
   gap: 4px;
   padding: 4px;
+  margin: 10px 10px 0;
   border-radius: 10px;
   border: 1px solid #dacbb4;
   background: #faf4ec;
   flex-wrap: nowrap;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .modeButton {
@@ -155,9 +157,9 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 50% 6px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 240px;
   align-items: stretch;
-  gap: 0;
+  gap: 8px;
   overflow: hidden;
 }
 
@@ -196,7 +198,8 @@
 }
 
 .viewCard {
-  display: block;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .viewBody {
@@ -1622,7 +1625,7 @@
   min-width: 160px;
 }
 
-/* Narrow: inspector full-width overlay, mode switcher becomes dropdown.
+/* Narrow: inspector overlays as full-width panel.
    Triggered by JS ResizeObserver (contentNarrow class) when content < 760px. */
 .contentNarrow .workspace {
   grid-template-columns: minmax(0, 1fr) !important;
@@ -1638,9 +1641,6 @@
   box-shadow: -4px 0 20px rgba(24, 12, 4, 0.12);
   border-radius: 12px;
 }
-.contentNarrow .modeSwitcher { display: none !important; }
-.contentNarrow .modeDropdown { display: flex !important; }
-.contentNarrow .divider { display: none; }
 .contentNarrow .treeMetaGroup { display: none; }
 /* Narrower indent + padding — keep connectors aligned */
 .contentNarrow .treeNodeBlock { padding: 8px 8px; }

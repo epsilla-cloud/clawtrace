@@ -108,23 +108,18 @@ type EChartsLike = {
 const MODE_ITEMS: Array<{ id: TraceDetailViewMode; label: string; description: string }> = [
   {
     id: 'execution_path',
-    label: 'Trace View',
+    label: 'Trace',
     description: 'Step-by-step run path.',
   },
   {
     id: 'actor_map',
-    label: 'Call Graph View',
+    label: 'Graph',
     description: 'Who acted in this run: agents, tools, and models.',
   },
   {
     id: 'step_timeline',
-    label: 'Timeline View',
+    label: 'Timeline',
     description: 'Timing view to spot bottlenecks and waiting time.',
-  },
-  {
-    id: 'run_efficiency',
-    label: 'Efficiency View',
-    description: 'Quality-pressure profile by phase for this run.',
   },
 ];
 
@@ -2546,7 +2541,6 @@ type TraceDetailContentProps = {
 export function TraceDetailContent({ workflowId, detail }: TraceDetailContentProps) {
   const [mode, setMode] = useState<TraceDetailViewMode>('execution_path');
   const [inspectorOpen, setInspectorOpen] = useState(true);
-  const [splitPct, setSplitPct] = useState(50); // left panel percentage
   const workspaceRef = useRef<HTMLElement | null>(null);
   const contentRef = useRef<HTMLElement | null>(null);
   const [isNarrowContent, setIsNarrowContent] = useState(false);
@@ -2569,7 +2563,6 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
   }, []);
   const [selection, setSelection] = useState<SelectionSource | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
-  const [selectedPhaseId, setSelectedPhaseId] = useState<string | null>(null);
 
   const spanById = useMemo(
     () => new Map((detail?.spans ?? []).map((span) => [span.spanId, span])),
@@ -2619,17 +2612,6 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
     setSelection({ type: 'entity', spanId, entityId, label });
   };
 
-  const onSelectPhase = (phase: TraceDetailPhase) => {
-    setSelectedPhaseId(phase.id);
-    if (phase.representativeSpanId) onSelectSpan(phase.representativeSpanId);
-    setSelection({
-      type: 'phase',
-      spanId: phase.representativeSpanId,
-      phaseId: phase.id,
-      label: phase.statusLabel,
-    });
-  };
-
   if (!detail) {
     return (
       <section className={styles.emptyShell} style={{ flex: 1, minWidth: 0 }}>
@@ -2660,38 +2642,27 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
           </Link>
         </header>
 
-        {/* Button tabs (wide screens) */}
-        <section className={styles.modeSwitcher} role="tablist" aria-label="Trace detail views">
-          {MODE_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              className={`${styles.modeButton} ${mode === item.id ? styles.modeButtonActive : ''}`}
-              onClick={() => setMode(item.id)}
-              role="tab"
-              aria-selected={mode === item.id}
-            >
-              <span className={styles.modeLabel}>{item.label}</span>
-            </button>
-          ))}
-        </section>
-
-        {/* Dropdown tabs (narrow screens) */}
-        <div className={styles.modeDropdown}>
-          <select className={styles.modeDropdownSelect} value={mode}
-            onChange={(e) => setMode(e.target.value as TraceDetailViewMode)}>
-            {MODE_ITEMS.map((item) => (
-              <option key={item.id} value={item.id}>{item.label}</option>
-            ))}
-          </select>
-        </div>
-
         <section
           ref={workspaceRef}
           className={`${styles.workspace} ${!inspectorOpen ? styles.workspaceNoInspector : ''}`}
-          style={inspectorOpen ? { gridTemplateColumns: `${splitPct}% 6px minmax(0, 1fr)` } : undefined}
         >
           <article className={styles.viewCard}>
+            {/* Mode switcher — always inside left panel */}
+            <section className={styles.modeSwitcher} role="tablist" aria-label="Trace detail views">
+              {MODE_ITEMS.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`${styles.modeButton} ${mode === item.id ? styles.modeButtonActive : ''}`}
+                  onClick={() => setMode(item.id)}
+                  role="tab"
+                  aria-selected={mode === item.id}
+                >
+                  <span className={styles.modeLabel}>{item.label}</span>
+                </button>
+              ))}
+            </section>
+
             <div
               className={`${styles.viewBody} ${
                 mode === 'execution_path' || mode === 'step_timeline'
@@ -2720,46 +2691,12 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
                   onSelectSpan={onSelectSpan}
                 />
               ) : null}
-              {mode === 'run_efficiency' ? (
-                <RunEfficiencyView
-                  detail={detail}
-                  selectedPhaseId={selectedPhaseId}
-                  onSelectPhase={onSelectPhase}
-                />
-              ) : null}
             </div>
           </article>
 
           {inspectorOpen && (
-            <>
-              <div
-                className={styles.divider}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  const ws = workspaceRef.current;
-                  if (!ws) return;
-                  const rect = ws.getBoundingClientRect();
-                  const onMove = (ev: MouseEvent) => {
-                    const pct = ((ev.clientX - rect.left) / rect.width) * 100;
-                    setSplitPct(Math.min(75, Math.max(25, pct)));
-                  };
-                  const onUp = () => {
-                    document.removeEventListener('mousemove', onMove);
-                    document.removeEventListener('mouseup', onUp);
-                    document.body.style.cursor = '';
-                    document.body.style.userSelect = '';
-                  };
-                  document.body.style.cursor = 'col-resize';
-                  document.body.style.userSelect = 'none';
-                  document.addEventListener('mousemove', onMove);
-                  document.addEventListener('mouseup', onUp);
-                }}
-              >
-                <span className={styles.dividerDots}>⋮</span>
-              </div>
-              <ViewInspector detail={detail} selection={selection} selectedSpan={selectedSpan}
-                onClose={() => setInspectorOpen(false)} />
-            </>
+            <ViewInspector detail={detail} selection={selection} selectedSpan={selectedSpan}
+              onClose={() => setInspectorOpen(false)} />
           )}
         </section>
       </section>
