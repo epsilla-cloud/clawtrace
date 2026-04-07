@@ -282,12 +282,12 @@ function ClockIcon() {
   );
 }
 
-/* ── Timeline bar colors — exactly matched to icon PNG backgrounds ──────── */
+/* ── Timeline bar colors — exact hex sampled from icon PNG backgrounds ──── */
 const KIND_BAR_COLORS: Record<string, string> = {
-  session: '#a07258',   /* matches session.png background */
-  llm_call: '#3b2a1e',  /* matches model.png background */
-  tool_call: '#2b7a7b', /* matches tool.png background */
-  subagent: '#4e3b5e',  /* matches subagent.png background */
+  session: '#99644b',   /* session.png  rgb(153,100,75) */
+  llm_call: '#3b2617',  /* model.png    rgb(59,38,23)   */
+  tool_call: '#2b5d5f', /* tool.png     rgb(43,93,95)   */
+  subagent: '#473652',  /* subagent.png rgb(71,54,82)   */
 };
 
 function niceTimeStep(maxMs: number): number {
