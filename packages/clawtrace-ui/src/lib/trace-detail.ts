@@ -619,9 +619,19 @@ function createWaterfallRows(spans: TraceDetailSpan[], windowStartMs: number): T
     bucket.push(span);
   }
 
-  // Sort children at each level by startMs (session spans first on tie)
-  for (const bucket of childrenOf.values()) {
-    bucket.sort((a, b) => a.startMs - b.startMs || (a.kind === 'session' ? -1 : b.kind === 'session' ? 1 : 0));
+  // Sort children at each level by startMs.
+  // At root level (null parent): session spans always come first.
+  for (const [parentKey, bucket] of childrenOf.entries()) {
+    if (parentKey === null) {
+      // Roots: sessions first, then by startMs
+      bucket.sort((a, b) => {
+        const aSession = a.kind === 'session' ? 0 : 1;
+        const bSession = b.kind === 'session' ? 0 : 1;
+        return aSession - bSession || a.startMs - b.startMs;
+      });
+    } else {
+      bucket.sort((a, b) => a.startMs - b.startMs);
+    }
   }
 
   // DFS pre-order traversal — parents appear before their children
