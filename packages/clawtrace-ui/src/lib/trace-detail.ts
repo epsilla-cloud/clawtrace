@@ -569,7 +569,7 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
 function createWaterfallRows(spans: TraceDetailSpan[], windowStartMs: number): TraceDetailWaterfallRow[] {
   return spans
     .slice()
-    .sort((a, b) => a.startMs - b.startMs)
+    .sort((a, b) => a.startMs - b.startMs || (a.kind === 'session' ? -1 : b.kind === 'session' ? 1 : 0))
     .map((span) => {
       const shortModel = span.model ? span.model.replace(/\s+/g, ' ').slice(0, 28) : null;
       const label =
