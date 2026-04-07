@@ -158,10 +158,17 @@ function formatDuration(valueMs: number): string {
   if (valueMs < 1000) {
     return `${Math.round(valueMs)}ms`;
   }
-  if (valueMs < 60_000) {
-    return `${(valueMs / 1000).toFixed(1)}s`;
+  const totalSeconds = Math.floor(valueMs / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
   }
-  return `${(valueMs / 60_000).toFixed(1)}m`;
+  if (minutes > 0) {
+    return seconds > 0 ? `${minutes}m ${seconds}s` : `${minutes}m`;
+  }
+  return `${seconds}s`;
 }
 
 function formatCompactTokens(value: number): string {
@@ -280,12 +287,12 @@ function ClockIcon() {
   );
 }
 
-/* ── Timeline bar colors — matched to icon background colors ────────────── */
+/* ── Timeline bar colors — exactly matched to icon PNG backgrounds ──────── */
 const KIND_BAR_COLORS: Record<string, string> = {
-  session: '#a4532b',
-  llm_call: '#4a3628',
-  tool_call: '#2a7f7f',
-  subagent: '#5c4a7a',
+  session: '#a07258',   /* matches session.png background */
+  llm_call: '#3b2a1e',  /* matches model.png background */
+  tool_call: '#2b7a7b', /* matches tool.png background */
+  subagent: '#4e3b5e',  /* matches subagent.png background */
 };
 
 function niceTimeStep(maxMs: number): number {
@@ -1564,7 +1571,7 @@ function StepTimelineView({
   const ROW_HEIGHT = 36;
   const ICON_SIZE = 20;
   const MIN_BAR_WIDTH = BAR_HEIGHT;
-  const RIGHT_RESERVE = 100;
+  const RIGHT_RESERVE = 220;
   const AXIS_HEIGHT = 28;
 
   const { pxPerMs, ticks } = useMemo(() => {

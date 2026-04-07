@@ -673,13 +673,14 @@
   pointer-events: none;
 }
 
-/* Each row — absolutely positioned */
+/* Each row — absolutely positioned, full-bleed highlight */
 .tlRow {
   position: absolute;
-  left: 0;
-  right: 0;
+  left: -8px;
+  right: -8px;
+  padding-left: 8px;
+  padding-right: 8px;
   cursor: pointer;
-  border-radius: 6px;
   transition: background 80ms;
 }
 .tlRow:hover { background: rgba(240, 232, 220, 0.5); }

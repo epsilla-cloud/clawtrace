@@ -567,14 +567,50 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
 }
 
 function createWaterfallRows(spans: TraceDetailSpan[], windowStartMs: number): TraceDetailWaterfallRow[] {
-  // Build parent→children map
   const spanById = new Map(spans.map((s) => [s.spanId, s]));
-  const childrenOf = new Map<string | null, TraceDetailSpan[]>();
   const spanIds = new Set(spans.map((s) => s.spanId));
 
+  // ── Resolve execution parents (same logic as ExecutionPathView) ──
+  // Tool calls whose raw parent is a session get reparented under
+  // the closest preceding LLM call in the same session.
+  const llmBySession = new Map<string, TraceDetailSpan[]>();
   for (const span of spans) {
-    // If parent is not in our span set, treat as root
-    const parentKey = span.parentSpanId && spanIds.has(span.parentSpanId) ? span.parentSpanId : null;
+    if (span.kind !== 'llm_call') continue;
+    const key = span.sessionKey ?? '__unknown_session__';
+    const bucket = llmBySession.get(key) ?? [];
+    bucket.push(span);
+    llmBySession.set(key, bucket);
+  }
+  for (const bucket of llmBySession.values()) {
+    bucket.sort((a, b) => a.startMs - b.startMs);
+  }
+
+  const resolvedParent = new Map<string, string | null>();
+  for (const span of spans) {
+    let parentId = span.parentSpanId ?? null;
+    if (parentId && !spanIds.has(parentId)) parentId = null;
+    const rawParent = parentId ? spanById.get(parentId) ?? null : null;
+
+    if (span.kind === 'tool_call' && (!rawParent || rawParent.kind === 'session')) {
+      const sessionKey = span.sessionKey ?? rawParent?.sessionKey ?? '__unknown_session__';
+      const candidates = llmBySession.get(sessionKey) ?? [];
+      const chosen =
+        candidates
+          .filter((c) => c.startMs <= span.startMs && c.resolvedEndMs >= span.startMs)
+          .sort((a, b) => b.startMs - a.startMs)[0] ??
+        candidates
+          .filter((c) => c.startMs <= span.startMs)
+          .sort((a, b) => b.startMs - a.startMs)[0];
+      if (chosen) parentId = chosen.spanId;
+    }
+
+    resolvedParent.set(span.spanId, parentId);
+  }
+
+  // ── Build children map from resolved parents ──
+  const childrenOf = new Map<string | null, TraceDetailSpan[]>();
+  for (const span of spans) {
+    const parentKey = resolvedParent.get(span.spanId) ?? null;
     let bucket = childrenOf.get(parentKey);
     if (!bucket) {
       bucket = [];
