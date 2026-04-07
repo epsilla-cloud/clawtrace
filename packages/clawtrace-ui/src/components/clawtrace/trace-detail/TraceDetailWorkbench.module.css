@@ -40,8 +40,6 @@
   flex-direction: column;
   gap: 12px;
   overflow: hidden;
-  container-type: inline-size;
-  container-name: trace-content;
 }
 
 .topRow {
@@ -1623,39 +1621,38 @@
   min-width: 160px;
 }
 
-/* Narrow: inspector full-width overlay, mode switcher becomes dropdown */
-@container trace-content (max-width: 760px) {
-  .workspace {
-    grid-template-columns: minmax(0, 1fr) !important;
-    position: relative;
-  }
-  .inspectorCard {
-    position: absolute;
-    right: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 10;
-    box-shadow: -4px 0 20px rgba(24, 12, 4, 0.12);
-    border-radius: 12px;
-  }
-  .modeSwitcher { display: none !important; }
-  .modeDropdown { display: flex !important; }
-  .divider { display: none; }
-  .treeMetaGroup { display: none; }
-  /* Narrower indent + padding — keep connectors aligned */
-  .treeNodeBlock { padding: 8px 8px; }
-  .treeChildGroup { margin-left: 20px; /* pad(8) + half-icon(12) = icon center */ }
-  .treeNode:has(> .treeChildGroup) > .treeNodeBlock::after {
-    left: 20px; /* 8px pad + 12px half-icon */
-    top: 32px;
-  }
-  .treeChildGroup > .treeNode::after {
-    width: 6px; /* shorter arm for narrower indent */
-  }
-  .viewBody { padding: 8px; }
-  .viewBodyFlush { padding: 0; }
+/* Narrow: inspector full-width overlay, mode switcher becomes dropdown.
+   Triggered by JS ResizeObserver (contentNarrow class) when content < 760px. */
+.contentNarrow .workspace {
+  grid-template-columns: minmax(0, 1fr) !important;
+  position: relative;
 }
+.contentNarrow .inspectorCard {
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  box-shadow: -4px 0 20px rgba(24, 12, 4, 0.12);
+  border-radius: 12px;
+}
+.contentNarrow .modeSwitcher { display: none !important; }
+.contentNarrow .modeDropdown { display: flex !important; }
+.contentNarrow .divider { display: none; }
+.contentNarrow .treeMetaGroup { display: none; }
+/* Narrower indent + padding — keep connectors aligned */
+.contentNarrow .treeNodeBlock { padding: 8px 8px; }
+.contentNarrow .treeChildGroup { margin-left: 20px; /* pad(8) + half-icon(12) = icon center */ }
+.contentNarrow .treeNode:has(> .treeChildGroup) > .treeNodeBlock::after {
+  left: 20px; /* 8px pad + 12px half-icon */
+  top: 32px;
+}
+.contentNarrow .treeChildGroup > .treeNode::after {
+  width: 6px; /* shorter arm for narrower indent */
+}
+.contentNarrow .viewBody { padding: 8px; }
+.contentNarrow .viewBodyFlush { padding: 0; }
 
 @media (max-width: 1280px) {
   .shell,
