@@ -97,6 +97,14 @@ Core philosophy from `DESIGN.md`: evidence-centered, calm (not alarmist), operat
 - **Plugin**: Published to npm as `@epsilla/clawtrace`
 - **Pipeline**: Databricks Lakeflow, incremental watermark tracking
 
+**IMPORTANT:** After every code change, always commit, push, and deploy to production:
+```bash
+git add <changed files>
+git commit -m "message"
+git push
+vercel --prod    # run from repo root
+```
+
 ## Environment Variables
 Frontend uses:
 - `DATABASE_URL` / `DATABASE_URL_UNPOOLED` — Neon PostgreSQL (pooled vs. direct)
