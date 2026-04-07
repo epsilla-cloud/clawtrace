@@ -567,29 +567,59 @@ function createEntityGraph(spans: TraceDetailSpan[]): {
 }
 
 function createWaterfallRows(spans: TraceDetailSpan[], windowStartMs: number): TraceDetailWaterfallRow[] {
-  return spans
-    .slice()
-    .sort((a, b) => a.startMs - b.startMs || (a.kind === 'session' ? -1 : b.kind === 'session' ? 1 : 0))
-    .map((span) => {
-      const shortModel = span.model ? span.model.replace(/\s+/g, ' ').slice(0, 28) : null;
-      const label =
-        span.kind === 'llm_call'
-          ? `model step · ${shortModel ?? 'unknown model'}`
-          : span.kind === 'tool_call'
-            ? `tool action · ${span.toolName ?? span.name}`
-            : span.kind === 'subagent'
-              ? `subagent · ${span.childAgentId ?? span.childSessionKey ?? 'delegated'}`
-              : `session · ${span.agentId ?? span.sessionKey ?? span.name}`;
+  // Build parent→children map
+  const spanById = new Map(spans.map((s) => [s.spanId, s]));
+  const childrenOf = new Map<string | null, TraceDetailSpan[]>();
+  const spanIds = new Set(spans.map((s) => s.spanId));
 
-      return {
-        spanId: span.spanId,
-        label,
-        kind: span.kind,
-        startOffsetMs: Math.max(0, span.startMs - windowStartMs),
-        durationMs: Math.max(1, span.resolvedDurationMs),
-        totalTokens: span.totalTokens,
-      };
-    });
+  for (const span of spans) {
+    // If parent is not in our span set, treat as root
+    const parentKey = span.parentSpanId && spanIds.has(span.parentSpanId) ? span.parentSpanId : null;
+    let bucket = childrenOf.get(parentKey);
+    if (!bucket) {
+      bucket = [];
+      childrenOf.set(parentKey, bucket);
+    }
+    bucket.push(span);
+  }
+
+  // Sort children at each level by startMs (session spans first on tie)
+  for (const bucket of childrenOf.values()) {
+    bucket.sort((a, b) => a.startMs - b.startMs || (a.kind === 'session' ? -1 : b.kind === 'session' ? 1 : 0));
+  }
+
+  // DFS pre-order traversal — parents appear before their children
+  const ordered: TraceDetailSpan[] = [];
+  const visit = (parentId: string | null) => {
+    const children = childrenOf.get(parentId);
+    if (!children) return;
+    for (const span of children) {
+      ordered.push(span);
+      visit(span.spanId);
+    }
+  };
+  visit(null);
+
+  return ordered.map((span) => {
+    const shortModel = span.model ? span.model.replace(/\s+/g, ' ').slice(0, 28) : null;
+    const label =
+      span.kind === 'llm_call'
+        ? `model step · ${shortModel ?? 'unknown model'}`
+        : span.kind === 'tool_call'
+          ? `tool action · ${span.toolName ?? span.name}`
+          : span.kind === 'subagent'
+            ? `subagent · ${span.childAgentId ?? span.childSessionKey ?? 'delegated'}`
+            : `session · ${span.agentId ?? span.sessionKey ?? span.name}`;
+
+    return {
+      spanId: span.spanId,
+      label,
+      kind: span.kind,
+      startOffsetMs: Math.max(0, span.startMs - windowStartMs),
+      durationMs: Math.max(1, span.resolvedDurationMs),
+      totalTokens: span.totalTokens,
+    };
+  });
 }
 
 function derivePhaseStatus(score: number): { status: TraceDetailPhaseStatus; label: string } {
