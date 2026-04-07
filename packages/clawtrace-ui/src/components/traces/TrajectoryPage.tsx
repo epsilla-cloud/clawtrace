@@ -5,18 +5,10 @@ import Link from 'next/link';
 import { TraceDetailContent } from '../clawtrace/trace-detail/TraceDetailWorkbench';
 import { buildSnapshot, type BackendMetaData, type BackendSpanData } from '../../lib/trace-builder';
 import type { TraceDetailSnapshot } from '../../lib/trace-detail';
-import styles from './TrajectoryPage.module.css';
+import styles from './PageShell.module.css';
 
-interface TraceDetailResponse {
-  meta: BackendMetaData;
-  spans: BackendSpanData[];
-}
-
-interface Agent {
-  id: string;
-  name: string;
-  key_prefix: string;
-}
+interface TraceDetailResponse { meta: BackendMetaData; spans: BackendSpanData[] }
+interface Agent { id: string; name: string; key_prefix: string }
 
 export function TrajectoryPage({
   paramsPromise,
@@ -90,14 +82,12 @@ export function TrajectoryPage({
       {!loading && error && (
         <div className={styles.center}>
           <p className={styles.error}>{error}</p>
-          <Link href={`/trace/${agentId}`} className={styles.backLink}>
-            Back to Agent
-          </Link>
+          <Link href={`/trace/${agentId}`} className={styles.backLink}>Back to Agent</Link>
         </div>
       )}
 
       {!loading && !error && (
-        <div className={styles.body}>
+        <div className={styles.bodyFlex}>
           <TraceDetailContent workflowId={trajectoryId} detail={detail} />
         </div>
       )}
