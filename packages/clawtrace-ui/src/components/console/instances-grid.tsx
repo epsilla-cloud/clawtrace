@@ -139,7 +139,7 @@ function AgentCard({ agent, onRename, onDelete, isDeleting }: {
           <p className={styles.cardMetaLabel}>Last Active</p>
           <p className={styles.cardMetaValue}>{lastActive}</p>
         </div>
-        <a href={`/traces?agentId=${agent.id}`} className={styles.viewBtn}>
+        <a href={`/trace/${agent.id}`} className={styles.viewBtn}>
           View Trajectories
         </a>
       </div>

@@ -2639,16 +2639,6 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
   return (
     <section className={styles.workbenchShell}>
       <section ref={contentRef} className={`${styles.content} ${isNarrowContent ? styles.contentNarrow : ''}`}>
-        <header className={styles.topRow}>
-          <div className={styles.topIdentity}>
-            <h1 className={styles.pageTitle}>Trajectory Detail</h1>
-            <code className={styles.traceUuid}>{workflowId.slice(0, 12)}…</code>
-          </div>
-          <Link href="/traces" className={styles.backButtonInline}>
-            ← Back
-          </Link>
-        </header>
-
         <section
           ref={workspaceRef}
           className={`${styles.workspace} ${!inspectorOpen ? styles.workspaceNoInspector : ''}`}
