@@ -13,6 +13,7 @@ interface Agent {
   last_used_at: string | null;
 }
 
+/* ── Delete confirmation modal ──────────────────────────────────────────── */
 function DeleteModal({ name, onConfirm, onCancel }: {
   name: string;
   onConfirm: () => void;
@@ -27,26 +28,131 @@ function DeleteModal({ name, onConfirm, onCancel }: {
           using its observe key will stop sending telemetry.
         </p>
         <div className={styles.modalActions}>
-          <button type="button" className={styles.modalCancel} onClick={onCancel}>
-            Cancel
-          </button>
-          <button type="button" className={styles.modalDelete} onClick={onConfirm}>
-            Delete
-          </button>
+          <button type="button" className={styles.modalCancel} onClick={onCancel}>Cancel</button>
+          <button type="button" className={styles.modalDelete} onClick={onConfirm}>Delete</button>
         </div>
       </div>
     </div>
   );
 }
 
+/* ── Action menu (⋮) ────────────────────────────────────────────────────── */
+function ActionMenu({ onRename, onDelete }: { onRename: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
+  }, [open]);
+
+  return (
+    <div ref={menuRef} className={styles.menuWrap}>
+      <button type="button" className={styles.menuTrigger} onClick={() => setOpen(!open)} aria-label="Actions">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
+        </svg>
+      </button>
+      {open && (
+        <div className={styles.menuDropdown}>
+          <button type="button" className={styles.menuItem} onClick={() => { setOpen(false); onRename(); }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" />
+            </svg>
+            Rename
+          </button>
+          <button type="button" className={styles.menuItem} onClick={() => { setOpen(false); onDelete(); }}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+            Delete
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Agent card ──────────────────────────────────────────────────────────── */
+function AgentCard({ agent, onRename, onDelete, isDeleting }: {
+  agent: Agent;
+  onRename: (id: string, name: string) => void;
+  onDelete: (agent: Agent) => void;
+  isDeleting: boolean;
+}) {
+  const [renaming, setRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState(agent.name);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function startRename() {
+    setRenameValue(agent.name);
+    setRenaming(true);
+    setTimeout(() => inputRef.current?.select(), 30);
+  }
+
+  function submitRename() {
+    const trimmed = renameValue.trim();
+    if (trimmed && trimmed !== agent.name) {
+      onRename(agent.id, trimmed);
+    }
+    setRenaming(false);
+  }
+
+  const lastActive = agent.last_used_at
+    ? new Date(agent.last_used_at).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    : '—';
+
+  return (
+    <div className={`${styles.card} ${isDeleting ? styles.cardDeleting : ''}`}>
+      {/* Top row: logo + name/id + menu */}
+      <div className={styles.cardTop}>
+        <div className={styles.logoWrap}>
+          <Image src="/openclaw-logo.svg" alt="OpenClaw" width={28} height={28} />
+        </div>
+        <div className={styles.cardIdentity}>
+          {renaming ? (
+            <form onSubmit={(e) => { e.preventDefault(); submitRename(); }} className={styles.renameForm}>
+              <input
+                ref={inputRef}
+                className={styles.renameInput}
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                onBlur={submitRename}
+                maxLength={80}
+              />
+            </form>
+          ) : (
+            <p className={styles.cardName}>{agent.name}</p>
+          )}
+          <p className={styles.cardId}>ID: {agent.id}</p>
+        </div>
+        <ActionMenu onRename={startRename} onDelete={() => onDelete(agent)} />
+      </div>
+
+      {/* Bottom row: last active + view button */}
+      <div className={styles.cardBottom}>
+        <div>
+          <p className={styles.cardMetaLabel}>Last Active</p>
+          <p className={styles.cardMetaValue}>{lastActive}</p>
+        </div>
+        <a href={`/traces?agentId=${agent.id}`} className={styles.viewBtn}>
+          View Trajectories
+        </a>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main grid ───────────────────────────────────────────────────────────── */
 export function InstancesGrid() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
-  const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [renameValue, setRenameValue] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Agent | null>(null);
-  const renameInputRef = useRef<HTMLInputElement>(null);
 
   async function loadAgents() {
     const res = await fetch('/api/agents', { cache: 'no-store' });
@@ -59,26 +165,18 @@ export function InstancesGrid() {
 
   useEffect(() => { loadAgents(); }, []);
 
-  function startRename(agent: Agent) {
-    setRenamingId(agent.id);
-    setRenameValue(agent.name);
-    setTimeout(() => renameInputRef.current?.focus(), 30);
-  }
-
-  async function submitRename(id: string) {
-    if (!renameValue.trim()) { setRenamingId(null); return; }
+  async function handleRename(id: string, name: string) {
     const res = await fetch(`/api/agents/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: renameValue.trim() }),
+      body: JSON.stringify({ name }),
     });
     if (res.ok) {
-      setAgents((prev) => prev.map((a) => a.id === id ? { ...a, name: renameValue.trim() } : a));
+      setAgents((prev) => prev.map((a) => a.id === id ? { ...a, name } : a));
     }
-    setRenamingId(null);
   }
 
-  async function doDelete(id: string) {
+  async function handleDelete(id: string) {
     setDeletingId(id);
     setConfirmDelete(null);
     const res = await fetch(`/api/agents/${id}`, { method: 'DELETE' });
@@ -88,11 +186,10 @@ export function InstancesGrid() {
 
   return (
     <div className={styles.root}>
-      {/* Delete confirmation modal */}
       {confirmDelete && (
         <DeleteModal
           name={confirmDelete.name}
-          onConfirm={() => doDelete(confirmDelete.id)}
+          onConfirm={() => handleDelete(confirmDelete.id)}
           onCancel={() => setConfirmDelete(null)}
         />
       )}
@@ -105,68 +202,33 @@ export function InstancesGrid() {
           </p>
         </div>
         <a href="/overview/connect" className={styles.connectBtn}>
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
-            <circle cx="8" cy="8" r="6" /><path d="M8 5v6M5 8h6" />
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><path d="M8 12h8" /><path d="M12 8v8" />
           </svg>
-          Observe New OpenClaw Agent
+          Observe New Agent
         </a>
       </div>
 
       {loading ? (
-        <div className={styles.empty}>Loading…</div>
+        <div className={styles.empty}>Loading...</div>
       ) : (
         <div className={styles.grid}>
           {agents.map((agent) => (
-            <div key={agent.id} className={styles.card}>
-              <div className={styles.logoWrap}>
-                <Image src="/openclaw-logo.svg" alt="OpenClaw" width={32} height={32} />
-              </div>
-
-              {renamingId === agent.id ? (
-                <form onSubmit={(e) => { e.preventDefault(); submitRename(agent.id); }} className={styles.renameForm}>
-                  <input
-                    ref={renameInputRef}
-                    className={styles.renameInput}
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                    onBlur={() => submitRename(agent.id)}
-                    maxLength={80}
-                  />
-                </form>
-              ) : (
-                <button type="button" className={styles.cardName} onClick={() => startRename(agent)} title="Click to rename">
-                  {agent.name}
-                </button>
-              )}
-
-              <p className={styles.cardId}>ID: {agent.key_prefix}…</p>
-
-              <div className={styles.cardFooter}>
-                <div>
-                  <p className={styles.cardMetaLabel}>LAST ACTIVE</p>
-                  <p className={styles.cardMetaValue}>
-                    {agent.last_used_at ? new Date(agent.last_used_at).toLocaleDateString() : '—'}
-                  </p>
-                </div>
-                <div className={styles.cardActions}>
-                  <a href={`/traces?agentId=${agent.id}`} className={styles.viewLink}>View Traces →</a>
-                  <button
-                    type="button"
-                    className={styles.deleteBtn}
-                    disabled={deletingId === agent.id}
-                    onClick={() => setConfirmDelete(agent)}
-                    title="Delete agent"
-                  >
-                    {deletingId === agent.id ? '…' : '✕'}
-                  </button>
-                </div>
-              </div>
-            </div>
+            <AgentCard
+              key={agent.id}
+              agent={agent}
+              onRename={handleRename}
+              onDelete={(a) => setConfirmDelete(a)}
+              isDeleting={deletingId === agent.id}
+            />
           ))}
-
           <a href="/overview/connect" className={styles.addCard}>
-            <span className={styles.addIcon}>+</span>
-            <span className={styles.addLabel}>Observe New OpenClaw Agent</span>
+            <span className={styles.addIcon}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" /><path d="M12 5v14" />
+              </svg>
+            </span>
+            <span className={styles.addLabel}>Observe New Agent</span>
           </a>
         </div>
       )}
