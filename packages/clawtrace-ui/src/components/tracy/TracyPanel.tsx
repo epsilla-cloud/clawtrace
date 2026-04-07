@@ -195,9 +195,8 @@ function buildReply(query: string): Omit<TracyMessage, 'id' | 'role'> {
 /* ── Main component ──────────────────────────────────────────────────────── */
 export function TracyPanel() {
   const [open, setOpen] = useState(() => {
-    if (typeof window === 'undefined') return true;
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return stored !== 'false';
+    if (typeof window === 'undefined') return false;
+    return localStorage.getItem(STORAGE_KEY) === 'true';
   });
   const [draft, setDraft] = useState('');
   const [attachments, setAttachments] = useState<AttachedFile[]>([]);
