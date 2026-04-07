@@ -7,7 +7,7 @@
   gap: 24px;
 }
 
-/* Header */
+/* ── Header ─────────────────────────────────────────────────────────────── */
 .header {
   display: flex;
   justify-content: space-between;
@@ -17,10 +17,10 @@
 }
 
 .title {
-  font-size: 32px;
-  font-weight: 750;
+  font-size: 28px;
+  font-weight: 700;
   color: #2e2115;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
 }
 
 .subtitle {
@@ -45,26 +45,41 @@
   text-decoration: none;
   white-space: nowrap;
   flex-shrink: 0;
+  transition: background 100ms;
 }
-.connectBtn svg { width: 14px; height: 14px; }
 .connectBtn:hover { background: #7c3a0f; }
 
-/* Grid */
+/* ── Grid: max 4 per row ────────────────────────────────────────────────── */
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
+@media (max-width: 1200px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 900px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
 
-/* Instance card */
+/* ── Agent card ─────────────────────────────────────────────────────────── */
 .card {
   background: #fffdf8;
   border: 1px solid #dacbb4;
   border-radius: 14px;
-  padding: 18px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 150px;
+  transition: box-shadow 120ms;
+}
+.card:hover { box-shadow: 0 2px 12px rgba(46,33,21,0.08); }
+.cardDeleting { opacity: 0.5; pointer-events: none; }
+
+/* Top: logo + identity + menu */
+.cardTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .logoWrap {
@@ -76,156 +91,166 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  flex-shrink: 0;
 }
 
-/* Status badges */
-.statusBadge {
+.cardIdentity {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  padding: 3px 8px;
-  border-radius: 20px;
+  flex-direction: column;
+  gap: 2px;
 }
-
-.statusDot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-}
-
-.status_observing {
-  background: #d4edda;
-  color: #1a5c2a;
-}
-.status_observing .statusDot { background: #2f6b3b; }
-
-.status_idle {
-  background: #fff3cd;
-  color: #856404;
-}
-.status_idle .statusDot { background: #f59e0b; }
-
-.status_not_connected {
-  background: #f0f0f0;
-  color: #6b7280;
-}
-.status_not_connected .statusDot { background: #9ca3af; }
 
 .cardName {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 650;
   color: #2e2115;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cardId {
-  font-size: 12px;
-  color: #7c6854;
-  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  color: #b89c84;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.cardFooter {
+/* Inline rename */
+.renameForm { margin: 0; width: 100%; }
+.renameInput {
+  width: 100%;
+  font-size: 16px;
+  font-weight: 650;
+  color: #2e2115;
+  background: #fdf6ee;
+  border: 1.5px solid #a4532b;
+  border-radius: 6px;
+  padding: 2px 6px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+/* ── Action menu (⋮) ────────────────────────────────────────────────────── */
+.menuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.menuTrigger {
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: #b89c84;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  padding: 0;
+  transition: background 80ms, color 80ms;
+}
+.menuTrigger:hover { background: #f0e4d0; color: #5a4534; }
+
+.menuDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 20;
+  min-width: 140px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(46,33,21,0.12);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #3b2e1f;
+  cursor: pointer;
+  border-radius: 7px;
+  text-align: left;
+  font-family: inherit;
+  transition: background 80ms;
+}
+.menuItem:hover { background: #f0e4d0; }
+.menuItem svg { color: #7c6854; flex-shrink: 0; }
+
+/* ── Card bottom: last active + view button ──────────────────────────────── */
+.cardBottom {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-top: 4px;
+  gap: 12px;
   padding-top: 12px;
   border-top: 1px solid #e8d9c4;
 }
 
 .cardMetaLabel {
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-weight: 650;
+  letter-spacing: 0.04em;
   color: #b89c84;
   margin: 0 0 2px;
+  text-transform: uppercase;
 }
 
 .cardMetaValue {
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 550;
   color: #2e2115;
   margin: 0;
 }
 
-.cardActions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.viewLink {
-  font-size: 12px;
-  color: #a4532b;
-  text-decoration: none;
-  font-weight: 500;
-}
-.viewLink:hover { text-decoration: underline; }
-
-.deleteBtn {
-  width: 22px;
-  height: 22px;
-  border-radius: 5px;
-  border: 1px solid #f0d0d0;
+.viewBtn {
+  height: 32px;
+  padding: 0 14px;
   background: transparent;
-  color: #c0665a;
-  font-size: 11px;
-  cursor: pointer;
+  border: 1px solid #dacbb4;
+  border-radius: 7px;
+  color: #5a4534;
+  font-size: 12px;
+  font-weight: 550;
+  text-decoration: none;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 100ms, border-color 100ms;
 }
-.deleteBtn:hover:not(:disabled) { background: #fff0ef; border-color: #e09090; }
-.deleteBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.viewBtn:hover { background: #f0e4d0; border-color: #c4ad92; }
 
-/* Inline rename */
-.renameForm { margin: 0; }
-.renameInput {
-  width: 100%;
-  font-size: 17px;
-  font-weight: 650;
-  color: #2e2115;
-  background: #fdf6ee;
-  border: 1px solid #a4532b;
-  border-radius: 6px;
-  padding: 2px 6px;
-  outline: none;
-  box-sizing: border-box;
-}
-
-.cardName {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: 17px;
-  font-weight: 650;
-  color: #2e2115;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
-  border-radius: 4px;
-}
-.cardName:hover { color: #a4532b; }
-
-/* Add New Node card */
+/* ── Add card ────────────────────────────────────────────────────────────── */
 .addCard {
   background: transparent;
   border: 2px dashed #dacbb4;
   border-radius: 14px;
-  padding: 18px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 8px;
   text-decoration: none;
-  min-height: 160px;
+  min-height: 150px;
   cursor: pointer;
   transition: border-color 120ms, background 120ms;
 }
@@ -240,7 +265,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
   color: #7c6854;
 }
 
@@ -250,14 +274,14 @@
   color: #7c6854;
 }
 
-/* Empty state */
+/* ── Empty / loading ─────────────────────────────────────────────────────── */
 .empty {
   font-size: 14px;
   color: #7c6854;
   padding: 20px 0;
 }
 
-/* Delete confirmation modal */
+/* ── Delete modal ────────────────────────────────────────────────────────── */
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -309,6 +333,7 @@
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  font-family: inherit;
 }
 .modalCancel:hover { background: #f5e2d0; }
 
@@ -322,5 +347,6 @@
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  font-family: inherit;
 }
 .modalDelete:hover { background: #a93226; }
