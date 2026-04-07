@@ -45,8 +45,18 @@ class Settings(BaseSettings):
     referral_new_user_credits: float = 200.0
     referral_referrer_credits: float = 200.0
     credit_expiration_days: int = 730
-    credits_per_dollar: float = 100.0
     low_credit_threshold: float = 50.0
+
+    # Credit packages (JSON array — each: id, label, price_usd, credits, badge)
+    # badge is optional marketing text (e.g. "Best Value")
+    credit_packages_json: str = (
+        '['
+        '{"id":"starter","label":"Starter","price_usd":10,"credits":1000},'
+        '{"id":"growth","label":"Growth","price_usd":50,"credits":5000},'
+        '{"id":"pro","label":"Pro","price_usd":100,"credits":11000,"badge":"10% bonus"},'
+        '{"id":"scale","label":"Scale","price_usd":500,"credits":60000,"badge":"Best Value"}'
+        ']'
+    )
 
     # Pricing table: line_item -> credits per unit (JSON string)
     # Note: user trace LLM tokens are NOT billed (users run their own OpenClaw).

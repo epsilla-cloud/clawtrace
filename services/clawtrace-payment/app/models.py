@@ -31,12 +31,21 @@ class CreditStatus(BaseModel):
     is_deficit: bool
 
 
+class CreditPackage(BaseModel):
+    id: str
+    label: str
+    price_usd: float
+    credits: float
+    badge: str | None = None
+
+
 class TopUpRequest(BaseModel):
-    amount_usd: float = Field(..., gt=0, le=10000, description="USD amount")
+    package_id: str = Field(..., description="One of: starter, growth, pro, scale")
 
 
 class TopUpResponse(BaseModel):
     url: str
+    package: CreditPackage
 
 
 class DeficitCheckResponse(BaseModel):
