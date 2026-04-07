@@ -39,5 +39,10 @@ class TopUpResponse(BaseModel):
     url: str
 
 
+class DeficitCheckResponse(BaseModel):
+    tenant_id: str
+    is_deficit: bool
+
+
 class WebhookResponse(BaseModel):
     ok: bool = True

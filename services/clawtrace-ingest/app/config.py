@@ -51,6 +51,10 @@ class Settings(BaseSettings):
 
     pubsub_topic: str = ""
 
+    # Payment service — deficit guard
+    payment_url: str = ""  # e.g. http://clawtrace-payment:80
+    deficit_check_interval_seconds: int = 900  # 15 minutes
+
     schema_version: int = Field(default=1)
 
     @property

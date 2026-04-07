@@ -49,8 +49,10 @@ class Settings(BaseSettings):
     low_credit_threshold: float = 50.0
 
     # Pricing table: line_item -> credits per unit (JSON string)
+    # Note: user trace LLM tokens are NOT billed (users run their own OpenClaw).
+    # Only Tracy agent chat tokens from the API backend are billed.
     pricing_table_json: str = (
-        '{"llm_input_token_1k": 0.5, "llm_output_token_1k": 1.5,'
+        '{"tracy_input_token_1k": 0.5, "tracy_output_token_1k": 1.5,'
         ' "tool_call": 0.1, "storage_gb_hour": 2.0}'
     )
 

@@ -1,13 +1,13 @@
-"""Credit endpoints — status + top-up."""
+"""Credit endpoints — status, deficit check, and top-up."""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 
-from ..auth import UserSession, get_current_user, get_settings
+from ..auth import UserSession, get_current_user, get_settings, require_internal
 from ..config import Settings
-from ..database import ensure_signup_bonus, get_credit_status
-from ..models import CreditStatus, TopUpRequest, TopUpResponse
+from ..database import ensure_signup_bonus, get_credit_status, check_deficit
+from ..models import CreditStatus, DeficitCheckResponse, TopUpRequest, TopUpResponse
 
 router = APIRouter(tags=["credits"])
 
@@ -21,6 +21,21 @@ async def get_credits(
     await ensure_signup_bonus(session.db_id, settings)
     status = await get_credit_status(session.db_id, settings)
     return CreditStatus(**status)
+
+
+@router.get("/v1/credits/deficit", response_model=DeficitCheckResponse)
+async def check_deficit_status(
+    tenant_id: str = Query(..., description="Tenant/user UUID"),
+    _: None = Depends(require_internal),
+    settings: Settings = Depends(get_settings),
+):
+    """Internal endpoint: check if a tenant is in credit deficit.
+
+    Called by ingest/backend services to gate requests.
+    Lightweight — just sums remaining credits, no side effects.
+    """
+    is_deficit = await check_deficit(tenant_id, settings)
+    return DeficitCheckResponse(tenant_id=tenant_id, is_deficit=is_deficit)
 
 
 @router.post("/v1/credits/topup", response_model=TopUpResponse)

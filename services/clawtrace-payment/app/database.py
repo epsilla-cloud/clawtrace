@@ -256,6 +256,19 @@ async def deduct_credits(
             return effective_balance
 
 
+async def check_deficit(tenant_id: str, settings: Settings) -> bool:
+    """Lightweight check: is the tenant in deficit (total credits <= 0)?"""
+    pool = await get_pool(settings)
+    total = await pool.fetchval(
+        """
+        SELECT COALESCE(SUM(credits), 0) FROM credit_purchases
+        WHERE user_id = $1 AND credits > 0 AND expires_at > now()
+        """,
+        tenant_id,
+    )
+    return total <= 0
+
+
 async def insert_credit_purchase(
     user_id: str,
     credits: float,
