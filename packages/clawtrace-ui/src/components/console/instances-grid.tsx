@@ -103,7 +103,7 @@ function AgentCard({ agent, onRename, onDelete, isDeleting }: {
   }
 
   const lastActive = agent.last_used_at
-    ? new Date(agent.last_used_at).toLocaleString([], { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+    ? new Date(agent.last_used_at).toLocaleString([], { month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })
     : '—';
 
   return (
