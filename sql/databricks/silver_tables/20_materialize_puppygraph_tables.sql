@@ -68,7 +68,7 @@ MERGE INTO clawtrace.silver.pg_traces AS t
 USING (
   SELECT
     tenant_id,
-    agent_id,
+    MAX(agent_id)                         AS agent_id,
     trace_id,
     MIN(event_ts_ms)                      AS trace_start_ts_ms,
     MAX(event_ts_ms)                      AS trace_end_ts_ms,
@@ -89,7 +89,7 @@ USING (
       SELECT last_run_ts FROM clawtrace.silver._checkpoint WHERE pipeline = 'pg_tables'
     )
   )
-  GROUP BY tenant_id, agent_id, trace_id
+  GROUP BY tenant_id, trace_id
 ) AS s
 ON  t.tenant_id = s.tenant_id
 AND t.trace_id  = s.trace_id
@@ -109,11 +109,11 @@ WHEN NOT MATCHED THEN INSERT *;
 MERGE INTO clawtrace.silver.pg_spans AS t
 USING (
   SELECT
-    tenant_id,
-    agent_id,
+    MAX(tenant_id)                        AS tenant_id,
+    MAX(agent_id)                         AS agent_id,
     trace_id,
     span_id,
-    parent_span_id,
+    MAX(parent_span_id)                   AS parent_span_id,
     MIN(event_ts_ms)                      AS span_start_ts_ms,
     MAX(event_ts_ms)                      AS span_end_ts_ms,
     MAX(event_ts_ms) - MIN(event_ts_ms)   AS duration_ms,
@@ -124,9 +124,9 @@ USING (
     --   subagent  = spawned child session (parent_span_id IS NOT NULL, no model/tool)
     --   session   = root orchestrator session
     CASE
-      WHEN MAX(model_name)  IS NOT NULL THEN 'llm_call'
-      WHEN MAX(tool_name)   IS NOT NULL THEN 'tool_call'
-      WHEN parent_span_id   IS NOT NULL THEN 'subagent'
+      WHEN MAX(model_name)      IS NOT NULL THEN 'llm_call'
+      WHEN MAX(tool_name)       IS NOT NULL THEN 'tool_call'
+      WHEN MAX(parent_span_id)  IS NOT NULL THEN 'subagent'
       ELSE 'session'
     END                                   AS actor_type,
     MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)) AS input_tokens,
@@ -150,7 +150,7 @@ USING (
       SELECT last_run_ts FROM clawtrace.silver._checkpoint WHERE pipeline = 'pg_tables'
     )
   )
-  GROUP BY tenant_id, agent_id, trace_id, span_id, parent_span_id
+  GROUP BY trace_id, span_id
 ) AS s
 ON  t.trace_id = s.trace_id
 AND t.span_id  = s.span_id
@@ -173,12 +173,18 @@ WHEN NOT MATCHED THEN INSERT *;
 -- pg_child_of_edges: spans with a parent (pure insert, edges never change)
 MERGE INTO clawtrace.silver.pg_child_of_edges AS t
 USING (
-  SELECT DISTINCT tenant_id, agent_id, trace_id, span_id, parent_span_id
+  SELECT
+    MAX(tenant_id)      AS tenant_id,
+    MAX(agent_id)       AS agent_id,
+    trace_id,
+    span_id,
+    MAX(parent_span_id) AS parent_span_id
   FROM clawtrace.silver.events_all
   WHERE parent_span_id IS NOT NULL
     AND ingest_ts > (
       SELECT last_run_ts FROM clawtrace.silver._checkpoint WHERE pipeline = 'pg_tables'
     )
+  GROUP BY trace_id, span_id
 ) AS s
 ON  t.trace_id = s.trace_id
 AND t.span_id  = s.span_id
