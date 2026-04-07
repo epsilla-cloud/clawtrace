@@ -34,11 +34,13 @@ function estimateCost(inputTokens: number, outputTokens: number): number {
 interface BarChartProps {
   title: string; categories: string[]; values: number[];
   barColor: string; valueMode: 'number' | 'compact' | 'currency';
+  loading?: boolean;
 }
 
-function BarChart({ title, categories, values, barColor, valueMode }: BarChartProps) {
+function BarChart({ title, categories, values, barColor, valueMode, loading: isLoading }: BarChartProps) {
   const chartRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (isLoading) return;
     const node = chartRef.current;
     if (!node) return;
     let chart: { setOption:(o:unknown,n?:boolean)=>void; resize:()=>void; dispose:()=>void } | null = null;
@@ -93,12 +95,16 @@ function BarChart({ title, categories, values, barColor, valueMode }: BarChartPr
     })();
 
     return () => { canceled = true; window.removeEventListener('resize', onResize); ro?.disconnect(); chart?.dispose(); };
-  }, [categories, values, barColor, valueMode]);
+  }, [isLoading, categories, values, barColor, valueMode]);
 
   return (
     <div className={styles.chartCard}>
       <p className={styles.chartTitle}>{title}</p>
-      <div ref={chartRef} className={styles.chartArea} />
+      {isLoading ? (
+        <div className={`${styles.chartArea} ${styles.skeletonBar}`} />
+      ) : (
+        <div ref={chartRef} className={styles.chartArea} />
+      )}
     </div>
   );
 }
@@ -364,13 +370,13 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
         {/* Row 4: 4 bar charts */}
         <div className={styles.charts}>
           <BarChart title="Trajectories Over Time" categories={chartLabels} values={trajValues}
-            barColor="#a4532b" valueMode="number" />
+            barColor="#a4532b" valueMode="number" loading={loading} />
           <BarChart title="Input Token Usage Over Time" categories={chartLabels} values={inputValues}
-            barColor="#5b3db5" valueMode="compact" />
+            barColor="#5b3db5" valueMode="compact" loading={loading} />
           <BarChart title="Output Token Usage Over Time" categories={chartLabels} values={outputValues}
-            barColor="#2f7a6b" valueMode="compact" />
+            barColor="#2f7a6b" valueMode="compact" loading={loading} />
           <BarChart title="Estimated Cost Over Time" categories={chartLabels} values={costValues}
-            barColor="#c47a2f" valueMode="currency" />
+            barColor="#c47a2f" valueMode="currency" loading={loading} />
         </div>
 
         {/* Table with pagination */}
