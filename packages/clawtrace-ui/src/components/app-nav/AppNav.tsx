@@ -67,7 +67,7 @@ export function AppNav() {
             alt="ClawTrace"
             height={22}
             width={120}
-            style={{ objectFit: 'contain', objectPosition: 'left center' }}
+            style={{ objectFit: 'contain' }}
             priority
           />
         ) : (
@@ -105,7 +105,7 @@ export function AppNav() {
           className={`${styles.coinItem} ${pathname?.startsWith('/overview/billing') ? styles.itemActive : ''}`}
           title={!expanded ? `${credits} credits` : undefined}
         >
-          <span className={styles.coinIcon}>🪙</span>
+          <Image src="/icons/coin.png" alt="" width={20} height={20} className={styles.coinIcon} unoptimized />
           <span className={expanded ? styles.itemLabel : styles.coinCount}>{credits}</span>
         </Link>
         <Link
