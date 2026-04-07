@@ -964,10 +964,10 @@
 
 .inspectorTitle {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.1;
-  font-weight: 480;
-  color: var(--ct-muted);
+  font-weight: 500;
+  color: var(--ct-soft-text);
 }
 
 .inspectorBody {
@@ -991,8 +991,8 @@
   gap: 10px;
 }
 .stepIdentityName {
-  font-size: 14px;
-  font-weight: 480;
+  font-size: 15px;
+  font-weight: 510;
   color: var(--ct-text);
 }
 
