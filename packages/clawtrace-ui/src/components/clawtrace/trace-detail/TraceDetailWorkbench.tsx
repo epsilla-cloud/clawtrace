@@ -2541,11 +2541,24 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
   const [inspectorOpen, setInspectorOpen] = useState(true);
   const [splitPct, setSplitPct] = useState(50); // left panel percentage
   const workspaceRef = useRef<HTMLElement | null>(null);
+  const contentRef = useRef<HTMLElement | null>(null);
+  const [isNarrowContent, setIsNarrowContent] = useState(false);
 
-  // Close inspector by default on narrow containers (< 960px)
+  // Track content width via ResizeObserver — overlay inspector when < 760px
   useEffect(() => {
-    const el = workspaceRef.current;
-    if (el && el.offsetWidth < 960) setInspectorOpen(false);
+    const el = contentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setIsNarrowContent((entry?.contentRect.width ?? 800) < 760);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Close inspector by default on narrow containers (< 760px)
+  useEffect(() => {
+    const el = contentRef.current;
+    if (el && el.offsetWidth < 760) setInspectorOpen(false);
   }, []);
   const [selection, setSelection] = useState<SelectionSource | null>(null);
   const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
@@ -2629,7 +2642,7 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
 
   return (
     <section className={styles.workbenchShell}>
-      <section className={styles.content}>
+      <section ref={contentRef} className={`${styles.content} ${isNarrowContent ? styles.contentNarrow : ''}`}>
         <header className={styles.topRow}>
           <div className={styles.topIdentity}>
             <h1 className={styles.pageTitle}>Trajectory Detail</h1>
