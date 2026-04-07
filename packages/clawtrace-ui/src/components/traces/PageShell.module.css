@@ -102,6 +102,25 @@
   font-size: 14px;
 }
 
+/* Loading skeleton for trajectory page */
+.skeletonWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 20px 20px;
+}
+.skeletonBar {
+  border-radius: 8px;
+  background: #f0e4d4;
+  animation: ct-pulse 1.4s ease-in-out infinite;
+}
+.skeletonPanels {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
 .error {
   color: #b42318;
   margin: 0;

@@ -1566,7 +1566,11 @@ export function WorkflowPortfolio({ initialSnapshot, flow, allFlows }: WorkflowP
             <header className={styles.summaryBar}>
               <div className={`${styles.summaryMetric} ${styles.metricToneNeutral}`}>
                 <span className={styles.summaryLabel}>Discovery</span>
-                <span className={styles.summaryValue}>{loadingSnapshot ? 'Loading' : 'Unavailable'}</span>
+                <span className={styles.summaryValue}>
+                  {loadingSnapshot
+                    ? <span style={{ display: 'inline-block', width: 80, height: 20, borderRadius: 6, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite', verticalAlign: 'middle' }} />
+                    : 'Unavailable'}
+                </span>
               </div>
             </header>
           </section>

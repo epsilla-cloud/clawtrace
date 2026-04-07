@@ -120,7 +120,17 @@ export function ObserveKeys() {
 
       {/* Key list */}
       {loading ? (
-        <p className={styles.empty}>Loading…</p>
+        <div className={styles.skeletonRows}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={styles.skeletonRow}>
+              <div className={styles.skeletonBar} style={{ width: '25%', height: 14 }} />
+              <div className={styles.skeletonBar} style={{ width: '20%', height: 14 }} />
+              <div className={styles.skeletonBar} style={{ width: '15%', height: 14 }} />
+              <div className={styles.skeletonBar} style={{ width: '15%', height: 14 }} />
+              <div className={styles.skeletonBar} style={{ width: 60, height: 24, borderRadius: 5 }} />
+            </div>
+          ))}
+        </div>
       ) : keys.length === 0 ? (
         <p className={styles.empty}>No active keys — create one above to get started.</p>
       ) : (

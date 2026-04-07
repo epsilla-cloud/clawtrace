@@ -74,3 +74,19 @@
 }
 .revokeBtn:hover:not(:disabled) { background: #fee2e2; }
 .revokeBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Skeleton rows for loading state */
+.skeletonRows { display: flex; flex-direction: column; gap: 0; }
+.skeletonRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.skeletonRow:last-child { border-bottom: none; }
+.skeletonBar {
+  border-radius: 6px;
+  background: #f0e4d4;
+  animation: ct-pulse 1.4s ease-in-out infinite;
+}
