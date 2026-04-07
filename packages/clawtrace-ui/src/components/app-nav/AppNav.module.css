@@ -7,21 +7,20 @@
   background: #fffdf8;
   border-right: 1px solid #e8d9c4;
   flex-shrink: 0;
-  overflow: visible;           /* allows absolutely-positioned handle to show */
+  overflow: visible;
   transition: width 180ms ease;
   z-index: 10;
 }
 
-.collapsed { width: 60px; }
-.expanded  { width: 200px; }
+.collapsed { width: 56px; }
+.expanded  { width: 170px; }
 
 /* ── Logo ────────────────────────────────────────────────────────────────── */
 .logo {
-  height: 56px;
+  height: 52px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0 14px;
+  padding: 0 10px;
   border-bottom: 1px solid #e8d9c4;
   flex-shrink: 0;
   overflow: hidden;
@@ -29,17 +28,18 @@
 }
 
 .collapsed .logo {
-  padding: 0;                  /* centre the favicon evenly */
+  justify-content: center;
+  padding: 0;
 }
 
-/* ── Nav sections — must clip own content so items don't bleed ──────────── */
+/* ── Nav sections ────────────────────────────────────────────────────────── */
 .items {
   flex: 1;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 8px;
-  overflow: hidden;            /* clips active-item background to nav width */
+  padding: 10px 8px;
+  overflow: hidden;
   min-width: 0;
 }
 
@@ -54,7 +54,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 8px 8px 12px;
+  padding: 8px 8px 10px;
   flex-shrink: 0;
   overflow: hidden;
   min-width: 0;
@@ -62,8 +62,8 @@
 
 /* ── Nav item ────────────────────────────────────────────────────────────── */
 .item {
-  height: 40px;
-  border-radius: 10px;
+  height: 36px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -83,10 +83,9 @@
   background: #f5e2d0;
   color: #2e2115;
   border-color: #dacbb4;
-  font-weight: 580;
+  font-weight: 520;
 }
 
-/* Collapsed: icon centred with equal padding both sides */
 .collapsed .item {
   justify-content: center;
   padding: 0;
@@ -94,19 +93,19 @@
 }
 
 .itemIcon {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
-.itemIcon svg { width: 20px; height: 20px; }
+.itemIcon svg { width: 18px; height: 18px; }
 
 .itemLabel {
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 480;
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -115,23 +114,60 @@
 
 .collapsed .itemLabel { display: none; }
 
-/* ── Handle — sits just outside the nav border, zero overlap ────────────── */
-/*
- * right: -20px  → handle LEFT edge lands exactly on the nav RIGHT border outer edge
- * border-left: none → no double-line; the nav's own border serves as the left wall
- * overflow:visible on .nav ensures it's not clipped
- */
+/* ── Coin / credits item ─────────────────────────────────────────────────── */
+.coinItem {
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  text-decoration: none;
+  color: #7c6854;
+  border: 1px solid transparent;
+  transition: background 100ms, color 100ms;
+  overflow: hidden;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.coinItem:hover { background: #f5e2d0; color: #2e2115; }
+
+.collapsed .coinItem {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  gap: 1px;
+  height: auto;
+  min-height: 36px;
+}
+
+.coinIcon {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.coinCount {
+  font-size: 10px;
+  font-weight: 500;
+  color: #7c6854;
+  line-height: 1;
+}
+
+/* ── Handle ──────────────────────────────────────────────────────────────── */
 .handle {
   position: absolute;
   top: 50%;
-  right: -20px;
+  right: -18px;
   transform: translateY(-50%);
-  width: 20px;
-  height: 40px;
+  width: 18px;
+  height: 36px;
   background: #fffdf8;
   border: 1px solid #e8d9c4;
   border-left: none;
-  border-radius: 0 8px 8px 0;
+  border-radius: 0 7px 7px 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -143,9 +179,9 @@
 }
 
 .handle:hover { background: #f5e2d0; color: #5a4534; }
-.handle svg { width: 8px; height: 14px; }
+.handle svg { width: 7px; height: 12px; }
 
-/* ── User avatar in nav ─────────────────────────────────────────────────── */
+/* ── User avatar ─────────────────────────────────────────────────────────── */
 .avatarImg {
   width: 20px;
   height: 20px;

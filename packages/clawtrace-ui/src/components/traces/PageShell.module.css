@@ -1,0 +1,114 @@
+/* ── Shared page shell for all 3 trace hierarchy levels ──────────────────── */
+.shell {
+  flex: 1;
+  min-width: 0;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #faf4ec;
+}
+
+/* Top bar: breadcrumb / title row — identical height + padding on all pages */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  flex-shrink: 0;
+}
+
+/* Breadcrumb nav */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: #7c6854;
+  min-width: 0;
+}
+
+.breadcrumbLink {
+  color: #7c6854;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.breadcrumbLink:hover {
+  color: #2e2115;
+  text-decoration: underline;
+}
+
+.breadcrumbSep {
+  color: #b89c84;
+  flex-shrink: 0;
+}
+
+.breadcrumbCurrent {
+  color: #2e2115;
+  font-weight: 500;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Body: fills remaining space below header — same padding on all pages */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 20px 20px;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+
+/* Variant: body that uses flex instead of scroll (trajectory detail) */
+.bodyFlex {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+  padding: 0 20px 20px;
+}
+
+/* Observe New Agent button */
+.connectBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  background: #a4532b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 520;
+  border-radius: 7px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 100ms;
+}
+.connectBtn:hover { background: #7c3a0f; }
+
+/* Center state (loading, error) */
+.center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #7c6854;
+  font-size: 14px;
+}
+
+.error {
+  color: #b42318;
+  margin: 0;
+}
+
+.backLink {
+  color: #a4532b;
+  font-size: 13px;
+  text-decoration: underline;
+}

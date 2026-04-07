@@ -1600,16 +1600,14 @@
   color: var(--ct-soft-text);
 }
 
-/* ── Content-only shell (AppNav is the outer nav) ────────────────────────── */
+/* ── Content-only shell (sits inside page body) ────────────────────────── */
 .workbenchShell {
   flex: 1;
   min-width: 0;
-  height: 100dvh;
-  min-height: 100dvh;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #faf4ec;
 }
 
 /* Mode dropdown — hidden by default, shown on narrow screens */

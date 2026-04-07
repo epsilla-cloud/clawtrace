@@ -65,8 +65,8 @@ export function AppNav() {
           <Image
             src="/clawtrace-logo.png"
             alt="ClawTrace"
-            height={26}
-            width={130}
+            height={22}
+            width={120}
             style={{ objectFit: 'contain', objectPosition: 'left center' }}
             priority
           />
@@ -74,8 +74,8 @@ export function AppNav() {
           <Image
             src="/favicon.png"
             alt="ClawTrace"
-            height={30}
-            width={30}
+            height={26}
+            width={26}
             style={{ objectFit: 'contain' }}
             priority
           />
@@ -102,17 +102,11 @@ export function AppNav() {
       <nav className={styles.bottomItems}>
         <Link
           href="/overview/billing"
-          className={`${styles.item} ${pathname?.startsWith('/overview/billing') ? styles.itemActive : ''}`}
+          className={`${styles.coinItem} ${pathname?.startsWith('/overview/billing') ? styles.itemActive : ''}`}
           title={!expanded ? `${credits} credits` : undefined}
         >
-          <span className={styles.itemIcon}>
-            <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-              <ellipse cx="11" cy="14" rx="7" ry="3" stroke="currentColor" strokeWidth="1.5"/>
-              <ellipse cx="11" cy="11" rx="7" ry="3" stroke="currentColor" strokeWidth="1.5"/>
-              <ellipse cx="11" cy="8" rx="7" ry="3" stroke="currentColor" strokeWidth="1.5"/>
-            </svg>
-          </span>
-          <span className={styles.itemLabel}>{credits}</span>
+          <span className={styles.coinIcon}>🪙</span>
+          <span className={expanded ? styles.itemLabel : styles.coinCount}>{credits}</span>
         </Link>
         <Link
           href="/account"

@@ -1,15 +1,11 @@
 'use client';
 
-import { use, useCallback, useEffect, useRef, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { TracesPage } from './TracesPage';
-import styles from './AgentDashboardPage.module.css';
+import styles from './PageShell.module.css';
 
-interface Agent {
-  id: string;
-  name: string;
-  key_prefix: string;
-}
+interface Agent { id: string; name: string; key_prefix: string }
 
 export function AgentDashboardPage({
   paramsPromise,
