@@ -3,4 +3,10 @@
 .gstack/
 .vercel
 .env*.local
+.claude
+.vscode
+logos
+openclaw
+screenshots
 plugins/clawtrace/node_modules/
+packages/clawtrace-ui/nanobanana-output/
