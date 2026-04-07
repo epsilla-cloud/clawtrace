@@ -1025,6 +1025,8 @@ function ActorMapView({
   onSelect: (entityId: string, spanId: string | null, label: string) => void;
 }) {
   const graphRef = useRef<HTMLDivElement | null>(null);
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
 
   useEffect(() => {
     const container = graphRef.current;
@@ -1261,17 +1263,18 @@ function ActorMapView({
       circle.dataset.spanId = node.spanId;
       group.appendChild(circle);
 
-      // Icon image filling the circle
+      // Icon image with padding inside the circle
       const iconSrc = resolveSpanIcon(node.span);
-      const imgSize = node.r * 2;
+      const pad = Math.round(node.r * 0.3); // 30% inset
+      const imgSize = (node.r - pad) * 2;
       const img = document.createElementNS(ns, 'image');
       img.setAttribute('href', iconSrc);
-      img.setAttribute('x', String(-node.r));
-      img.setAttribute('y', String(-node.r));
+      img.setAttribute('x', String(-node.r + pad));
+      img.setAttribute('y', String(-node.r + pad));
       img.setAttribute('width', String(imgSize));
       img.setAttribute('height', String(imgSize));
       img.setAttribute('clip-path', `url(#${clipId})`);
-      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+      img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
       group.appendChild(img);
 
       // Label below the circle
@@ -1285,7 +1288,7 @@ function ActorMapView({
       group.appendChild(label);
 
       group.addEventListener('click', () => {
-        onSelect(`entity:${node.spanId}`, node.spanId, spanDisplayLabel(node.span));
+        onSelectRef.current(`entity:${node.spanId}`, node.spanId, spanDisplayLabel(node.span));
       });
 
       let dragging = false;
@@ -1338,15 +1341,27 @@ function ActorMapView({
           tip.className = styles.actorGraphTooltip;
           container.appendChild(tip);
         }
-        let content = `<div class="${styles.actorTooltipTitle}">${esc(spanDisplayLabel(node.span))}</div>`;
-        content += `<div class="${styles.actorTooltipRow}">${spanKindLabel(node.span)}</div>`;
-        if (node.span.kind === 'llm_call' && node.span.model) {
-          content += `<div class="${styles.actorTooltipRow}">Model: ${esc(node.span.model)}</div>`;
+        const s = node.span;
+        let content = `<div class="${styles.actorTooltipTitle}">${esc(graphNodeLabel(s))}</div>`;
+        // Same fields as Step Detail badges, per span type
+        if (s.kind === 'llm_call') {
+          if (s.model) content += `<div class="${styles.actorTooltipRow}">Model: ${esc(s.model)}</div>`;
+          content += `<div class="${styles.actorTooltipRow}">Started At: ${esc(formatDate(s.startMs))}</div>`;
+          content += `<div class="${styles.actorTooltipRow}">Duration: ${esc(formatDuration(s.resolvedDurationMs))}</div>`;
+          if (s.tokensIn > 0) content += `<div class="${styles.actorTooltipRow}">Input Tokens: ${esc(formatCompactTokens(s.tokensIn))}</div>`;
+          if (s.tokensOut > 0) content += `<div class="${styles.actorTooltipRow}">Output Tokens: ${esc(formatCompactTokens(s.tokensOut))}</div>`;
+          const cost = formatSpanCostValue(s);
+          if (cost) content += `<div class="${styles.actorTooltipRow}">Cost: ${esc(cost)}</div>`;
+        } else if (s.kind === 'tool_call') {
+          content += `<div class="${styles.actorTooltipRow}">Started At: ${esc(formatDate(s.startMs))}</div>`;
+          content += `<div class="${styles.actorTooltipRow}">Duration: ${esc(formatDuration(s.resolvedDurationMs))}</div>`;
+        } else if (s.kind === 'subagent') {
+          content += `<div class="${styles.actorTooltipRow}">Started At: ${esc(formatDate(s.startMs))}</div>`;
+          content += `<div class="${styles.actorTooltipRow}">Duration: ${esc(formatDuration(s.resolvedDurationMs))}</div>`;
+        } else {
+          // session
+          content += `<div class="${styles.actorTooltipRow}">Started At: ${esc(formatDate(s.startMs))}</div>`;
         }
-        if (node.span.kind === 'tool_call' && node.span.toolName) {
-          content += `<div class="${styles.actorTooltipRow}">Tool: ${esc(node.span.toolName)}</div>`;
-        }
-        content += `<div class="${styles.actorTooltipRow}">${formatDuration(node.span.resolvedDurationMs)} · ${formatNumber(node.span.totalTokens)} tok</div>`;
         tip.innerHTML = content;
         tip.style.display = 'block';
       });
@@ -1384,68 +1399,53 @@ function ActorMapView({
       if (frozen) return;
       alpha *= 0.982;
 
+      // Repulsion — stronger force pushes nodes apart radially
       for (let i = 0; i < nodes.length; i += 1) {
         for (let j = i + 1; j < nodes.length; j += 1) {
           const a = nodes[i];
           const b = nodes[j];
-          let dx = b.x - a.x;
-          let dy = b.y - a.y;
+          const dx = b.x - a.x;
+          const dy = b.y - a.y;
           const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const minDist = a.r + b.r + 36;
-          const force = 620 / (dist * dist);
+          const minDist = a.r + b.r + 60;
+          const force = 1800 / (dist * dist);
           const fx = (dx / dist) * force;
           const fy = (dy / dist) * force;
-          if (!a.fixed) {
-            a.vx -= fx;
-            a.vy -= fy;
-          }
-          if (!b.fixed) {
-            b.vx += fx;
-            b.vy += fy;
-          }
+          if (!a.fixed) { a.vx -= fx; a.vy -= fy; }
+          if (!b.fixed) { b.vx += fx; b.vy += fy; }
           if (dist < minDist) {
-            const push = (minDist - dist) * 0.28;
+            const push = (minDist - dist) * 0.35;
             const px = (dx / dist) * push;
             const py = (dy / dist) * push;
-            if (!a.fixed) {
-              a.x -= px;
-              a.y -= py;
-            }
-            if (!b.fixed) {
-              b.x += px;
-              b.y += py;
-            }
+            if (!a.fixed) { a.x -= px; a.y -= py; }
+            if (!b.fixed) { b.x += px; b.y += py; }
           }
         }
       }
 
+      // Link spring — longer rest length for spacious layout
       for (const link of links) {
         const source = nodes[link.source];
         const target = nodes[link.target];
         const dx = target.x - source.x;
         const dy = target.y - source.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const targetDist = source.r + target.r + 64;
-        const force = (dist - targetDist) * 0.016;
+        const targetDist = source.r + target.r + 100;
+        const force = (dist - targetDist) * 0.012;
         const fx = (dx / dist) * force;
         const fy = (dy / dist) * force;
-        if (!source.fixed) {
-          source.vx += fx;
-          source.vy += fy;
-        }
-        if (!target.fixed) {
-          target.vx -= fx;
-          target.vy -= fy;
-        }
+        if (!source.fixed) { source.vx += fx; source.vy += fy; }
+        if (!target.fixed) { target.vx -= fx; target.vy -= fy; }
       }
 
+      // Gentle center pull — very weak so nodes spread outward
       for (const node of nodes) {
         if (node.fixed) continue;
-        const centerPull = node.kind === 'session' ? 0.005 : 0.0018;
+        const centerPull = node.kind === 'session' ? 0.004 : 0.001;
         node.vx += (cx - node.x) * centerPull;
         node.vy += (cy - node.y) * centerPull;
-        node.vx *= 0.84;
-        node.vy *= 0.84;
+        node.vx *= 0.82;
+        node.vy *= 0.82;
         node.x += node.vx;
         node.y += node.vy;
         node.x = Math.max(node.r + 5, Math.min(W - node.r - 5, node.x));
@@ -1493,7 +1493,7 @@ function ActorMapView({
       container.innerHTML = '';
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [detail.spans, onSelect]);
+  }, [detail.spans]);
 
   // Highlight selected node without re-creating graph
   useEffect(() => {
