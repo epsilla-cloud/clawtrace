@@ -1,4 +1,3 @@
-.shell { display: flex; height: 100vh; height: 100dvh; overflow: hidden; background: #f0e4d0; }
 .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #faf4ec; }
 .content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
 .unauthPrompt { flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px; }
