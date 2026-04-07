@@ -106,7 +106,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 10px;
+  padding: 8px 10px;
   border-bottom: 1px solid #dacbb4;
   flex-shrink: 0;
 }
@@ -207,6 +207,7 @@
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
+  overflow: hidden;
 }
 
 .viewBody {
@@ -933,15 +934,18 @@
 }
 
 .inspectorHeader {
+  position: relative;
   padding: 8px 10px;
   border-bottom: 1px solid #dacbb4;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 8px;
 }
 
 .inspectorClose {
+  position: absolute;
+  right: 10px;
   width: 24px;
   height: 24px;
   border: none;
