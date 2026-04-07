@@ -9,22 +9,44 @@
 }
 
 .header {
-  padding: 18px 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  flex-shrink: 0;
 }
 
 .title {
   margin: 0;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 500;
   color: #2e2115;
   letter-spacing: -0.01em;
 }
 
+.connectBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  background: #a4532b;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 520;
+  border-radius: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 100ms;
+}
+.connectBtn:hover { background: #7c3a0f; }
+
 .body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 12px 24px 24px;
+  padding: 0 24px 24px;
   scrollbar-width: thin;
   scrollbar-color: #c9b8a4 transparent;
 }

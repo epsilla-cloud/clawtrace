@@ -144,3 +144,11 @@
 
 .handle:hover { background: #f5e2d0; color: #5a4534; }
 .handle svg { width: 8px; height: 14px; }
+
+/* ── User avatar in nav ─────────────────────────────────────────────────── */
+.avatarImg {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
