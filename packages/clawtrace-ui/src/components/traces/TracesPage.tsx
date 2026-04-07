@@ -352,7 +352,11 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
           ].map(m => (
             <div key={m.label} className={styles.metricCard}>
               <p className={styles.metricLabel}>{m.label}</p>
-              <p className={styles.metricValue}>{loading ? '…' : m.value}</p>
+              {loading ? (
+                <div className={styles.skeletonBar} style={{ ...({ width: 60, height: 20, marginTop: 2 } as React.CSSProperties) }} />
+              ) : (
+                <p className={styles.metricValue}>{m.value}</p>
+              )}
             </div>
           ))}
         </div>
@@ -372,7 +376,23 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
         {/* Table with pagination */}
         <div className={styles.tableSection}>
           <div className={styles.tableWrap}>
-            {loading && <div className={styles.loading}>Loading…</div>}
+            {loading && (
+              <div className={styles.loading}>
+                {/* Skeleton header row */}
+                <div className={styles.skeletonRow} style={{ background: '#fdf6ee' }}>
+                  {['18%', '8%', '14%', '8%', '10%', '10%', '10%'].map((w, i) => (
+                    <div key={i} className={styles.skeletonBar} style={{ width: w, height: 10 }} />
+                  ))}
+                </div>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className={styles.skeletonRow}>
+                    {['18%', '8%', '14%', '8%', '10%', '10%', '10%'].map((w, j) => (
+                      <div key={j} className={styles.skeletonBar} style={{ width: w, height: 14 }} />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
             {!loading && data && (
               <>
                 <table className={styles.table}>

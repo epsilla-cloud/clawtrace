@@ -70,7 +70,10 @@
 /* Table */
 .tableSection { }
 .tableWrap { background: #fffdf8; border: 1px solid #dacbb4; border-radius: 12px; overflow-x: auto; overflow-y: visible; }
-.loading { padding: 24px; font-size: 13px; color: #7c6854; }
+.loading { padding: 0; }
+.skeletonBar { border-radius: 6px; background: #f0e4d4; animation: ct-pulse 1.4s ease-in-out infinite; }
+.skeletonRow { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid #e8d9c4; }
+.skeletonMetricValue { width: 60px; height: 20px; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th {
   text-align: left; font-size: 10px; font-weight: 700; text-transform: uppercase;

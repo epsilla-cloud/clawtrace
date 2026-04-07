@@ -195,7 +195,23 @@ export function InstancesGrid() {
       )}
 
       {loading ? (
-        <div className={styles.empty}>Loading...</div>
+        <div className={styles.skeletonGrid}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} className={styles.skeletonCard}>
+              <div className={styles.skeletonCardTop}>
+                <div className={`${styles.skeletonBar} ${styles.skeletonAvatar}`} />
+                <div className={styles.skeletonLines}>
+                  <div className={styles.skeletonBar} style={{ width: '70%', height: 14 }} />
+                  <div className={styles.skeletonBar} style={{ width: '50%', height: 10 }} />
+                </div>
+              </div>
+              <div className={styles.skeletonCardBottom}>
+                <div className={styles.skeletonBar} style={{ width: 80, height: 10 }} />
+                <div className={styles.skeletonBar} style={{ width: 100, height: 28, borderRadius: 7 }} />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : (
         <div className={styles.grid}>
           {agents.map((agent) => (

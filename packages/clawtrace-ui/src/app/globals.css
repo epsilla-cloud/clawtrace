@@ -45,3 +45,9 @@ body {
   --warn: #a75a00;
   --focus: rgba(164, 83, 43, 0.21);
 }
+
+/* ── Shared skeleton pulse animation ────────────────────────────────────── */
+@keyframes ct-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}

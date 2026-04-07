@@ -275,6 +275,32 @@
   padding: 20px 0;
 }
 
+/* Skeleton card */
+.skeletonGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+.skeletonCard {
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 120px;
+}
+.skeletonBar {
+  border-radius: 6px;
+  background: #f0e4d4;
+  animation: ct-pulse 1.4s ease-in-out infinite;
+}
+.skeletonCardTop { display: flex; align-items: center; gap: 12px; }
+.skeletonAvatar { width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; }
+.skeletonLines { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.skeletonCardBottom { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; }
+
 /* ── Delete modal ────────────────────────────────────────────────────────── */
 .modalOverlay {
   position: fixed;

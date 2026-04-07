@@ -76,7 +76,12 @@ export function TrajectoryPage({
       </header>
 
       {loading && (
-        <div className={styles.center}>Loading trace...</div>
+        <div className={styles.skeletonWrap}>
+          <div className={styles.skeletonPanels}>
+            <div className={styles.skeletonBar} style={{ flex: '0 0 260px' }} />
+            <div className={styles.skeletonBar} style={{ flex: 1 }} />
+          </div>
+        </div>
       )}
 
       {!loading && error && (

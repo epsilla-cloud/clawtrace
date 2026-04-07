@@ -66,11 +66,18 @@ export function TraceDetailPage() {
       <AppNav />
 
       {loading && (
-        <div style={{
-          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--ct-page-bg, #faf4ec)', color: '#7c6854', fontSize: 14,
-        }}>
-          Loading trace…
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 12, padding: 20, background: '#faf4ec' }}>
+          {/* Skeleton breadcrumb */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ width: 80, height: 14, borderRadius: 6, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite' }} />
+            <div style={{ width: 12, height: 14, borderRadius: 4, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite' }} />
+            <div style={{ width: 120, height: 14, borderRadius: 6, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite' }} />
+          </div>
+          {/* Skeleton panels */}
+          <div style={{ display: 'flex', gap: 12, flex: 1 }}>
+            <div style={{ flex: '0 0 260px', borderRadius: 12, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite' }} />
+            <div style={{ flex: 1, borderRadius: 12, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite' }} />
+          </div>
         </div>
       )}
 
