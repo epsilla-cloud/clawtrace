@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from ..auth import UserSession, get_current_user, get_settings, require_internal
 from ..config import Settings
 from ..database import check_deficit, ensure_signup_bonus, get_credit_status, get_pool
+from ..databricks import query_usage
 from ..models import (
     CreditPackage,
     CreditStatus,
@@ -38,6 +39,19 @@ async def list_packages(
 ):
     """Public: return the available credit top-up packages."""
     return _load_packages(settings)
+
+
+# ── GET /v1/credits/usage — usage breakdown from Databricks ──────────────
+
+@router.get("/v1/credits/usage")
+async def get_usage(
+    from_ms: int = Query(...),
+    to_ms: int = Query(...),
+    session: UserSession = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    """Get credit usage breakdown by category and time bucket."""
+    return await query_usage(session.db_id, from_ms, to_ms, settings)
 
 
 # ── GET /v1/credits — current user's credit status ───────────────────────

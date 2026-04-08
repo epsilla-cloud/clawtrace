@@ -47,6 +47,7 @@ class AuditWriter:
         txn_type: str,
         description: dict | None = None,
         reference_id: str | None = None,
+        cost_breakdown: dict | None = None,
     ) -> None:
         now = datetime.now(timezone.utc)
         record = {
@@ -57,6 +58,7 @@ class AuditWriter:
             "type": txn_type,
             "description": description,
             "reference_id": reference_id,
+            "cost_breakdown": cost_breakdown,
             "created_at": now.isoformat(),
         }
         blob_path = (

@@ -131,11 +131,14 @@ export function BillingPage() {
 
         {/* Credit Balance Card */}
         <div className={styles.balanceCard}>
-          <span className={styles.balanceLabel}>Credit Balance</span>
-          <div className={styles.balanceValue}>
-            <Image src="/icons/coin.png" alt="" width={36} height={36} className={styles.balanceCoin} unoptimized />
-            {loading ? <div className={styles.skeletonBalance} /> : <span>{formatCredits(status?.total_remaining ?? 0)}</span>}
+          <div>
+            <span className={styles.balanceLabel}>Credit Balance</span>
+            <div className={styles.balanceValue}>
+              <Image src="/icons/coin.png" alt="" width={36} height={36} className={styles.balanceCoin} unoptimized />
+              {loading ? <div className={styles.skeletonBalance} /> : <span>{formatCredits(status?.total_remaining ?? 0)}</span>}
+            </div>
           </div>
+          <a href="/billing/usage" className={styles.viewUsageBtn}>View Usage</a>
         </div>
 
         {/* Credit Packages */}

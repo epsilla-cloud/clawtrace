@@ -30,6 +30,18 @@ async def run_harvest(
         if total_credits <= 0:
             continue
 
+        # Build per-category cost breakdown
+        cost_breakdown = {}
+        for category, raw_amount in usage_map.items():
+            rate = pricing.get(category, 0.0)
+            credits_spent = raw_amount * rate
+            if credits_spent > 0:
+                cost_breakdown[category] = {
+                    "raw_amount": raw_amount,
+                    "rate": rate,
+                    "credits_spent": credits_spent,
+                }
+
         try:
             effective_balance = await deduct_credits(
                 tenant_id, total_credits, settings
@@ -40,6 +52,7 @@ async def run_harvest(
                 balance_after=effective_balance,
                 txn_type="harvest",
                 description=usage_map,
+                cost_breakdown=cost_breakdown,
             )
             processed += 1
         except Exception:
