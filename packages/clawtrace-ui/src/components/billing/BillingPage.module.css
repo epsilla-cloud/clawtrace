@@ -67,8 +67,10 @@
   line-height: 1;
 }
 .balanceCoin {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 50%;
 }
 
 /* ── Package cards ─────────────────────────────────────────────────────── */
@@ -77,11 +79,13 @@
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
-@media (max-width: 800px) {
+@media (max-width: 860px) {
   .packagesGrid { grid-template-columns: repeat(2, 1fr); }
 }
-@media (max-width: 480px) {
+@media (max-width: 520px) {
   .packagesGrid { grid-template-columns: 1fr; }
+  .content { padding: 20px 14px 32px; }
+  .balanceValue { font-size: 28px; }
 }
 
 .packageCard {
@@ -171,8 +175,17 @@
   overflow: hidden;
   background: #fffdf8;
 }
+.tableScroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.tableScroll::-webkit-scrollbar { height: 6px; }
+.tableScroll::-webkit-scrollbar-track { background: transparent; }
+.tableScroll::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
 .table {
   width: 100%;
+  min-width: 700px;
   border-collapse: collapse;
   font-size: 13px;
 }
