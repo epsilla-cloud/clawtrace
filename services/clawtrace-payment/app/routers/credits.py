@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 
@@ -89,9 +90,9 @@ async def admin_grant_credits(
             """
             INSERT INTO credit_purchases
                 (user_id, credits, credits_initial, source, expires_at)
-            VALUES ($1, $2, $2, $3, now() + $4::interval)
+            VALUES ($1, $2, $2, $3, now() + $4)
             """,
-            u["id"], body.credits, body.source, f"{body.expiration_days} days",
+            u["id"], body.credits, body.source, timedelta(days=body.expiration_days),
         )
         results.append({"id": str(u["id"]), "email": u["email"], "name": u["name"]})
 
