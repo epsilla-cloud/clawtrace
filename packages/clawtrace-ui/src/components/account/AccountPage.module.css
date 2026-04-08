@@ -262,6 +262,18 @@
   text-align: center;
 }
 
+/* ── Skeleton ───────────────────────────────────────────────────────────── */
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0e4d4 25%, #f8f0e4 50%, #f0e4d4 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+@keyframes skeletonPulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
 @media (max-width: 520px) {
   .content { padding: 20px 14px 32px; }
   .profileRow { gap: 10px; }

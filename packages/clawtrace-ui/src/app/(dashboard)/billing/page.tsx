@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { BillingPage } from '@/components/billing/BillingPage';
 
-export const metadata = { title: 'Billing — ClawTrace' };
+export const metadata = { title: 'Billing' };
 
 export default function Page() {
   return (

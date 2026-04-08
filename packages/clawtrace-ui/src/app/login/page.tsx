@@ -4,7 +4,7 @@ import { LoginButtons } from '@/components/auth/login-buttons';
 import styles from './login.module.css';
 
 export const metadata: Metadata = {
-  title: 'Sign in — ClawTrace',
+  title: 'Sign in',
   robots: { index: false, follow: false },
 };
 

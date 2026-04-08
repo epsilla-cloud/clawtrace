@@ -323,3 +323,30 @@
 }
 .pageArrow:disabled { opacity: 0.4; cursor: default; }
 .pageArrow { padding: 0 10px; }
+
+/* ── Skeleton loading ──────────────────────────────────────────────────── */
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0e4d4 25%, #f8f0e4 50%, #f0e4d4 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+@keyframes skeletonPulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeletonBalance {
+  composes: skeleton;
+  width: 140px;
+  height: 36px;
+}
+.skeletonCard {
+  composes: skeleton;
+  border-radius: 14px;
+  height: 160px;
+}
+.skeletonTableRow {
+  composes: skeleton;
+  height: 20px;
+  width: 100%;
+}

@@ -19,8 +19,10 @@ export function AccountPage() {
   const [referrals, setReferrals] = useState<Referral[]>([]);
   const [copied, setCopied] = useState(false);
   const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
+    setLoading(true);
     const [meRes, infoRes, listRes] = await Promise.all([
       fetch('/api/auth/me', { cache: 'no-store' }),
       fetch('/api/referral/info', { cache: 'no-store' }),
@@ -32,6 +34,7 @@ export function AccountPage() {
       const d = await listRes.json();
       setReferrals(d.referrals ?? []);
     }
+    setLoading(false);
   }, [page]);
 
   useEffect(() => { void load(); }, [load]);
@@ -60,28 +63,40 @@ export function AccountPage() {
 
         {/* Profile card */}
         <div className={styles.card}>
-          <div className={styles.profileRow}>
-            {user?.avatar ? (
-              <Image src={user.avatar} alt="" width={52} height={52} className={styles.avatar} unoptimized />
-            ) : (
-              <div className={styles.avatarFallback}>
-                {(user?.name ?? '?').charAt(0).toUpperCase()}
+          {loading ? (
+            <div className={styles.profileRow}>
+              <div className={`${styles.avatarFallback} ${styles.skeleton}`} />
+              <div className={styles.profileInfo}>
+                <div className={`${styles.skeleton}`} style={{ width: 120, height: 18 }} />
+                <div className={`${styles.skeleton}`} style={{ width: 180, height: 14 }} />
               </div>
-            )}
-            <div className={styles.profileInfo}>
-              <span className={styles.profileName}>{user?.name ?? '...'}</span>
-              <span className={styles.profileEmail}>{user?.email ?? ''}</span>
             </div>
-          </div>
-          <button className={styles.signOutBtn} onClick={handleSignOut}>
-            Sign Out
-          </button>
+          ) : (
+            <>
+              <div className={styles.profileRow}>
+                {user?.avatar ? (
+                  <Image src={user.avatar} alt="" width={52} height={52} className={styles.avatar} unoptimized />
+                ) : (
+                  <div className={styles.avatarFallback}>
+                    {(user?.name ?? '?').charAt(0).toUpperCase()}
+                  </div>
+                )}
+                <div className={styles.profileInfo}>
+                  <span className={styles.profileName}>{user?.name ?? '...'}</span>
+                  <span className={styles.profileEmail}>{user?.email ?? ''}</span>
+                </div>
+              </div>
+              <button className={styles.signOutBtn} onClick={handleSignOut}>
+                Sign Out
+              </button>
+            </>
+          )}
         </div>
 
         {/* Referral invite card */}
         <div className={`${styles.card} ${styles.inviteCard}`}>
           <p className={styles.inviteTitle}>
-            Invite a friend and you both get 200 FREE credits!
+            Invite a friend and you both get 100 FREE credits!
           </p>
           <div className={styles.inviteLinkRow}>
             <input
