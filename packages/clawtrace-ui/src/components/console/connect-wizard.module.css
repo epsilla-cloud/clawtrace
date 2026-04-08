@@ -272,14 +272,9 @@
   gap: 10px;
 }
 
-.codeBlock code {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-  font-size: 12px;
-  color: #3b3128;
-  white-space: pre-wrap;
-  word-break: break-all;
+.codeBlock > div:first-child {
   flex: 1;
-  line-height: 1.5;
+  min-width: 0;
 }
 
 /* Listener */
