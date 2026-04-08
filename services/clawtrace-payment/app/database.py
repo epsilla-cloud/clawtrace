@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import timedelta
 from typing import Any
 
 import asyncpg
@@ -99,19 +100,18 @@ async def ensure_signup_bonus(user_id: str, settings: Settings) -> None:
             if exists:
                 return
 
-            expiry_interval = f"{settings.credit_expiration_days} days"
+            expiry = timedelta(days=settings.credit_expiration_days)
 
             # Signup bonus
             await conn.execute(
                 """
                 INSERT INTO credit_purchases
                     (user_id, credits, credits_initial, source, expires_at)
-                VALUES ($1, $2, $2, 'signup_bonus',
-                        now() + $3::interval)
+                VALUES ($1, $2, $2, 'signup_bonus', now() + $3)
                 """,
                 user_id,
                 settings.default_signup_credits,
-                expiry_interval,
+                expiry,
             )
             logger.info(
                 "Granted %s signup credits to %s",
@@ -130,24 +130,22 @@ async def ensure_signup_bonus(user_id: str, settings: Settings) -> None:
                     """
                     INSERT INTO credit_purchases
                         (user_id, credits, credits_initial, source, expires_at)
-                    VALUES ($1, $2, $2, 'referral_bonus',
-                            now() + $3::interval)
+                    VALUES ($1, $2, $2, 'referral_bonus', now() + $3)
                     """,
                     user_id,
                     settings.referral_new_user_credits,
-                    expiry_interval,
+                    expiry,
                 )
                 # Bonus for the referrer
                 await conn.execute(
                     """
                     INSERT INTO credit_purchases
                         (user_id, credits, credits_initial, source, expires_at)
-                    VALUES ($1, $2, $2, 'referral_bonus',
-                            now() + $3::interval)
+                    VALUES ($1, $2, $2, 'referral_bonus', now() + $3)
                     """,
                     referrer_id,
                     settings.referral_referrer_credits,
-                    expiry_interval,
+                    expiry,
                 )
                 logger.info(
                     "Granted referral bonus: +%s to %s, +%s to referrer %s",
@@ -278,20 +276,20 @@ async def insert_credit_purchase(
 ) -> str:
     """Insert a new credit purchase. Returns the purchase ID."""
     pool = await get_pool(settings)
-    expiry_interval = f"{settings.credit_expiration_days} days"
+    expiry = timedelta(days=settings.credit_expiration_days)
     row = await pool.fetchrow(
         """
         INSERT INTO credit_purchases
             (user_id, credits, credits_initial, source,
              stripe_payment_intent_id, expires_at)
-        VALUES ($1, $2, $2, $3, $4, now() + $5::interval)
+        VALUES ($1, $2, $2, $3, $4, now() + $5)
         RETURNING id
         """,
         user_id,
         credits,
         source,
         stripe_payment_intent_id,
-        expiry_interval,
+        expiry,
     )
     return str(row["id"])  # type: ignore[index]
 
