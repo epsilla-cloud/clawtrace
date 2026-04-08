@@ -39,7 +39,7 @@ export async function grantInitialCredits(userId: string): Promise<void> {
 /** Grant 200 referral credits to both the new user and the referrer. */
 export async function grantReferralCredits(newUserId: string, referrerId: string): Promise<void> {
   await Promise.all([
-    grantCredits(newUserId, 200, 'referral_bonus'),
-    grantCredits(referrerId, 200, 'referral_bonus'),
+    grantCredits(newUserId, 200, 'referee_bonus'),
+    grantCredits(referrerId, 200, 'referrer_bonus'),
   ]);
 }

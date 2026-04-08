@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppNav } from '../app-nav/AppNav';
 import styles from './TracesPage.module.css';
 
@@ -205,6 +205,7 @@ const DEBOUNCE_MS = 400;
 
 /* ── Main component ──────────────────────────────────────────────────────── */
 export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
+  const router = useRouter();
   const searchParams   = useSearchParams();
   const initialAgentId = initialAgent || searchParams.get('agentId') || '';
 
@@ -418,7 +419,7 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
                     )}
                     {pagedTraces.map(t => (
                       <tr key={t.trace_id} className={styles.traceRow}
-                        onClick={() => { window.location.href = `/trace/${agentId}/${traceUuid(t.trace_id)}`; }}
+                        onClick={() => router.push(`/trace/${agentId}/${traceUuid(t.trace_id)}`)}
                         title="Click to drill into trace">
                         <td className={styles.traceId}>
                           <a href={`/trace/${agentId}/${traceUuid(t.trace_id)}`} className={styles.traceLink}
