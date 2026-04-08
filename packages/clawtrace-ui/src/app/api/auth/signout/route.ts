@@ -8,15 +8,25 @@ export async function POST() {
 
   const response = NextResponse.json({ ok: true });
 
-  // Clear the httpOnly auth cookie — must match the domain/path used when setting
-  response.cookies.set('auth_token', '', {
+  // Clear auth cookie with every possible domain variant to ensure deletion
+  const cookieBase = {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'lax' as const,
     path: '/',
-    domain: rootDomain,
     maxAge: 0,
-  });
+  };
+
+  // With root domain (.clawtrace.ai)
+  if (rootDomain) {
+    response.cookies.set('auth_token', '', { ...cookieBase, domain: rootDomain });
+  }
+  // With exact hostname (clawtrace.ai or www.clawtrace.ai)
+  if (hostname) {
+    response.cookies.set('auth_token', '', { ...cookieBase, domain: hostname });
+  }
+  // Without domain (browser default)
+  response.cookies.set('auth_token', '', cookieBase);
 
   return response;
 }
