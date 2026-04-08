@@ -28,7 +28,7 @@ FROM read_files(
     recursiveFileLookup => true
 )
 WHERE _metadata.file_modification_time > (
-    SELECT watermark FROM billing_checkpoint WHERE pipeline = 'usage_ingest'
+    SELECT watermark FROM clawtrace.billing.billing_checkpoint WHERE pipeline = 'usage_ingest'
 );
 
 -- Step 2: Flatten cost_breakdown into per-category rows
@@ -52,8 +52,8 @@ LATERAL VIEW OUTER explode(
 WHERE event_type = 'harvest'
   AND cost_breakdown_json IS NOT NULL;
 
--- Step 3: MERGE into billing_events (dedup on event_id + category)
-MERGE INTO billing_events AS tgt
+-- Step 3: MERGE into clawtrace.billing.billing_events (dedup on event_id + category)
+MERGE INTO clawtrace.billing.billing_events AS tgt
 USING (
     SELECT * FROM flattened_events
     WHERE event_id IS NOT NULL
@@ -66,7 +66,7 @@ WHEN NOT MATCHED THEN
             src.category, src.raw_amount, src.rate, src.credits_spent, src.created_at, src.ingest_ts);
 
 -- Step 4: Rebuild hourly aggregation for affected users
-MERGE INTO billing_usage_hourly AS tgt
+MERGE INTO clawtrace.billing.billing_usage_hourly AS tgt
 USING (
     SELECT
         user_id,
@@ -75,7 +75,7 @@ USING (
         SUM(credits_spent)                 AS total_credits,
         SUM(raw_amount)                    AS total_raw,
         COUNT(*)                           AS event_count
-    FROM billing_events
+    FROM clawtrace.billing.billing_events
     WHERE user_id IN (SELECT DISTINCT user_id FROM flattened_events)
     GROUP BY user_id, category, date_trunc('hour', created_at)
 ) AS src
@@ -92,6 +92,6 @@ WHEN NOT MATCHED THEN
     VALUES (src.user_id, src.category, src.hour_bucket, src.total_credits, src.total_raw, src.event_count);
 
 -- Step 5: Advance checkpoint
-UPDATE billing_checkpoint
+UPDATE clawtrace.billing.billing_checkpoint
 SET watermark = current_timestamp()
 WHERE pipeline = 'usage_ingest';
