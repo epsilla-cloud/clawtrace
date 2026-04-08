@@ -59,11 +59,14 @@ class Settings(BaseSettings):
     )
 
     # Pricing table: line_item -> credits per unit (JSON string)
-    # Note: user trace LLM tokens are NOT billed (users run their own OpenClaw).
-    # Only Tracy agent chat tokens from the API backend are billed.
+    # - tracy tokens: Tracy agent chat (not user trace LLM tokens)
+    # - storage_mb: per MB of raw trace storage per day (5x markup)
+    # - trace_list_query: per GET /v1/traces call
+    # - trace_detail_query: per GET /v1/traces/{id} call
     pricing_table_json: str = (
         '{"tracy_input_token_1k": 0.5, "tracy_output_token_1k": 1.5,'
-        ' "tool_call": 0.1, "storage_gb_hour": 2.0}'
+        ' "storage_mb_day": 1.35, "trace_list_query": 0.5,'
+        ' "trace_detail_query": 0.2}'
     )
 
     # Scheduler intervals (seconds)

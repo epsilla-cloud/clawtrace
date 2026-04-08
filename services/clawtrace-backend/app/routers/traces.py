@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from ..auth import get_current_user, get_settings
 from ..config import Settings
+from ..consumption import report_consumption
 from ..database import get_pool
 from ..models import UserSession
 from ..puppygraph import run_cypher
@@ -253,6 +254,9 @@ LIMIT {limit + 50}
         for r in tr_rows
     ]
 
+    # Report query consumption (fire-and-forget)
+    await report_consumption(tid, {"trace_list_query": 1.0}, settings)
+
     return TracesResponse(metrics=metrics, trends=trends, traces=traces)
 
 
@@ -377,5 +381,8 @@ ORDER BY s.span_start_ts_ms
         )
         for r in span_rows
     ]
+
+    # Report query consumption (fire-and-forget)
+    await report_consumption(tid, {"trace_detail_query": 1.0}, settings)
 
     return TraceDetailResponse(meta=meta, spans=spans)
