@@ -103,10 +103,14 @@ export function AppNav() {
         <Link
           href="/billing"
           className={`${styles.coinItem} ${pathname === '/billing' ? styles.itemActive : ''}`}
-          title={!expanded ? `${credits} credits` : undefined}
+          title={!expanded ? `${credits.toLocaleString()} credits` : undefined}
         >
-          <Image src="/icons/coin.png" alt="" width={20} height={20} className={styles.coinIcon} unoptimized />
-          <span className={expanded ? styles.itemLabel : styles.coinCount}>{credits}</span>
+          <Image src="/icons/coin.png" alt="" width={28} height={28} className={styles.coinIcon} unoptimized />
+          {expanded ? (
+            <span className={styles.itemLabel}>{credits.toLocaleString()} Credits</span>
+          ) : (
+            <span className={styles.coinCount}>{credits.toLocaleString()}</span>
+          )}
         </Link>
         <Link
           href="/account"
@@ -115,7 +119,7 @@ export function AppNav() {
         >
           <span className={styles.itemIcon}>
             {user?.avatar ? (
-              <Image src={user.avatar} alt="" width={20} height={20} className={styles.avatarImg} unoptimized />
+              <Image src={user.avatar} alt="" width={28} height={28} className={styles.avatarImg} unoptimized />
             ) : (
               <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <circle cx="11" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6"/>

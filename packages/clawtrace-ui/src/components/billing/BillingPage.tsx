@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCallback, useEffect, useState } from 'react';
 import styles from './BillingPage.module.css';
 
@@ -69,16 +70,7 @@ function GiftIcon({ className }: { className?: string }) {
   );
 }
 
-/* ── Coin icon SVG ─────────────────────────────────────────────────────── */
-function CoinIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="10" fill="#f0c040" stroke="#c8a020" strokeWidth="1.5" />
-      <circle cx="12" cy="12" r="7" fill="#f8d860" stroke="#d4a830" strokeWidth="1" />
-      <text x="12" y="16" textAnchor="middle" fill="#8a6010" fontSize="10" fontWeight="700">C</text>
-    </svg>
-  );
-}
+/* CoinIcon removed — using /icons/coin.png directly via Image */
 
 /* ── Main component ────────────────────────────────────────────────────── */
 export function BillingPage() {
@@ -139,7 +131,7 @@ export function BillingPage() {
         <div className={styles.balanceCard}>
           <span className={styles.balanceLabel}>Credit Balance</span>
           <div className={styles.balanceValue}>
-            <CoinIcon className={styles.balanceCoin} />
+            <Image src="/icons/coin.png" alt="" width={36} height={36} className={styles.balanceCoin} unoptimized />
             <span>{loading ? '...' : formatCredits(status?.total_remaining ?? 0)}</span>
           </div>
         </div>
@@ -170,6 +162,7 @@ export function BillingPage() {
 
         {/* Credit History Table */}
         <div className={styles.tableCard}>
+          <div className={styles.tableScroll}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -225,6 +218,7 @@ export function BillingPage() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
         {/* Pagination */}
