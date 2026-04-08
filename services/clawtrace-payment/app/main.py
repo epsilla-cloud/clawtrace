@@ -13,6 +13,7 @@ from .consumption import ConsumptionStore
 from .database import close_pool, run_migrations
 from .harvester import run_harvest
 from .notifications import send_pending_notifications
+from .usage_poller import poll_storage_usage
 from .scheduler import Scheduler
 from .storage import AuditWriter
 
@@ -44,6 +45,11 @@ async def lifespan(app: FastAPI):
         "notify",
         lambda: send_pending_notifications(settings),
         settings.notification_interval_seconds,
+    )
+    scheduler.register(
+        "poll_storage",
+        lambda: poll_storage_usage(store, settings),
+        settings.usage_poll_interval_seconds,
     )
     app.state.scheduler = scheduler
     logger.info("Payment service started (port %d)", settings.port)
