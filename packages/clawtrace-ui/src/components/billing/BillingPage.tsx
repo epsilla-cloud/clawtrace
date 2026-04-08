@@ -10,6 +10,9 @@ type CreditPurchase = {
   credits_initial: number;
   source: string;
   stripe_payment_intent_id: string | null;
+  receipt_url: string | null;
+  invoice_url: string | null;
+  amount_paid_cents: number | null;
   expires_at: string;
   created_at: string;
   status: 'active' | 'expired' | 'exhausted';
@@ -188,8 +191,9 @@ export function BillingPage() {
               )}
               {pagedPurchases.map((p) => {
                 const isPurchase = p.source === 'topup';
-                const priceMap: Record<number, number> = { 1000: 10, 5000: 50, 10000: 90, 50000: 400 };
-                const paid = isPurchase ? priceMap[p.credits_initial] : null;
+                const amountPaid = p.amount_paid_cents
+                  ? `$${(p.amount_paid_cents / 100).toFixed(2)}`
+                  : null;
 
                 return (
                   <tr key={p.id}>
@@ -202,8 +206,20 @@ export function BillingPage() {
                         {p.status.charAt(0).toUpperCase() + p.status.slice(1)}
                       </span>
                     </td>
-                    <td>{paid ? `$${paid}` : 'N/A'}</td>
-                    <td>{isPurchase ? <span className={styles.invoiceLink}>Download</span> : 'N/A'}</td>
+                    <td>{amountPaid ?? 'N/A'}</td>
+                    <td>
+                      {p.invoice_url ? (
+                        <a href={p.invoice_url} target="_blank" rel="noopener noreferrer" className={styles.invoiceLink}>
+                          Download
+                        </a>
+                      ) : isPurchase && p.receipt_url ? (
+                        <a href={p.receipt_url} target="_blank" rel="noopener noreferrer" className={styles.invoiceLink}>
+                          Receipt
+                        </a>
+                      ) : (
+                        'N/A'
+                      )}
+                    </td>
                   </tr>
                 );
               })}

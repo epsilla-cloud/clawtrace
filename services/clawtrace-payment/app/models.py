@@ -22,6 +22,9 @@ class CreditPurchase(BaseModel):
     credits_initial: float
     source: str  # signup_bonus | referral_bonus | topup | admin_grant | launch_bonus
     stripe_payment_intent_id: str | None = None
+    receipt_url: str | None = None
+    invoice_url: str | None = None
+    amount_paid_cents: int | None = None
     expires_at: datetime
     created_at: datetime
     status: str  # active | expired | exhausted
