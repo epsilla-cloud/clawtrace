@@ -77,8 +77,7 @@
 .packagesGrid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 14px;
-  padding-top: 14px; /* space for badges that float above cards */
+  gap: 12px;
 }
 @media (max-width: 860px) {
   .packagesGrid { grid-template-columns: repeat(2, 1fr); }
@@ -91,6 +90,7 @@
 
 .packageCard {
   position: relative;
+  width: 100%;
   border: 1px solid #dacbb4;
   border-radius: 14px;
   background: linear-gradient(135deg, #fffdf8 0%, #faf0e4 50%, #fffdf8 100%);
@@ -143,22 +143,23 @@
 .packageCard:nth-child(3)::before { animation-delay: 2s; }
 .packageCard:nth-child(4)::before { animation-delay: 3s; }
 
-/* Wrapper holds the badge above the card */
+/* Wrapper: badge floats above the card */
 .packageWrap {
   position: relative;
+  padding-top: 6px; /* small space for badge overflow */
 }
 
 .packageBadge {
   position: absolute;
-  top: -8px;
-  right: 12px;
-  padding: 3px 10px;
+  top: 0;
+  right: 10px;
+  padding: 2px 9px;
   border-radius: 999px;
   background: #f5e2a0;
   color: #7a5a10;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 650;
-  transform: rotate(6deg);
+  transform: rotate(5deg);
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   white-space: nowrap;
   z-index: 3;
