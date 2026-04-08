@@ -136,6 +136,11 @@ export async function GET(request: NextRequest) {
     const redirectTo = parseRedirectFromState(state);
     const response = NextResponse.redirect(redirectTo);
     response.cookies.set(COOKIE_NAME, token, authCookieOptions());
+    // Store GitHub access token for revocation on sign-out
+    response.cookies.set('github_access_token', access_token, {
+      ...authCookieOptions(),
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
     return response;
   } catch (err) {
     console.error('GitHub OAuth callback error:', err);
