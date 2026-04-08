@@ -38,6 +38,38 @@
   gap: 14px;
 }
 
+/* Invite card with shimmer */
+.inviteCard {
+  position: relative;
+  background: linear-gradient(135deg, #fffdf8 0%, #faf0e4 50%, #fffdf8 100%);
+  background-size: 200% 200%;
+  overflow: hidden;
+}
+.inviteCard::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.4) 45%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.4) 55%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  animation: inviteShimmer 4s ease-in-out infinite;
+  pointer-events: none;
+  clip-path: inset(0 round 14px);
+}
+@keyframes inviteShimmer {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
+}
+
 /* Profile */
 .profileRow {
   display: flex;

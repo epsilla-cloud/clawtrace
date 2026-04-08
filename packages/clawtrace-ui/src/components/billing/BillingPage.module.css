@@ -103,9 +103,18 @@
   transition: border-color 200ms, box-shadow 200ms, transform 140ms;
   text-align: left;
   font-family: inherit;
-  overflow: hidden;
+  overflow: visible;
 }
-/* Shimmer sweep — subtle light reflection */
+/* Shimmer sweep — subtle light reflection, clipped to card border-radius */
+.packageCard::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
 .packageCard::before {
   content: '';
   position: absolute;
@@ -113,6 +122,7 @@
   left: -50%;
   width: 200%;
   height: 200%;
+  border-radius: inherit;
   background: linear-gradient(
     105deg,
     transparent 40%,
@@ -124,6 +134,7 @@
   transform: translateX(-100%);
   animation: shimmer 4s ease-in-out infinite;
   pointer-events: none;
+  clip-path: inset(0 round 14px);
 }
 @keyframes shimmer {
   0%, 100% { transform: translateX(-100%); }
@@ -156,6 +167,7 @@
   transform: rotate(6deg);
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   white-space: nowrap;
+  z-index: 2;
 }
 
 .packageIcon {
