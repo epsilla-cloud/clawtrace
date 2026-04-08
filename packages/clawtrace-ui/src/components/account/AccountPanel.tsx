@@ -59,7 +59,7 @@ export function AccountPanel({ name, email, avatar, provider, tier, points }: Pr
 
       {/* Actions */}
       <div className={styles.actions}>
-        <a href="/overview/billing" className={styles.actionLink}>Billing &amp; Plans →</a>
+        <a href="/billing" className={styles.actionLink}>Billing &amp; Plans →</a>
         <a href="/overview/referrals" className={styles.actionLink}>Referrals →</a>
       </div>
 
