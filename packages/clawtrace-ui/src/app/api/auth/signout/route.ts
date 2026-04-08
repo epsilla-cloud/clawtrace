@@ -2,18 +2,26 @@ import { NextResponse } from 'next/server';
 import { authCookieOptions, COOKIE_NAME } from '@/lib/auth';
 import { cookies } from 'next/headers';
 
-export async function POST() {
+/**
+ * GET /api/auth/signout — redirect-based sign-out.
+ * Clears all auth cookies and redirects to /login.
+ * Using GET+redirect instead of POST+fetch ensures cookies are applied
+ * before the browser loads the login page.
+ */
+export async function GET() {
   const store = await cookies();
-  const response = NextResponse.json({ ok: true });
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? '';
+  const loginUrl = siteUrl ? `${siteUrl}/login` : '/login';
 
-  // Clear the auth cookie using exact same options as login
+  const response = NextResponse.redirect(loginUrl, { status: 302 });
+
+  // Clear auth cookie
   const opts = authCookieOptions();
   response.cookies.set(COOKIE_NAME, '', { ...opts, maxAge: 0 });
 
-  // Also clear the GitHub OAuth token cookie if it exists
+  // Revoke GitHub OAuth token if stored
   const ghToken = store.get('github_access_token')?.value;
   if (ghToken) {
-    // Revoke the GitHub OAuth token so next login shows consent/account chooser
     try {
       const clientId = process.env.GITHUB_CLIENT_ID ?? '';
       const clientSecret = process.env.GITHUB_CLIENT_SECRET ?? '';
@@ -33,4 +41,9 @@ export async function POST() {
   }
 
   return response;
+}
+
+// Keep POST for backward compatibility
+export async function POST() {
+  return GET();
 }
