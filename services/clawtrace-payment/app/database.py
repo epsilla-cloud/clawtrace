@@ -50,6 +50,21 @@ CREATE TABLE IF NOT EXISTS credit_purchases (
 );
 """
 
+ADD_INVOICE_COLUMNS = """
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='credit_purchases' AND column_name='receipt_url') THEN
+    ALTER TABLE credit_purchases ADD COLUMN receipt_url TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='credit_purchases' AND column_name='invoice_url') THEN
+    ALTER TABLE credit_purchases ADD COLUMN invoice_url TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='credit_purchases' AND column_name='amount_paid_cents') THEN
+    ALTER TABLE credit_purchases ADD COLUMN amount_paid_cents INTEGER;
+  END IF;
+END $$;
+"""
+
 CREATE_CREDIT_PURCHASES_IDX = """
 CREATE INDEX IF NOT EXISTS credit_purchases_user_active_idx
     ON credit_purchases(user_id, expires_at) WHERE credits > 0;
@@ -78,6 +93,7 @@ async def run_migrations(settings: Settings) -> None:
     async with pool.acquire() as conn:
         for sql in [
             CREATE_CREDIT_PURCHASES,
+            ADD_INVOICE_COLUMNS,
             CREATE_CREDIT_PURCHASES_IDX,
             CREATE_PENDING_NOTIFICATIONS,
             CREATE_PENDING_NOTIFICATIONS_IDX,
@@ -166,7 +182,8 @@ async def get_credit_status(
         rows = await conn.fetch(
             """
             SELECT id, credits, credits_initial, source,
-                   stripe_payment_intent_id, expires_at, created_at
+                   stripe_payment_intent_id, receipt_url, invoice_url,
+                   amount_paid_cents, expires_at, created_at
             FROM credit_purchases
             WHERE user_id = $1
             ORDER BY created_at DESC
@@ -191,6 +208,9 @@ async def get_credit_status(
                 "credits_initial": r["credits_initial"],
                 "source": r["source"],
                 "stripe_payment_intent_id": r.get("stripe_payment_intent_id"),
+                "receipt_url": r.get("receipt_url"),
+                "invoice_url": r.get("invoice_url"),
+                "amount_paid_cents": r.get("amount_paid_cents"),
                 "expires_at": r["expires_at"],
                 "created_at": r["created_at"],
                 "status": status,
@@ -287,6 +307,9 @@ async def insert_credit_purchase(
     source: str,
     stripe_payment_intent_id: str | None,
     settings: Settings,
+    receipt_url: str | None = None,
+    invoice_url: str | None = None,
+    amount_paid_cents: int | None = None,
 ) -> str:
     """Insert a new credit purchase. Returns the purchase ID."""
     pool = await get_pool(settings)
@@ -295,14 +318,18 @@ async def insert_credit_purchase(
         """
         INSERT INTO credit_purchases
             (user_id, credits, credits_initial, source,
-             stripe_payment_intent_id, expires_at)
-        VALUES ($1, $2, $2, $3, $4, now() + $5)
+             stripe_payment_intent_id, receipt_url, invoice_url,
+             amount_paid_cents, expires_at)
+        VALUES ($1, $2, $2, $3, $4, $5, $6, $7, now() + $8)
         RETURNING id
         """,
         user_id,
         credits,
         source,
         stripe_payment_intent_id,
+        receipt_url,
+        invoice_url,
+        amount_paid_cents,
         expiry,
     )
     return str(row["id"])  # type: ignore[index]
