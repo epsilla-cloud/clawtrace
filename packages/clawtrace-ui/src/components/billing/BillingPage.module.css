@@ -23,18 +23,22 @@
   gap: 24px;
 }
 
-/* ── Header ────────────────────────────────────────────────────────────── */
+/* ── Header — matches trace page breadcrumb ────────────────────────────── */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.title {
-  margin: 0;
-  font-size: 22px;
-  font-weight: 640;
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #7c6854;
+}
+.breadcrumbCurrent {
   color: #2e2115;
-  font-style: italic;
+  font-weight: 560;
 }
 
 /* ── Balance card ──────────────────────────────────────────────────────── */

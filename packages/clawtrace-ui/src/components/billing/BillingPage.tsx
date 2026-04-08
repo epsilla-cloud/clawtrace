@@ -125,9 +125,11 @@ export function BillingPage() {
   return (
     <section className={styles.shell}>
       <div className={styles.content}>
-        {/* Header */}
+        {/* Header — matches trace page breadcrumb style */}
         <header className={styles.header}>
-          <h1 className={styles.title}>Billing</h1>
+          <nav className={styles.breadcrumb}>
+            <span className={styles.breadcrumbCurrent}>Billing</span>
+          </nav>
         </header>
 
         {/* Credit Balance Card */}
