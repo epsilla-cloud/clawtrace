@@ -134,7 +134,7 @@ export function ConnectWizard() {
               <CopyButton text={createdKey.observe_key} />
             </div>
             <p className={styles.keyWarning}>
-              Treat this key as a password. ClawTrace will not show it again once you leave this screen.
+              Treat this key as a password. Copy and store it in a safe place. ClawTrace will not show it again once you leave this screen.
             </p>
           </div>
 

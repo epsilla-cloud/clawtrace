@@ -266,15 +266,18 @@
   border: 1px solid #dacbb4;
   border-radius: 10px;
   background: #faf4ec;
-  padding: 10px 14px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  padding: 10px 44px 10px 14px;
 }
 
 .codeBlock > div:first-child {
-  flex: 1;
   min-width: 0;
+}
+
+.codeBlock .copyBtn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* Listener */
