@@ -10,3 +10,5 @@ openclaw
 screenshots
 plugins/clawtrace/node_modules/
 packages/clawtrace-ui/nanobanana-output/
+clawtrace-ingest-vm_key.pem
+

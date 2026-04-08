@@ -6,6 +6,6 @@ export const metadata = { title: 'Connect OpenClaw — ClawTrace' };
 
 export default async function ConnectPage() {
   const session = await getUserSession();
-  if (!session) redirect('/overview');
+  if (!session) redirect('/login');
   return <ConnectWizard />;
 }

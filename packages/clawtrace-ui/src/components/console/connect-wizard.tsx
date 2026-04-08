@@ -187,7 +187,7 @@ export function ConnectWizard() {
             <button
               type="button"
               className={styles.continueBtn}
-              onClick={() => router.push('/overview')}
+              onClick={() => router.push('/trace')}
             >
               Done →
             </button>

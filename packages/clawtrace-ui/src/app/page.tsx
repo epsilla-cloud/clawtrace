@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   // Redirect logged-in users straight to the app
   const session = await getUserSession();
-  if (session) redirect('/overview');
+  if (session) redirect('/trace');
 
   const jsonLd = {
     '@context': 'https://schema.org',

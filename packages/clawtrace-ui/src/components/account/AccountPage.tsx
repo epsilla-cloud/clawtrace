@@ -43,8 +43,8 @@ export function AccountPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSignOut = () => {
-    document.cookie = 'auth_token=; path=/; max-age=0';
+  const handleSignOut = async () => {
+    await fetch('/api/auth/signout', { method: 'POST' });
     window.location.href = '/login';
   };
 
