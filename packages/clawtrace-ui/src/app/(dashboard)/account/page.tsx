@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { AccountPage } from '@/components/account/AccountPage';
 
-export const metadata = { title: 'Account — ClawTrace' };
+export const metadata = { title: 'Account' };
 
 export default function Page() {
   return (

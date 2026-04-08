@@ -134,12 +134,15 @@ export function BillingPage() {
           <span className={styles.balanceLabel}>Credit Balance</span>
           <div className={styles.balanceValue}>
             <Image src="/icons/coin.png" alt="" width={36} height={36} className={styles.balanceCoin} unoptimized />
-            <span>{loading ? '...' : formatCredits(status?.total_remaining ?? 0)}</span>
+            {loading ? <div className={styles.skeletonBalance} /> : <span>{formatCredits(status?.total_remaining ?? 0)}</span>}
           </div>
         </div>
 
         {/* Credit Packages */}
         <div className={styles.packagesGrid}>
+          {loading && packages.length === 0 && [0,1,2,3].map((i) => (
+            <div key={i} className={styles.skeletonCard} />
+          ))}
           {packages.map((pkg) => (
             <div key={pkg.id} className={styles.packageWrap}>
               {pkg.badge && <span className={styles.packageBadge}>{pkg.badge}</span>}
