@@ -136,6 +136,27 @@ async def get_traces(
     from_ms = from_ms or _from
     to_ms   = to_ms   or _to
 
+    # ── 0. Quick count — skip PuppyGraph entirely if zero traces ─────────────
+    count_q = f"""
+MATCH (t:Trace)
+WHERE t.agent_id  = '{agent_id}'
+  AND t.tenant_id = '{tid}'
+  AND t.trace_start_ts_ms >= {from_ms}
+  AND t.trace_start_ts_ms <= {to_ms}
+RETURN count(t) AS cnt
+"""
+    count_rows = await run_cypher(count_q, settings)
+    if not count_rows or _safe_int(count_rows[0].get("cnt", 0)) == 0:
+        return TracesResponse(
+            metrics=TraceMetrics(
+                total_traces=0, total_tokens=0,
+                total_input_tokens=0, total_output_tokens=0,
+                success_rate=1.0,
+            ),
+            trends=[],
+            traces=[],
+        )
+
     # ── 1. Metrics ────────────────────────────────────────────────────────────
     metrics_q = f"""
 MATCH (t:Trace)

@@ -129,7 +129,8 @@ export function authCookieOptions() {
 
 /** Parse the OAuth state param and return a safe redirect URL */
 export function parseRedirectFromState(state: string | null): string {
-  const fallback = process.env.NEXT_PUBLIC_SITE_URL ?? '/';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? '';
+  const fallback = siteUrl ? `${siteUrl}/trace` : '/trace';
   if (!state) return fallback;
   try {
     const { redirect } = JSON.parse(Buffer.from(state, 'base64').toString()) as {
