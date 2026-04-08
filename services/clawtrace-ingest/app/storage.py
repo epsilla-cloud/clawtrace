@@ -3,11 +3,6 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Protocol
 
-import boto3
-from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient, ContentSettings
-from google.cloud import storage
-
 from .config import Settings, StorageProvider
 from .models import PersistedEvent
 
@@ -25,10 +20,11 @@ class ObjectStorageWriter(Protocol):
 class GCSObjectStorageWriter:
     def __init__(self, bucket_name: str):
         self._bucket_name = bucket_name
-        self._client: storage.Client | None = None
+        self._client = None
 
-    def _get_client(self) -> storage.Client:
+    def _get_client(self):
         if self._client is None:
+            from google.cloud import storage
             self._client = storage.Client()
         return self._client
 
@@ -53,9 +49,11 @@ class AzureBlobObjectStorageWriter:
         self._container_client = self._create_container_client()
 
     def _create_container_client(self):
+        from azure.storage.blob import BlobServiceClient
         if self._connection_string:
             service_client = BlobServiceClient.from_connection_string(self._connection_string)
         else:
+            from azure.identity import DefaultAzureCredential
             if not self._account_url:
                 raise ValueError(
                     "CLAWTRACE_INGEST_AZURE_ACCOUNT_URL must be set when "
@@ -68,6 +66,7 @@ class AzureBlobObjectStorageWriter:
         return service_client.get_container_client(self._container_name)
 
     def write_text(self, object_key: str, payload: str, *, content_type: str) -> str:
+        from azure.storage.blob import ContentSettings
         blob_client = self._container_client.get_blob_client(object_key)
         blob_client.upload_blob(
             payload.encode("utf-8"),
@@ -86,6 +85,7 @@ class S3ObjectStorageWriter:
         endpoint_url: str = "",
     ):
         self._bucket_name = bucket_name
+        import boto3
         self._client = boto3.client(
             "s3",
             region_name=region or None,
