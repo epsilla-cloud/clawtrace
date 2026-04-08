@@ -184,20 +184,16 @@
   line-height: 1.1;
 }
 
-.packageFooter {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 6px;
-}
 .packagePrice {
   font-size: 13px;
   color: #5a4534;
   font-weight: 520;
+  margin-top: auto; /* push price + expiry to bottom */
 }
 .packageExpiry {
   font-size: 11px;
   color: #b89c84;
+  align-self: flex-end;
 }
 
 .packageLoading {

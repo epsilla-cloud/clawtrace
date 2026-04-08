@@ -156,10 +156,8 @@ export function BillingPage() {
               <span className={styles.packageCredits}>
                 {formatCredits(pkg.credits)} Credits
               </span>
-              <div className={styles.packageFooter}>
-                <span className={styles.packagePrice}>For ${pkg.price_usd}</span>
-                <span className={styles.packageExpiry}>Expires in 1 year</span>
-              </div>
+              <span className={styles.packagePrice}>For ${pkg.price_usd}</span>
+              <span className={styles.packageExpiry}>Expires in 1 year</span>
               {purchasing === pkg.id && <span className={styles.packageLoading}>Redirecting...</span>}
             </button>
             </div>
