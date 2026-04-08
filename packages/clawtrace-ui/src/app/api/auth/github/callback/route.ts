@@ -7,7 +7,7 @@ import {
   parseRedirectFromState,
   parseInviteCodeFromState,
 } from '@/lib/auth';
-import { awardSignupBonus, applyReferral } from '@/lib/referral';
+import { applyReferral } from '@/lib/referral';
 import { grantInitialCredits } from '@/lib/billing';
 
 export async function GET(request: NextRequest) {
@@ -111,7 +111,6 @@ export async function GET(request: NextRequest) {
     }
 
     if (isNew) {
-      try { await awardSignupBonus(user.id); } catch (e) { console.error('awardSignupBonus error:', e); }
       try { await grantInitialCredits(user.id); } catch (e) { console.error('grantInitialCredits error:', e); }
       const inviteCode = parseInviteCodeFromState(state);
       if (inviteCode) {
