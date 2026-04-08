@@ -23,6 +23,8 @@ class StorageProvider(str, Enum):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="CLAWTRACE_INGEST_",
+        env_file=".env",
+        env_file_encoding="utf-8",
         extra="ignore",
     )
 
