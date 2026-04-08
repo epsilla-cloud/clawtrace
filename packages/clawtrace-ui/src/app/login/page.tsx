@@ -79,7 +79,7 @@ export default async function LoginPage({
           )}
 
           <div className={styles.buttons}>
-            <LoginButtons redirect={redirect ?? '/overview'} inviteCode={invitecode} />
+            <LoginButtons redirect={redirect ?? '/trace'} inviteCode={invitecode} />
           </div>
 
           <p className={styles.terms}>

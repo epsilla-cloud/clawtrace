@@ -15,10 +15,11 @@ const MAIN_NAV = [
     match: (p: string) => p === '/trace' || p.startsWith('/trace/'),
     icon: (
       <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-        {/* Three horizontal bars — timeline trace */}
-        <rect x="2" y="4" width="14" height="3" rx="1.5" fill="currentColor" opacity="0.85"/>
-        <rect x="5" y="9.5" width="10" height="3" rx="1.5" fill="currentColor" opacity="0.6"/>
-        <rect x="3" y="15" width="12" height="3" rx="1.5" fill="currentColor" opacity="0.4"/>
+        {/* 4 squares — app grid icon */}
+        <rect x="2" y="2" width="8" height="8" rx="2" fill="currentColor" opacity="0.85"/>
+        <rect x="12" y="2" width="8" height="8" rx="2" fill="currentColor" opacity="0.65"/>
+        <rect x="2" y="12" width="8" height="8" rx="2" fill="currentColor" opacity="0.65"/>
+        <rect x="12" y="12" width="8" height="8" rx="2" fill="currentColor" opacity="0.45"/>
       </svg>
     ),
   },
