@@ -24,44 +24,50 @@ async def query_usage(
 
     from_dt = datetime.fromtimestamp(from_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     to_dt = datetime.fromtimestamp(to_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    from_date = datetime.fromtimestamp(from_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+    to_date = datetime.fromtimestamp(to_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
 
-    # Determine bucket size based on range
+    # Pick the right pre-aggregated table based on range
     range_ms = to_ms - from_ms
-    if range_ms <= 86_400_000:  # 1 day → hourly
-        bucket_expr = "hour_bucket"
-    elif range_ms <= 30 * 86_400_000:  # 30 days → daily
-        bucket_expr = "date_trunc('day', hour_bucket)"
-    else:  # > 30 days → weekly
-        bucket_expr = "date_trunc('week', hour_bucket)"
+    if range_ms <= 2 * 86_400_000:  # ≤ 2 days → hourly table
+        table = "billing_usage_hourly"
+        bucket_col = "hour_bucket"
+        time_filter = f"{bucket_col} >= '{from_dt}' AND {bucket_col} <= '{to_dt}'"
+    elif range_ms <= 90 * 86_400_000:  # ≤ 90 days → daily table
+        table = "billing_usage_daily"
+        bucket_col = "day_bucket"
+        time_filter = f"{bucket_col} >= '{from_date}' AND {bucket_col} <= '{to_date}'"
+    elif range_ms <= 365 * 86_400_000:  # ≤ 1 year → weekly table
+        table = "billing_usage_weekly"
+        bucket_col = "week_bucket"
+        time_filter = f"{bucket_col} >= '{from_dt}' AND {bucket_col} <= '{to_dt}'"
+    else:  # > 1 year → monthly table
+        table = "billing_usage_monthly"
+        bucket_col = "month_bucket"
+        time_filter = f"{bucket_col} >= '{from_dt}' AND {bucket_col} <= '{to_dt}'"
 
     sql = f"""
     SELECT
-        {bucket_expr} AS bucket,
+        {bucket_col} AS bucket,
         category,
         SUM(total_credits) AS credits,
         SUM(total_raw) AS raw_total
-    FROM billing_usage_hourly
-    WHERE user_id = '{user_id}'
-      AND hour_bucket >= '{from_dt}'
-      AND hour_bucket <= '{to_dt}'
-    GROUP BY {bucket_expr}, category
+    FROM {table}
+    WHERE user_id = '{user_id}' AND {time_filter}
+    GROUP BY {bucket_col}, category
     ORDER BY bucket
     """
 
     total_sql = f"""
     SELECT COALESCE(SUM(total_credits), 0) AS total
-    FROM billing_usage_hourly
-    WHERE user_id = '{user_id}'
-      AND hour_bucket >= '{from_dt}'
-      AND hour_bucket <= '{to_dt}'
+    FROM {table}
+    WHERE user_id = '{user_id}' AND {time_filter}
     """
 
     category_sql = f"""
     SELECT category, SUM(total_credits) AS total
-    FROM billing_usage_hourly
-    WHERE user_id = '{user_id}'
-      AND hour_bucket >= '{from_dt}'
-      AND hour_bucket <= '{to_dt}'
+    FROM {table}
+    WHERE user_id = '{user_id}' AND {time_filter}
     GROUP BY category
     ORDER BY total DESC
     """
