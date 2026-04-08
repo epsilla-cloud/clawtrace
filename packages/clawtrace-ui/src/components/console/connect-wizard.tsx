@@ -129,7 +129,7 @@ export function ConnectWizard() {
                 <p className={styles.stepTitle}>Install the ClawTrace plugin</p>
                 <p className={styles.stepDesc}>Run this in your terminal on the machine running OpenClaw.</p>
                 <div className={styles.codeBlock}>
-                  <span className={styles.codeLang}>BASH</span>
+
                   <code>openclaw plugins install @epsilla/clawtrace</code>
                   <CopyButton text="openclaw plugins install @epsilla/clawtrace" />
                 </div>
@@ -145,7 +145,7 @@ export function ConnectWizard() {
                   paste the key shown above.
                 </p>
                 <div className={styles.codeBlock}>
-                  <span className={styles.codeLang}>BASH</span>
+
                   <code>openclaw clawtrace setup</code>
                   <CopyButton text="openclaw clawtrace setup" />
                 </div>
@@ -158,7 +158,7 @@ export function ConnectWizard() {
                 <p className={styles.stepTitle}>Restart OpenClaw gateway</p>
                 <p className={styles.stepDesc}>Reload the gateway so the plugin picks up your new key.</p>
                 <div className={styles.codeBlock}>
-                  <span className={styles.codeLang}>BASH</span>
+
                   <code>openclaw gateway restart</code>
                   <CopyButton text="openclaw gateway restart" />
                 </div>

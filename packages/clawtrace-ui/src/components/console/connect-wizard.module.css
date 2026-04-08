@@ -93,9 +93,7 @@
   max-width: 620px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  /* Override root's align-items:center which pushes title off-screen */
-  margin-top: 0;
+  gap: 20px;
   align-self: flex-start;
 }
 
@@ -109,26 +107,24 @@
 }
 
 .heading {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 640;
   color: #2e2115;
-  text-align: center;
   margin: 0;
 }
 
 .subheading {
-  font-size: 14px;
+  font-size: 13px;
   color: #7c6854;
-  text-align: center;
   line-height: 1.6;
   margin: 0;
 }
 
 /* Key panel */
 .keyPanel {
-  background: #fff;
-  border: 1px solid #e8d9c4;
-  border-radius: 12px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
@@ -207,10 +203,10 @@
 
 /* Briefing */
 .briefing {
-  background: #fff;
-  border: 1px solid #e8d9c4;
-  border-radius: 12px;
-  padding: 20px 20px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -260,42 +256,24 @@
 }
 
 .codeBlock {
-  background: #1e1610;
-  border-radius: 8px;
-  padding: 12px 14px;
   position: relative;
+  border: 1px solid #dacbb4;
+  border-radius: 10px;
+  background: #faf4ec;
+  padding: 10px 14px;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
 }
 
 .codeBlock code {
-  font-family: var(--font-mono, monospace);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
   font-size: 12px;
-  color: #e8d4b8;
+  color: #3b3128;
   white-space: pre-wrap;
   word-break: break-all;
   flex: 1;
-  line-height: 1.6;
-}
-
-.codeBlock .copyBtn {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.15);
-  color: #b89c84;
-  margin-top: 1px;
-}
-.codeBlock .copyBtn:hover { background: rgba(255,255,255,0.14); }
-
-.codeLang {
-  position: absolute;
-  top: 6px;
-  right: 10px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: rgba(255,255,255,0.2);
-  text-transform: uppercase;
+  line-height: 1.5;
 }
 
 /* Listener */
