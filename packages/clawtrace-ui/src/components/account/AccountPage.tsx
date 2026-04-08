@@ -43,10 +43,9 @@ export function AccountPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleSignOut = async () => {
-    await fetch('/api/auth/signout', { method: 'POST', credentials: 'include' });
-    // Hard reload to clear any cached auth state
-    window.location.replace('/login');
+  const handleSignOut = () => {
+    // GET redirect — server clears cookies then 302s to /login
+    window.location.href = '/api/auth/signout';
   };
 
   return (
