@@ -44,8 +44,9 @@ export function AccountPage() {
   };
 
   const handleSignOut = async () => {
-    await fetch('/api/auth/signout', { method: 'POST' });
-    window.location.href = '/login';
+    await fetch('/api/auth/signout', { method: 'POST', credentials: 'include' });
+    // Hard reload to clear any cached auth state
+    window.location.replace('/login');
   };
 
   return (
