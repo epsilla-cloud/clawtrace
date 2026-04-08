@@ -6,6 +6,10 @@
 -- Schedule: every 30 minutes (aligned with harvest frequency)
 -- ============================================================================
 
+-- PREREQUISITE: Add storage account key to SQL Warehouse → Advanced Options →
+-- Data Access Configuration:
+--   fs.azure.account.key.clawtracelake01.dfs.core.windows.net = <key>
+
 -- Step 1: Read new audit JSON files since last checkpoint
 CREATE OR REPLACE TEMPORARY VIEW new_audit_files AS
 SELECT
