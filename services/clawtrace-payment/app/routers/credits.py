@@ -180,8 +180,8 @@ async def topup_credits(
                 "quantity": 1,
             }
         ],
-        success_url="https://clawtrace.ai/overview/billing?topup=success",
-        cancel_url="https://clawtrace.ai/overview/billing",
+        success_url="https://clawtrace.ai/billing?topup=success",
+        cancel_url="https://clawtrace.ai/billing",
         metadata={
             "user_id": session.db_id,
             "package_id": package.id,

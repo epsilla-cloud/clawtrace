@@ -160,28 +160,41 @@ async def get_credit_status(
     user_id: str, settings: Settings
 ) -> dict[str, Any]:
     pool = await get_pool(settings)
+    now_ts = await pool.fetchval("SELECT now()")
     async with pool.acquire() as conn:
+        # Fetch ALL purchases (including expired/exhausted) for history
         rows = await conn.fetch(
             """
-            SELECT id, credits, credits_initial, source, expires_at, created_at
+            SELECT id, credits, credits_initial, source,
+                   stripe_payment_intent_id, expires_at, created_at
             FROM credit_purchases
-            WHERE user_id = $1 AND credits > 0 AND expires_at > now()
-            ORDER BY expires_at ASC
+            WHERE user_id = $1
+            ORDER BY created_at DESC
             """,
             user_id,
         )
-        total = sum(r["credits"] for r in rows)
-        purchases = [
-            {
+        total = sum(
+            r["credits"] for r in rows
+            if r["credits"] > 0 and r["expires_at"] > now_ts
+        )
+        purchases = []
+        for r in rows:
+            if r["expires_at"] <= now_ts:
+                status = "expired"
+            elif r["credits"] <= 0:
+                status = "exhausted"
+            else:
+                status = "active"
+            purchases.append({
                 "id": str(r["id"]),
                 "credits": r["credits"],
                 "credits_initial": r["credits_initial"],
                 "source": r["source"],
+                "stripe_payment_intent_id": r.get("stripe_payment_intent_id"),
                 "expires_at": r["expires_at"],
                 "created_at": r["created_at"],
-            }
-            for r in rows
-        ]
+                "status": status,
+            })
         return {
             "total_remaining": total,
             "purchases": purchases,
@@ -213,8 +226,9 @@ async def deduct_credits(
                 take = min(purchase["credits"], remaining)
                 new_credits = purchase["credits"] - take
                 if new_credits <= 0:
+                    # Set to 0 instead of deleting — keep for history
                     await conn.execute(
-                        "DELETE FROM credit_purchases WHERE id = $1",
+                        "UPDATE credit_purchases SET credits = 0 WHERE id = $1",
                         purchase["id"],
                     )
                 else:

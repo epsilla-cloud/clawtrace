@@ -54,7 +54,7 @@ class DeficitGuard:
                     "error": "credit_deficit",
                     "message": (
                         "Your ClawTrace credits are exhausted. "
-                        "Please top up at https://clawtrace.ai/overview/billing"
+                        "Please top up at https://clawtrace.ai/billing"
                     ),
                 },
             )
