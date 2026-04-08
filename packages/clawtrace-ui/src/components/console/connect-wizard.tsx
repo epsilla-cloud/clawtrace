@@ -101,8 +101,7 @@ export function ConnectWizard() {
         <div className={styles.page2}>
           <h1 className={styles.heading}>Observe Key &amp; Setup</h1>
           <p className={styles.subheading}>
-            Your unique observe key links this OpenClaw instance to ClawTrace.
-            Install the plugin and paste the key to start streaming telemetry.
+            Follow the steps below to install and configure the ClawTrace plugin in your OpenClaw.
           </p>
 
           {/* Key panel */}
@@ -124,55 +123,57 @@ export function ConnectWizard() {
             <h2 className={styles.briefingTitle}>Setup Guide</h2>
 
             <div className={styles.step}>
-              <span className={styles.stepNum}>1</span>
-              <div>
-                <p className={styles.stepTitle}>Install the ClawTrace plugin</p>
-                <p className={styles.stepDesc}>Run this in your terminal on the machine running OpenClaw.</p>
-                <div className={styles.codeBlock}>
-
-                  <code>openclaw plugins install @epsilla/clawtrace</code>
-                  <CopyButton text="openclaw plugins install @epsilla/clawtrace" />
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>1</span>
+                <div>
+                  <p className={styles.stepTitle}>Install the ClawTrace plugin</p>
+                  <p className={styles.stepDesc}>Run this in your terminal on the machine running OpenClaw.</p>
                 </div>
+              </div>
+              <div className={styles.codeBlock}>
+                <code>openclaw plugins install @epsilla/clawtrace</code>
+                <CopyButton text="openclaw plugins install @epsilla/clawtrace" />
               </div>
             </div>
 
             <div className={styles.step}>
-              <span className={styles.stepNum}>2</span>
-              <div>
-                <p className={styles.stepTitle}>Authenticate with your observe key</p>
-                <p className={styles.stepDesc}>
-                  Run the interactive setup. When prompted for your observe key,
-                  paste the key shown above.
-                </p>
-                <div className={styles.codeBlock}>
-
-                  <code>openclaw clawtrace setup</code>
-                  <CopyButton text="openclaw clawtrace setup" />
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>2</span>
+                <div>
+                  <p className={styles.stepTitle}>Authenticate with your observe key</p>
+                  <p className={styles.stepDesc}>Run the interactive setup. When prompted, paste the key shown above.</p>
                 </div>
+              </div>
+              <div className={styles.codeBlock}>
+                <code>openclaw clawtrace setup</code>
+                <CopyButton text="openclaw clawtrace setup" />
               </div>
             </div>
 
             <div className={styles.step}>
-              <span className={styles.stepNum}>3</span>
-              <div>
-                <p className={styles.stepTitle}>Restart OpenClaw gateway</p>
-                <p className={styles.stepDesc}>Reload the gateway so the plugin picks up your new key.</p>
-                <div className={styles.codeBlock}>
-
-                  <code>openclaw gateway restart</code>
-                  <CopyButton text="openclaw gateway restart" />
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>3</span>
+                <div>
+                  <p className={styles.stepTitle}>Restart OpenClaw gateway</p>
+                  <p className={styles.stepDesc}>Reload the gateway so the plugin picks up your new key.</p>
                 </div>
+              </div>
+              <div className={styles.codeBlock}>
+                <code>openclaw gateway restart</code>
+                <CopyButton text="openclaw gateway restart" />
               </div>
             </div>
 
             <div className={styles.step}>
-              <span className={styles.stepNum}>4</span>
-              <div>
-                <p className={styles.stepTitle}>Wait for trajectories to appear</p>
-                <p className={styles.stepDesc}>
-                  It usually takes about 5 minutes for the first trajectories to show up on the dashboard
-                  after completing the setup above.
-                </p>
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>4</span>
+                <div>
+                  <p className={styles.stepTitle}>Wait for trajectories to appear</p>
+                  <p className={styles.stepDesc}>
+                    It usually takes about 5 minutes for trajectories to show up on the dashboard
+                    after completing the setup above.
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -181,7 +182,7 @@ export function ConnectWizard() {
             <button
               type="button"
               className={styles.primaryBtn}
-              onClick={() => router.push('/trace')}
+              onClick={() => router.push(`/trace/${createdKey.id}`)}
             >
               Go to Dashboard
             </button>

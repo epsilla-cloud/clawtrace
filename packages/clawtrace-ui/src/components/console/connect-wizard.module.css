@@ -221,7 +221,13 @@
 
 .step {
   display: flex;
-  gap: 14px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stepHeader {
+  display: flex;
+  gap: 12px;
   align-items: flex-start;
 }
 
