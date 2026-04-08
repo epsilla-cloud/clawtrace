@@ -41,10 +41,10 @@ export function AppNav() {
       .then((r) => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
       .then((d) => { if (d) setUser(d); })
       .catch(() => {});
-    // Fetch credits
-    fetch('/api/referral/info', { cache: 'no-store' })
-      .then((r) => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
-      .then((d) => { if (d?.points_balance != null) setCredits(d.points_balance); })
+    // Fetch credits from payment service
+    fetch('/api/billing/credits', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.total_remaining != null) setCredits(Math.round(d.total_remaining)); })
       .catch(() => {});
   }, []);
 
@@ -101,8 +101,8 @@ export function AppNav() {
       <div className={styles.divider} />
       <nav className={styles.bottomItems}>
         <Link
-          href="/overview/billing"
-          className={`${styles.coinItem} ${pathname?.startsWith('/overview/billing') ? styles.itemActive : ''}`}
+          href="/billing"
+          className={`${styles.coinItem} ${pathname === '/billing' ? styles.itemActive : ''}`}
           title={!expanded ? `${credits} credits` : undefined}
         >
           <Image src="/icons/coin.png" alt="" width={20} height={20} className={styles.coinIcon} unoptimized />

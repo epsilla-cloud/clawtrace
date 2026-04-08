@@ -53,8 +53,8 @@ class Settings(BaseSettings):
         '['
         '{"id":"starter","label":"Starter","price_usd":10,"credits":1000},'
         '{"id":"growth","label":"Growth","price_usd":50,"credits":5000},'
-        '{"id":"pro","label":"Pro","price_usd":100,"credits":11000,"badge":"10% bonus"},'
-        '{"id":"scale","label":"Scale","price_usd":500,"credits":60000,"badge":"Best Value"}'
+        '{"id":"pro","label":"Pro","price_usd":90,"credits":10000,"badge":"10% Off"},'
+        '{"id":"scale","label":"Scale","price_usd":400,"credits":50000,"badge":"Best Value"}'
         ']'
     )
 

@@ -22,7 +22,7 @@ def _render_low_credit_email(name: str, email: str) -> str:
     Your ClawTrace credit balance has dropped below the alert threshold.
     To keep your agents running without interruption, please top up your credits.
   </p>
-  <a href="https://clawtrace.ai/overview/billing"
+  <a href="https://clawtrace.ai/billing"
      style="display: inline-block; padding: 10px 24px; background: #a4532b; color: #fff;
             border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
     Top Up Credits
