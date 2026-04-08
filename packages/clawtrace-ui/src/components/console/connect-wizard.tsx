@@ -66,7 +66,7 @@ export function ConnectWizard() {
         <div className={styles.card}>
           <form onSubmit={handleContinue}>
             <label className={styles.label} htmlFor="conn-name">
-              OpenClaw Agent Name
+              Connection Name
             </label>
             <input
               id="conn-name"

@@ -2,11 +2,12 @@
 .root {
   flex: 1;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 24px;
   min-height: 100%;
   background: #faf4ec;
+  overflow-y: auto;
 }
 
 .footer {
@@ -16,48 +17,50 @@
 }
 
 .continueBtn {
-  height: 48px;
-  padding: 0 28px;
-  background: #7c3a0f;
+  height: 40px;
+  padding: 0 24px;
+  background: linear-gradient(180deg, #a4532b 0%, #853f1d 100%);
   color: #fff;
   border: none;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 120ms;
+  transition: opacity 140ms;
+  font-family: inherit;
 }
-.continueBtn:hover:not(:disabled) { background: #6b3009; }
+.continueBtn:hover:not(:disabled) { opacity: 0.9; }
 .continueBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Step 1 ──────────────────────────────────────────────────────────────── */
 .card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 40px 40px 32px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 32px 28px 24px;
   width: 100%;
-  max-width: 620px;
-  box-shadow: 0 2px 16px rgba(60,30,10,0.08);
+  max-width: 440px;
 }
 
 .label {
   display: block;
-  font-size: 16px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 560;
   color: #2e2115;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .input {
   width: 100%;
-  height: 56px;
-  padding: 0 16px;
-  font-size: 15px;
-  background: #fdf6ee;
-  border: 1px solid #e8d9c4;
-  border-radius: 10px;
+  height: 42px;
+  padding: 0 14px;
+  font-size: 14px;
+  background: #faf4ec;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
   color: #2e2115;
   outline: none;
+  font-family: inherit;
   box-sizing: border-box;
 }
 .input:focus { border-color: #a4532b; }
