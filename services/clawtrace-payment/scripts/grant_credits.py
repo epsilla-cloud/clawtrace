@@ -14,8 +14,10 @@ import asyncio
 import sys
 import os
 
-# Add parent dir to path so we can import app modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+# Add parent dir to path and set cwd so .env is found
+_root = os.path.join(os.path.dirname(__file__), "..")
+sys.path.insert(0, _root)
+os.chdir(_root)
 
 from app.config import Settings
 from app.database import get_pool, close_pool
