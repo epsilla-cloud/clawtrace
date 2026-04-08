@@ -81,7 +81,7 @@ export function AccountPage() {
         {/* Referral invite card */}
         <div className={`${styles.card} ${styles.inviteCard}`}>
           <p className={styles.inviteTitle}>
-            Invite a friend and you both 200 FREE credits!
+            Invite a friend and you both get 200 FREE credits!
           </p>
           <div className={styles.inviteLinkRow}>
             <input
