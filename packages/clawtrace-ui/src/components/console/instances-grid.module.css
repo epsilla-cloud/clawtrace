@@ -57,6 +57,7 @@
 
 /* ── Agent card ─────────────────────────────────────────────────────────── */
 .card {
+  position: relative;
   background: #fffdf8;
   border: 1px solid #dacbb4;
   border-radius: 14px;
@@ -136,8 +137,10 @@
 
 /* ── Action menu (⋮) ────────────────────────────────────────────────────── */
 .menuWrap {
-  position: relative;
-  flex-shrink: 0;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
 }
 
 .menuTrigger {
