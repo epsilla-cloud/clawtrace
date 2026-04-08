@@ -427,7 +427,7 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
                         <td className={styles.traceId}>
                           <a href={`/trace/${agentId}/${traceUuid(t.trace_id)}`} className={styles.traceLink}
                             onClick={e => e.stopPropagation()}>
-                            <code>{traceUuid(t.trace_id).slice(0, 8)}…</code>
+                            <code className={styles.traceUuid}>{traceUuid(t.trace_id)}</code>
                           </a>
                         </td>
                         <td><span className={`${styles.catBadge} ${catClass(t.category)}`}>{t.category}</span></td>

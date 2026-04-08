@@ -2,7 +2,27 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { duotoneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import styles from './connect-wizard.module.css';
+
+const codeStyle: Record<string, React.CSSProperties> = {
+  ...duotoneLight,
+  'pre[class*="language-"]': {
+    ...(duotoneLight['pre[class*="language-"]'] as React.CSSProperties),
+    background: 'transparent',
+    margin: 0,
+    padding: 0,
+    fontSize: '13px',
+    lineHeight: '1.5',
+  },
+  'code[class*="language-"]': {
+    ...(duotoneLight['code[class*="language-"]'] as React.CSSProperties),
+    background: 'transparent',
+    fontSize: '13px',
+    lineHeight: '1.5',
+  },
+};
 
 type Step = 1 | 2;
 
@@ -131,7 +151,9 @@ export function ConnectWizard() {
                 </div>
               </div>
               <div className={styles.codeBlock}>
-                <code>openclaw plugins install @epsilla/clawtrace</code>
+                <SyntaxHighlighter language="bash" style={codeStyle} wrapLongLines>
+                  openclaw plugins install @epsilla/clawtrace
+                </SyntaxHighlighter>
                 <CopyButton text="openclaw plugins install @epsilla/clawtrace" />
               </div>
             </div>
@@ -145,7 +167,9 @@ export function ConnectWizard() {
                 </div>
               </div>
               <div className={styles.codeBlock}>
-                <code>openclaw clawtrace setup</code>
+                <SyntaxHighlighter language="bash" style={codeStyle} wrapLongLines>
+                  openclaw clawtrace setup
+                </SyntaxHighlighter>
                 <CopyButton text="openclaw clawtrace setup" />
               </div>
             </div>
@@ -159,7 +183,9 @@ export function ConnectWizard() {
                 </div>
               </div>
               <div className={styles.codeBlock}>
-                <code>openclaw gateway restart</code>
+                <SyntaxHighlighter language="bash" style={codeStyle} wrapLongLines>
+                  openclaw gateway restart
+                </SyntaxHighlighter>
                 <CopyButton text="openclaw gateway restart" />
               </div>
             </div>
