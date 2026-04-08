@@ -1,0 +1,240 @@
+.shell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: #faf4ec;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.shell::-webkit-scrollbar { width: 6px; }
+.shell::-webkit-scrollbar-track { background: transparent; }
+.shell::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
+
+.content {
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Breadcrumb */
+.header { display: flex; align-items: center; }
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #7c6854; }
+.breadcrumbCurrent { color: #2e2115; font-weight: 560; }
+
+/* Cards */
+.card {
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  background: #fffdf8;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Profile */
+.profileRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e8d9c4;
+}
+.avatarFallback {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: #f5e2d0;
+  color: #a4532b;
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.profileInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.profileName {
+  font-size: 18px;
+  font-weight: 620;
+  color: #2e2115;
+}
+.profileEmail {
+  font-size: 13px;
+  color: #7c6854;
+}
+.signOutBtn {
+  align-self: flex-start;
+  height: 36px;
+  padding: 0 20px;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #5a4534;
+  font-size: 13px;
+  font-weight: 560;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 100ms;
+}
+.signOutBtn:hover { background: #f5e2d0; color: #2e2115; }
+
+/* Invite */
+.inviteTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #2e2115;
+}
+.inviteLinkRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.inviteInput {
+  flex: 1;
+  height: 38px;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  background: #faf4ec;
+  padding: 0 12px;
+  font-size: 13px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #5a4534;
+  min-width: 0;
+  outline: none;
+}
+.inviteInput:focus { border-color: #c9a882; }
+.copyBtn {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  background: #fffdf8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #7c6854;
+  transition: background 100ms;
+}
+.copyBtn:hover { background: #f5e2d0; color: #2e2115; }
+.copyIcon { width: 18px; height: 18px; }
+
+/* Referral table */
+.tableCard {
+  border: 1px solid #dacbb4;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fffdf8;
+}
+.tableScroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.table {
+  width: 100%;
+  min-width: 360px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th {
+  text-align: left;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 620;
+  color: #7c6854;
+  font-style: italic;
+  background: #fdf6ee;
+  border-bottom: 1px solid #e8d9c4;
+}
+.table td {
+  padding: 10px 16px;
+  color: #5a4534;
+  border-bottom: 1px solid #f0e4d4;
+}
+.table tbody tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover td { background: #fdf6ee; }
+
+.referralUser {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.referralAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+.referralAvatarFallback {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f0e4d4;
+  color: #7c6854;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.empty {
+  text-align: center;
+  color: #b89c84;
+  padding: 28px 16px;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.pageArrow {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #5a4534;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pageArrow:hover { background: #f5e2d0; }
+.pageArrow:disabled { opacity: 0.4; cursor: default; }
+.pageNum {
+  font-size: 13px;
+  color: #5a4534;
+  font-weight: 600;
+  min-width: 28px;
+  text-align: center;
+}
+
+@media (max-width: 520px) {
+  .content { padding: 20px 14px 32px; }
+  .profileRow { gap: 10px; }
+  .avatar, .avatarFallback { width: 44px; height: 44px; }
+  .profileName { font-size: 16px; }
+}
