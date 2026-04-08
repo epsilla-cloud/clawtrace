@@ -120,21 +120,20 @@
 }
 .inviteInput:focus { border-color: #c9a882; }
 .copyBtn {
-  width: 38px;
-  height: 38px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #dacbb4;
-  border-radius: 8px;
+  border-radius: 6px;
   background: #fffdf8;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  color: #7c6854;
-  transition: background 100ms;
+  color: #b89c84;
+  transition: background 80ms, color 80ms;
 }
-.copyBtn:hover { background: #f5e2d0; color: #2e2115; }
-.copyIcon { width: 18px; height: 18px; }
+.copyBtn:hover { background: #f0e4d0; color: #5a4534; }
 
 /* Referral table */
 .tableCard {

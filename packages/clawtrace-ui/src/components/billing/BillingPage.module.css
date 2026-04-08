@@ -92,24 +92,56 @@
   position: relative;
   border: 1px solid #dacbb4;
   border-radius: 14px;
-  background: #fffdf8;
+  background: linear-gradient(135deg, #fffdf8 0%, #faf0e4 50%, #fffdf8 100%);
+  background-size: 200% 200%;
   padding: 20px 16px 16px;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
   cursor: pointer;
-  transition: border-color 140ms, box-shadow 140ms, transform 100ms;
+  transition: border-color 200ms, box-shadow 200ms, transform 140ms;
   text-align: left;
   font-family: inherit;
+  overflow: hidden;
+}
+/* Shimmer sweep — subtle light reflection */
+.packageCard::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.4) 45%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.4) 55%,
+    transparent 60%
+  );
+  transform: translateX(-100%);
+  animation: shimmer 4s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shimmer {
+  0%, 100% { transform: translateX(-100%); }
+  50% { transform: translateX(100%); }
 }
 .packageCard:hover {
   border-color: #c9a882;
-  box-shadow: 0 4px 16px rgba(164, 83, 43, 0.1);
-  transform: translateY(-2px);
+  box-shadow: 0 6px 24px rgba(164, 83, 43, 0.15);
+  transform: translateY(-3px);
+  background-position: 100% 100%;
 }
 .packageCard:active { transform: translateY(0); }
 .packageCard:disabled { opacity: 0.7; cursor: wait; }
+
+/* Stagger the shimmer per card */
+.packageCard:nth-child(2)::before { animation-delay: 1s; }
+.packageCard:nth-child(3)::before { animation-delay: 2s; }
+.packageCard:nth-child(4)::before { animation-delay: 3s; }
 
 .packageBadge {
   position: absolute;
