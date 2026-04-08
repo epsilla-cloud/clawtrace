@@ -110,9 +110,10 @@ def _safe_float(v: object) -> float:
 def _classify_category(payloads: list) -> str:
     """Classify trace category from collected span input_payload snippets."""
     combined = " ".join(str(p) for p in payloads if p)
-    if "HEARTBEAT" in combined or "heartbeat.md" in combined.lower():
+    lower = combined.lower()
+    if "heartbeat" in lower or "heartbeat_ok" in lower or "heartbeat.md" in lower:
         return "Heartbeat"
-    if "Pre-compaction memory flush" in combined or "pre-compaction" in combined.lower():
+    if "pre-compaction" in lower or "memory flush" in lower:
         return "Compact Memory"
     return "Work"
 
@@ -232,7 +233,7 @@ RETURN
   coalesce(sum(s.output_tokens), 0)         AS output_tokens,
   coalesce(sum(s.total_tokens),  0)         AS total_tokens,
   max(coalesce(s.has_error,      0))        AS has_error,
-  collect(substring(coalesce(s.input_payload, ''), 0, 300)) AS payload_snippets
+  collect(substring(coalesce(s.input_payload, ''), 0, 600)) AS payload_snippets
 ORDER BY started_at_ms DESC
 LIMIT {limit + 50}
 """
