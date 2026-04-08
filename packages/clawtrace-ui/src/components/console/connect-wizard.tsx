@@ -24,8 +24,13 @@ function CopyButton({ text }: { text: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
+      title="Copy to clipboard"
     >
-      {copied ? '✓ Copied' : 'Copy'}
+      {copied ? (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+      )}
     </button>
   );
 }
@@ -82,10 +87,10 @@ export function ConnectWizard() {
             <div className={styles.footer}>
               <button
                 type="submit"
-                className={styles.continueBtn}
+                className={styles.primaryBtn}
                 disabled={!name.trim() || loading}
               >
-                {loading ? 'Creating…' : 'Continue →'}
+                {loading ? 'Creating…' : 'Continue'}
               </button>
             </div>
           </form>
@@ -94,8 +99,7 @@ export function ConnectWizard() {
 
       {step === 2 && createdKey && (
         <div className={styles.page2}>
-          <p className={styles.stepLabel}>STEP 2: SECURITY & SETUP</p>
-          <h1 className={styles.heading}>Observe Key &amp; Guidance</h1>
+          <h1 className={styles.heading}>Observe Key &amp; Setup</h1>
           <p className={styles.subheading}>
             Your unique observe key links this OpenClaw instance to ClawTrace.
             Install the plugin and paste the key to start streaming telemetry.
@@ -105,10 +109,6 @@ export function ConnectWizard() {
           <div className={styles.keyPanel}>
             <div className={styles.keyPanelHeader}>
               <span className={styles.keyPanelTitle}>Your Observe Key</span>
-              <span className={styles.keyLiveTag}>
-                <span className={styles.keyLiveDot} />
-                Live &amp; Ready
-              </span>
             </div>
             <div className={styles.keyRow}>
               <code className={styles.keyValue}>{createdKey.observe_key}</code>
@@ -121,7 +121,7 @@ export function ConnectWizard() {
 
           {/* Setup instructions */}
           <div className={styles.briefing}>
-            <h2 className={styles.briefingTitle}>System Briefing</h2>
+            <h2 className={styles.briefingTitle}>Setup Guide</h2>
 
             <div className={styles.step}>
               <span className={styles.stepNum}>1</span>
@@ -164,32 +164,26 @@ export function ConnectWizard() {
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Listener status */}
-          <div className={styles.listener}>
-            <div className={styles.listenerIcon}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM8 12h8M12 8v8" />
-              </svg>
+            <div className={styles.step}>
+              <span className={styles.stepNum}>4</span>
+              <div>
+                <p className={styles.stepTitle}>Wait for trajectories to appear</p>
+                <p className={styles.stepDesc}>
+                  It usually takes about 5 minutes for the first trajectories to show up on the dashboard
+                  after completing the setup above.
+                </p>
+              </div>
             </div>
-            <div>
-              <p className={styles.listenerTitle}>Connection Listener</p>
-              <p className={styles.listenerDesc}>
-                ClawTrace is waiting for a heartbeat from your instance. The dashboard will populate
-                after the first agent run.
-              </p>
-            </div>
-            <span className={styles.listeningBadge}>● LISTENING…</span>
           </div>
 
           <div className={styles.footer2}>
             <button
               type="button"
-              className={styles.continueBtn}
+              className={styles.primaryBtn}
               onClick={() => router.push('/trace')}
             >
-              Done →
+              Go to Dashboard
             </button>
           </div>
         </div>

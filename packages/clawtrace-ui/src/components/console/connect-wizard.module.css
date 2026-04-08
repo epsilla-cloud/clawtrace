@@ -16,21 +16,21 @@
   padding-top: 20px;
 }
 
-.continueBtn {
+.primaryBtn {
   height: 40px;
   padding: 0 24px;
-  background: linear-gradient(180deg, #a4532b 0%, #853f1d 100%);
+  background: #a4532b;
   color: #fff;
   border: none;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 140ms;
+  transition: background 120ms;
   font-family: inherit;
 }
-.continueBtn:hover:not(:disabled) { opacity: 0.9; }
-.continueBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.primaryBtn:hover:not(:disabled) { background: #8e4524; }
+.primaryBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Step 1 ──────────────────────────────────────────────────────────────── */
 .card {
@@ -94,6 +94,9 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  /* Override root's align-items:center which pushes title off-screen */
+  margin-top: 0;
+  align-self: flex-start;
 }
 
 .stepLabel {
@@ -179,18 +182,21 @@
 }
 
 .copyBtn {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 12px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #dacbb4;
   border-radius: 6px;
-  background: #fff;
-  color: #5a4534;
+  background: #fffdf8;
   cursor: pointer;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  color: #b89c84;
+  transition: background 80ms, color 80ms;
+  padding: 0;
 }
-.copyBtn:hover { background: #fdf6ee; }
+.copyBtn:hover { background: #f0e4d0; color: #5a4534; }
 
 .keyWarning {
   font-size: 12px;
