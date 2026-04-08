@@ -106,7 +106,7 @@ export function AccountPage() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>My Referral</th>
+                  <th>My Referrals</th>
                   <th>Joined At</th>
                 </tr>
               </thead>
