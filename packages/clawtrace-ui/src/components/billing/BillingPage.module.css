@@ -78,6 +78,7 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
+  padding-top: 14px; /* space for badges that float above cards */
 }
 @media (max-width: 860px) {
   .packagesGrid { grid-template-columns: repeat(2, 1fr); }
@@ -103,42 +104,30 @@
   transition: border-color 200ms, box-shadow 200ms, transform 140ms;
   text-align: left;
   font-family: inherit;
-  overflow: visible;
-}
-/* Shimmer sweep — subtle light reflection, clipped to card border-radius */
-.packageCard::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
   overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
 }
+/* Shimmer sweep — left to right only */
 .packageCard::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  border-radius: inherit;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(
     105deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.4) 45%,
-    rgba(255, 255, 255, 0.6) 50%,
-    rgba(255, 255, 255, 0.4) 55%,
-    transparent 60%
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.35) 55%,
+    transparent 70%
   );
-  transform: translateX(-100%);
-  animation: shimmer 4s ease-in-out infinite;
+  animation: shimmer 3.5s ease-in-out infinite;
   pointer-events: none;
-  clip-path: inset(0 round 14px);
 }
 @keyframes shimmer {
-  0%, 100% { transform: translateX(-100%); }
-  50% { transform: translateX(100%); }
+  0% { left: -100%; }
+  60%, 100% { left: 200%; }
 }
 .packageCard:hover {
   border-color: #c9a882;
@@ -154,9 +143,14 @@
 .packageCard:nth-child(3)::before { animation-delay: 2s; }
 .packageCard:nth-child(4)::before { animation-delay: 3s; }
 
+/* Wrapper holds the badge above the card */
+.packageWrap {
+  position: relative;
+}
+
 .packageBadge {
   position: absolute;
-  top: -10px;
+  top: -8px;
   right: 12px;
   padding: 3px 10px;
   border-radius: 999px;
@@ -167,7 +161,7 @@
   transform: rotate(6deg);
   box-shadow: 0 2px 6px rgba(0,0,0,0.08);
   white-space: nowrap;
-  z-index: 2;
+  z-index: 3;
 }
 
 .packageIcon {

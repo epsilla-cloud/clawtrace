@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import styles from './instances-grid.module.css';
 
@@ -139,9 +140,9 @@ function AgentCard({ agent, onRename, onDelete, isDeleting }: {
           <p className={styles.cardMetaLabel}>Last Active</p>
           <p className={styles.cardMetaValue}>{lastActive}</p>
         </div>
-        <a href={`/trace/${agent.id}`} className={styles.viewBtn}>
+        <Link href={`/trace/${agent.id}`} className={styles.viewBtn}>
           View Trajectories
-        </a>
+        </Link>
       </div>
     </div>
   );

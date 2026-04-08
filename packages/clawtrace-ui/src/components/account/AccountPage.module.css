@@ -48,26 +48,24 @@
 .inviteCard::before {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
   background: linear-gradient(
     105deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.4) 45%,
-    rgba(255, 255, 255, 0.6) 50%,
-    rgba(255, 255, 255, 0.4) 55%,
-    transparent 60%
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.35) 55%,
+    transparent 70%
   );
-  transform: translateX(-100%);
-  animation: inviteShimmer 4s ease-in-out infinite;
+  animation: inviteShimmer 3.5s ease-in-out infinite;
   pointer-events: none;
-  clip-path: inset(0 round 14px);
 }
 @keyframes inviteShimmer {
-  0%, 100% { transform: translateX(-100%); }
-  50% { transform: translateX(100%); }
+  0% { left: -100%; }
+  60%, 100% { left: 200%; }
 }
 
 /* Profile */

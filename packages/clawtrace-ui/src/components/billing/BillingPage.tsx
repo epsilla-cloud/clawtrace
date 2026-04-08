@@ -47,6 +47,8 @@ function formatCredits(n: number): string {
 function sourceLabel(source: string): string {
   switch (source) {
     case 'signup_bonus': return 'Sign Up';
+    case 'referrer_bonus': return 'Referral Reward';
+    case 'referee_bonus': return 'Invited Bonus';
     case 'referral_bonus': return 'Referral Bonus';
     case 'topup': return 'Purchase';
     case 'admin_grant': return 'Admin Grant';
@@ -139,13 +141,13 @@ export function BillingPage() {
         {/* Credit Packages */}
         <div className={styles.packagesGrid}>
           {packages.map((pkg) => (
-            <button
-              key={pkg.id}
-              className={styles.packageCard}
-              onClick={() => handlePurchase(pkg.id)}
-              disabled={purchasing !== null}
-            >
+            <div key={pkg.id} className={styles.packageWrap}>
               {pkg.badge && <span className={styles.packageBadge}>{pkg.badge}</span>}
+              <button
+                className={styles.packageCard}
+                onClick={() => handlePurchase(pkg.id)}
+                disabled={purchasing !== null}
+              >
               <GiftIcon className={styles.packageIcon} />
               <span className={styles.packageBuy}>Buy</span>
               <span className={styles.packageCredits}>
@@ -157,6 +159,7 @@ export function BillingPage() {
               </div>
               {purchasing === pkg.id && <span className={styles.packageLoading}>Redirecting...</span>}
             </button>
+            </div>
           ))}
         </div>
 
