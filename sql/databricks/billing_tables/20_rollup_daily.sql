@@ -1,7 +1,7 @@
 -- ============================================================================
 -- ClawTrace Billing — Daily Rollup
 -- ============================================================================
--- Aggregates billing_usage_hourly into billing_usage_daily.
+-- Aggregates clawtrace.billing.billing_usage_hourly into clawtrace.billing.billing_usage_daily.
 -- Safe to run at any frequency — uses DELETE+INSERT (not MERGE) to avoid
 -- merge failures from duplicate keys. Each run recomputes all affected days.
 -- Schedule: once per day (but safe to run more often)
@@ -12,22 +12,22 @@ CREATE OR REPLACE TEMPORARY VIEW changed_days AS
 SELECT DISTINCT
     user_id,
     CAST(hour_bucket AS DATE) AS day_bucket
-FROM billing_usage_hourly
+FROM clawtrace.billing.billing_usage_hourly
 WHERE hour_bucket >= (
     SELECT COALESCE(
-        (SELECT watermark FROM billing_checkpoint WHERE pipeline = 'rollup_daily'),
+        (SELECT watermark FROM clawtrace.billing.billing_checkpoint WHERE pipeline = 'rollup_daily'),
         TIMESTAMP '1970-01-01'
     )
 );
 
 -- Step 2: Delete stale daily rows for changed days
-DELETE FROM billing_usage_daily
+DELETE FROM clawtrace.billing.billing_usage_daily
 WHERE (user_id, day_bucket) IN (
     SELECT user_id, day_bucket FROM changed_days
 );
 
 -- Step 3: Insert fresh aggregation for changed days
-INSERT INTO billing_usage_daily
+INSERT INTO clawtrace.billing.billing_usage_daily
 SELECT
     h.user_id,
     h.category,
@@ -35,14 +35,14 @@ SELECT
     SUM(h.total_credits)         AS total_credits,
     SUM(h.total_raw)             AS total_raw,
     SUM(h.event_count)           AS event_count
-FROM billing_usage_hourly h
+FROM clawtrace.billing.billing_usage_hourly h
 INNER JOIN changed_days c
     ON h.user_id = c.user_id
    AND CAST(h.hour_bucket AS DATE) = c.day_bucket
 GROUP BY h.user_id, h.category, CAST(h.hour_bucket AS DATE);
 
 -- Step 4: Advance checkpoint
-MERGE INTO billing_checkpoint AS tgt
+MERGE INTO clawtrace.billing.billing_checkpoint AS tgt
 USING (SELECT 'rollup_daily' AS pipeline, current_timestamp() AS watermark) AS src
 ON tgt.pipeline = src.pipeline
 WHEN MATCHED THEN UPDATE SET watermark = src.watermark

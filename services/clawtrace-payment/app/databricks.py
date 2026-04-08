@@ -18,7 +18,7 @@ async def query_usage(
     to_ms: int,
     settings: Settings,
 ) -> dict:
-    """Query billing_usage_hourly from Databricks for a tenant's usage."""
+    """Query clawtrace.billing.billing_usage_hourly from Databricks for a tenant's usage."""
     if not settings.databricks_host or not settings.databricks_token:
         return {"total_spent": 0, "categories": [], "series": []}
 
@@ -30,19 +30,19 @@ async def query_usage(
     # Pick the right pre-aggregated table based on range
     range_ms = to_ms - from_ms
     if range_ms <= 2 * 86_400_000:  # ≤ 2 days → hourly table
-        table = "billing_usage_hourly"
+        table = "clawtrace.billing.billing_usage_hourly"
         bucket_col = "hour_bucket"
         time_filter = f"{bucket_col} >= '{from_dt}' AND {bucket_col} <= '{to_dt}'"
     elif range_ms <= 90 * 86_400_000:  # ≤ 90 days → daily table
-        table = "billing_usage_daily"
+        table = "clawtrace.billing.billing_usage_daily"
         bucket_col = "day_bucket"
         time_filter = f"{bucket_col} >= '{from_date}' AND {bucket_col} <= '{to_date}'"
     elif range_ms <= 365 * 86_400_000:  # ≤ 1 year → weekly table
-        table = "billing_usage_weekly"
+        table = "clawtrace.billing.billing_usage_weekly"
         bucket_col = "week_bucket"
         time_filter = f"{bucket_col} >= '{from_dt}' AND {bucket_col} <= '{to_dt}'"
     else:  # > 1 year → monthly table
-        table = "billing_usage_monthly"
+        table = "clawtrace.billing.billing_usage_monthly"
         bucket_col = "month_bucket"
         time_filter = f"{bucket_col} >= '{from_dt}' AND {bucket_col} <= '{to_dt}'"
 
