@@ -36,10 +36,11 @@ async def stripe_webhook(request: Request):
 
     if event.type == "checkout.session.completed":
         session = event.data.object
-        metadata = session.metadata or {}
+        # Convert Stripe metadata object to a plain dict
+        metadata = dict(session.metadata) if session.metadata else {}
         user_id = metadata.get("user_id")
         credits_str = metadata.get("credits")
-        payment_intent = session.payment_intent
+        payment_intent = getattr(session, "payment_intent", None)
 
         logger.info(
             "Webhook checkout.session.completed: user=%s credits=%s pi=%s",
@@ -78,10 +79,11 @@ async def stripe_webhook(request: Request):
                 user_email = user_row["email"] if user_row else "unknown"
                 user_name = user_row["name"] if user_row else "unknown"
                 pkg_id = metadata.get("package_id", "custom")
+                amount_cents = getattr(session, "amount_total", 0) or 0
                 await _send_slack(
                     f":credit_card: *Credit purchase* — {user_name} ({user_email}) "
                     f"bought {credits:,.0f} credits (package: {pkg_id}, "
-                    f"${session.amount_total / 100:.2f} paid)",
+                    f"${amount_cents / 100:.2f} paid)",
                     settings,
                 )
             except Exception:
