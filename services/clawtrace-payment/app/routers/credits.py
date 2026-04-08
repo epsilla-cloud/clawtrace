@@ -17,6 +17,7 @@ from ..models import (
     TopUpRequest,
     TopUpResponse,
 )
+from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,58 @@ async def get_credits(
     await ensure_signup_bonus(session.db_id, settings)
     result = await get_credit_status(session.db_id, settings)
     return CreditStatus(**result)
+
+
+# ── POST /v1/credits/admin/grant — grant credits to all or specific users ─
+
+class AdminGrantRequest(BaseModel):
+    credits: float = Field(..., gt=0)
+    source: str = Field(default="admin_grant")
+    expiration_days: int = Field(default=365)
+    user_id: str | None = Field(default=None, description="Specific user UUID, or null for all users")
+
+
+class AdminGrantResult(BaseModel):
+    granted_count: int
+    credits_per_user: float
+    total_credits: float
+    users: list[dict]
+
+
+@router.post("/v1/credits/admin/grant", response_model=AdminGrantResult)
+async def admin_grant_credits(
+    body: AdminGrantRequest,
+    _: None = Depends(require_internal),
+    settings: Settings = Depends(get_settings),
+):
+    """Internal: grant credits to all users or a specific user."""
+    pool = await get_pool(settings)
+
+    if body.user_id:
+        users = await pool.fetch(
+            "SELECT id, email, name FROM users WHERE id = $1", body.user_id
+        )
+    else:
+        users = await pool.fetch("SELECT id, email, name FROM users ORDER BY created_at")
+
+    results = []
+    for u in users:
+        await pool.execute(
+            """
+            INSERT INTO credit_purchases
+                (user_id, credits, credits_initial, source, expires_at)
+            VALUES ($1, $2, $2, $3, now() + $4::interval)
+            """,
+            u["id"], body.credits, body.source, f"{body.expiration_days} days",
+        )
+        results.append({"id": str(u["id"]), "email": u["email"], "name": u["name"]})
+
+    return AdminGrantResult(
+        granted_count=len(results),
+        credits_per_user=body.credits,
+        total_credits=body.credits * len(results),
+        users=results,
+    )
 
 
 # ── GET /v1/credits/deficit — internal lightweight check ─────────────────
