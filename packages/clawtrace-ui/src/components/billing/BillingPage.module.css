@@ -44,14 +44,30 @@
 /* ── Balance card ──────────────────────────────────────────────────────── */
 .balanceCard {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   padding: 20px 24px;
   border: 1px solid #dacbb4;
   border-radius: 14px;
   background: #fffdf8;
-  max-width: 260px;
 }
+.viewUsageBtn {
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #5a4534;
+  font-size: 13px;
+  font-weight: 560;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: background 100ms;
+  white-space: nowrap;
+}
+.viewUsageBtn:hover { background: #f5e2d0; color: #2e2115; }
 .balanceLabel {
   font-size: 13px;
   color: #7c6854;

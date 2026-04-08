@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     audit_prefix: str = "billing/v1"
     azure_storage_connection_string: str = ""
 
+    # Databricks SQL API — for querying usage aggregation tables
+    databricks_host: str = ""  # e.g. adb-1234567890.1.azuredatabricks.net
+    databricks_token: str = ""  # personal access token
+    databricks_warehouse_id: str = ""  # SQL warehouse ID
+
     # Notifications — Azure Email Communication Service
     azure_ecs_connection_string: str = ""
     azure_ecs_sender: str = "billing@clawtrace.ai"
