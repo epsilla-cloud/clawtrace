@@ -119,7 +119,7 @@ function cookieDomain(): string | undefined {
 export function authCookieOptions() {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: true,
     sameSite: 'lax' as const,
     maxAge: TOKEN_TTL,
     path: '/',
