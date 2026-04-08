@@ -1,7 +1,9 @@
 'use client';
 
+import { Suspense } from 'react';
 import { AppNav } from '@/components/app-nav/AppNav';
 import { DeficitModal } from '@/components/billing/DeficitModal';
+import { TracyPanel } from '@/components/tracy/TracyPanel';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -9,6 +11,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AppNav />
       {children}
       <DeficitModal />
+      <Suspense fallback={null}>
+        <TracyPanel />
+      </Suspense>
     </div>
   );
 }
