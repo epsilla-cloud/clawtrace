@@ -8,7 +8,7 @@ import {
   parseInviteCodeFromState,
 } from '@/lib/auth';
 import { applyReferral } from '@/lib/referral';
-import { grantInitialCredits } from '@/lib/billing';
+import { grantInitialCredits, grantReferralCredits } from '@/lib/billing';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -114,7 +114,12 @@ export async function GET(request: NextRequest) {
       try { await grantInitialCredits(user.id); } catch (e) { console.error('grantInitialCredits error:', e); }
       const inviteCode = parseInviteCodeFromState(state);
       if (inviteCode) {
-        try { await applyReferral(user.id, inviteCode); } catch (e) { console.error('applyReferral error:', e); }
+        try {
+          const referrerId = await applyReferral(user.id, inviteCode);
+          if (referrerId) {
+            await grantReferralCredits(user.id, referrerId);
+          }
+        } catch (e) { console.error('applyReferral error:', e); }
       }
     }
 

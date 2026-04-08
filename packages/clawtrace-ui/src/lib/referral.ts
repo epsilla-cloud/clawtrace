@@ -44,17 +44,17 @@ export async function awardSignupBonus(userId: string): Promise<void> {
   });
 }
 
-export async function applyReferral(newUserId: string, inviteCode: string): Promise<boolean> {
+export async function applyReferral(newUserId: string, inviteCode: string): Promise<string | null> {
   // Find referrer by invite code
   const [referrer] = await db
     .select({ id: users.id })
     .from(users)
     .where(eq(users.invite_code, inviteCode));
 
-  if (!referrer) return false;
+  if (!referrer) return null;
 
   // Self-referral check
-  if (referrer.id === newUserId) return false;
+  if (referrer.id === newUserId) return null;
 
   // Check if new user already has a referrer
   const [newUser] = await db
@@ -62,7 +62,7 @@ export async function applyReferral(newUserId: string, inviteCode: string): Prom
     .from(users)
     .where(eq(users.id, newUserId));
 
-  if (!newUser || newUser.referred_by) return false;
+  if (!newUser || newUser.referred_by) return null;
 
   // Cap: max 50 referrals per user per month
   const monthAgo = new Date();
@@ -77,7 +77,7 @@ export async function applyReferral(newUserId: string, inviteCode: string): Prom
       )
     );
 
-  if (countResult && countResult.count >= MAX_REFERRALS_PER_MONTH) return false;
+  if (countResult && countResult.count >= MAX_REFERRALS_PER_MONTH) return null;
 
   // Set referred_by on new user (only if null)
   const [updated] = await db
@@ -86,7 +86,7 @@ export async function applyReferral(newUserId: string, inviteCode: string): Prom
     .where(and(eq(users.id, newUserId), sql`${users.referred_by} IS NULL`))
     .returning({ id: users.id });
 
-  if (!updated) return false;
+  if (!updated) return null;
 
   // Create referral record
   const [referral] = await db
@@ -135,5 +135,5 @@ export async function applyReferral(newUserId: string, inviteCode: string): Prom
     reference_id: referral.id,
   });
 
-  return true;
+  return referrer.id;
 }

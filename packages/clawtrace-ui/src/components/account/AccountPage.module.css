@@ -157,10 +157,11 @@
 .table th {
   text-align: left;
   padding: 10px 16px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 620;
   color: #7c6854;
-  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   background: #fdf6ee;
   border-bottom: 1px solid #e8d9c4;
 }
