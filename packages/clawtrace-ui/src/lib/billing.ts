@@ -1,26 +1,15 @@
 /**
- * billing.ts — Calls the payment service to grant initial credits on signup.
- *
- * The payment service's ensure_signup_bonus (called on GET /v1/credits) is
- * idempotent and handles referral bonuses too, but we also fire an explicit
- * grant here so credits are available immediately — before the user ever
- * visits the billing page.
+ * billing.ts — Calls the payment service to grant credits on signup and referral.
  */
 
 const PAYMENT_URL = process.env.CLAWTRACE_PAYMENT_URL ?? '';
 const INTERNAL_SECRET = process.env.CLAWTRACE_PAYMENT_INTERNAL_SECRET ?? '';
 
-/**
- * Grant initial credits to a newly registered user.
- * Calls POST /v1/credits/admin/grant on the payment service.
- * Fire-and-forget — errors are logged but don't block registration.
- */
-export async function grantInitialCredits(userId: string): Promise<void> {
+async function grantCredits(userId: string, credits: number, source: string): Promise<boolean> {
   if (!PAYMENT_URL) {
-    console.warn('CLAWTRACE_PAYMENT_URL not set, skipping initial credit grant');
-    return;
+    console.warn('CLAWTRACE_PAYMENT_URL not set, skipping credit grant');
+    return false;
   }
-
   try {
     const res = await fetch(`${PAYMENT_URL}/v1/credits/admin/grant`, {
       method: 'POST',
@@ -28,21 +17,29 @@ export async function grantInitialCredits(userId: string): Promise<void> {
         'Content-Type': 'application/json',
         'x-internal-secret': INTERNAL_SECRET,
       },
-      body: JSON.stringify({
-        credits: 200,
-        source: 'signup_bonus',
-        user_id: userId,
-      }),
+      body: JSON.stringify({ credits, source, user_id: userId }),
     });
-
     if (!res.ok) {
-      const body = await res.text();
-      console.error(`Initial credit grant failed (${res.status}):`, body);
-      return;
+      console.error(`Credit grant failed (${res.status}):`, await res.text());
+      return false;
     }
-
-    console.log(`Granted initial credits to new user ${userId}`);
+    console.log(`Granted ${credits} ${source} credits to ${userId}`);
+    return true;
   } catch (err) {
-    console.error('Failed to call payment service for initial credits:', err);
+    console.error('Failed to call payment service:', err);
+    return false;
   }
+}
+
+/** Grant 200 signup credits to a newly registered user. */
+export async function grantInitialCredits(userId: string): Promise<void> {
+  await grantCredits(userId, 200, 'signup_bonus');
+}
+
+/** Grant 200 referral credits to both the new user and the referrer. */
+export async function grantReferralCredits(newUserId: string, referrerId: string): Promise<void> {
+  await Promise.all([
+    grantCredits(newUserId, 200, 'referral_bonus'),
+    grantCredits(referrerId, 200, 'referral_bonus'),
+  ]);
 }
