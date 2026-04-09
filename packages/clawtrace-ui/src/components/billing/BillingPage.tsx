@@ -130,9 +130,21 @@ export function BillingPage() {
         </header>
 
         {/* Credit Balance Card */}
-        <div className={styles.balanceCard}>
+        <div className={`${styles.balanceCard} ${
+          status?.is_deficit ? styles.balanceDeficit
+            : (status && status.total_remaining < 50) ? styles.balanceLow
+              : ''
+        }`}>
           <div>
-            <span className={styles.balanceLabel}>Credit Balance</span>
+            <span className={styles.balanceLabel}>
+              Credit Balance
+              {!loading && status && (status.is_deficit || status.total_remaining <= 0) && (
+                <span className={styles.statusBadgeError}>Deficit</span>
+              )}
+              {!loading && status && !status.is_deficit && status.total_remaining > 0 && status.total_remaining < 50 && (
+                <span className={styles.statusBadgeWarning}>Low</span>
+              )}
+            </span>
             <div className={styles.balanceValue}>
               <Image src="/icons/coin.png" alt="" width={36} height={36} className={styles.balanceCoin} unoptimized />
               {loading ? <div className={styles.skeletonBalance} /> : <span>{formatCredits(status?.total_remaining ?? 0)}</span>}

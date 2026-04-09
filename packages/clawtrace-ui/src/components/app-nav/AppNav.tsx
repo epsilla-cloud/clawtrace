@@ -32,6 +32,7 @@ export function AppNav() {
   const [expanded, setExpanded] = useState(false);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [credits, setCredits] = useState<number>(0);
+  const [creditStatus, setCreditStatus] = useState<'ok' | 'low' | 'deficit'>('ok');
   const pathname = usePathname();
 
   useEffect(() => {
@@ -45,7 +46,15 @@ export function AppNav() {
     // Fetch credits from payment service
     fetch('/api/billing/credits', { cache: 'no-store' })
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (d?.total_remaining != null) setCredits(Math.round(d.total_remaining)); })
+      .then((d) => {
+        if (d?.total_remaining != null) {
+          const remaining = d.total_remaining;
+          setCredits(Math.round(remaining));
+          if (d.is_deficit || remaining <= 0) setCreditStatus('deficit');
+          else if (remaining < 50) setCreditStatus('low');
+          else setCreditStatus('ok');
+        }
+      })
       .catch(() => {});
   }, []);
 
@@ -106,7 +115,14 @@ export function AppNav() {
           className={`${styles.coinItem} ${pathname === '/billing' ? styles.itemActive : ''}`}
           title={!expanded ? `${credits.toLocaleString()} credits` : undefined}
         >
-          <Image src="/icons/coin.png" alt="" width={28} height={28} className={styles.coinIcon} unoptimized />
+          <span className={styles.coinIconWrap}>
+            <Image src="/icons/coin.png" alt="" width={28} height={28} className={styles.coinIcon} unoptimized />
+            {creditStatus !== 'ok' && (
+              <span className={creditStatus === 'deficit' ? styles.coinBadgeError : styles.coinBadgeWarning}>
+                {creditStatus === 'deficit' ? '!' : ''}
+              </span>
+            )}
+          </span>
           {expanded ? (
             <span className={styles.itemLabel}>{credits.toLocaleString()} Credits</span>
           ) : (
