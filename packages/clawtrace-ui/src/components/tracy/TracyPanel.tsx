@@ -416,10 +416,14 @@ export function TracyPanel() {
   const { agentId, traceId, page } = usePageContext();
   const starters = getStarterQuestions(page);
 
-  // Scroll to bottom
+  // Scroll to bottom on any message change (including history load)
   useEffect(() => {
     const el = transcriptRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    // Immediate + deferred scroll to handle both live updates and post-render history load
+    el.scrollTop = el.scrollHeight;
+    const raf = requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+    return () => cancelAnimationFrame(raf);
   }, [messages]);
 
   // Load previous conversation on mount
