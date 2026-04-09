@@ -52,6 +52,33 @@
   border-radius: 14px;
   background: #fffdf8;
 }
+.balanceLow {
+  border-color: #d4a030;
+  background: #fffcf0;
+}
+.balanceDeficit {
+  border-color: #c0392b;
+  background: #fdf4f3;
+}
+.statusBadgeWarning,
+.statusBadgeError {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 520;
+  letter-spacing: 0.02em;
+}
+.statusBadgeWarning {
+  background: #fef3cd;
+  color: #856404;
+}
+.statusBadgeError {
+  background: #f8d7da;
+  color: #721c24;
+}
 .viewUsageBtn {
   height: 36px;
   padding: 0 16px;
