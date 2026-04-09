@@ -471,22 +471,24 @@ export function TracyPanel() {
   }, [open]);
 
   const clearConversation = useCallback(async () => {
-    // Soft-delete session on backend so it doesn't reload on refresh
-    if (harnessSessionId) {
-      try {
-        const sessRes = await fetch('/api/tracy/sessions?limit=1', { cache: 'no-store' });
-        if (sessRes.ok) {
-          const { sessions } = await sessRes.json();
-          if (sessions?.length) {
-            await fetch(`/api/tracy/sessions/${sessions[0].id}`, { method: 'DELETE' });
-          }
+    // Soft-delete ALL sessions so none reload on refresh
+    try {
+      const sessRes = await fetch('/api/tracy/sessions?limit=100', { cache: 'no-store' });
+      if (sessRes.ok) {
+        const { sessions } = await sessRes.json();
+        if (sessions?.length) {
+          await Promise.all(
+            sessions.map((s: { id: string }) =>
+              fetch(`/api/tracy/sessions/${s.id}`, { method: 'DELETE' }),
+            ),
+          );
         }
-      } catch { /* best-effort */ }
-    }
+      }
+    } catch { /* best-effort */ }
     setMessages([]);
     setHarnessSessionId(undefined);
     localStorage.removeItem(SESSION_KEY);
-  }, [harnessSessionId]);
+  }, []);
 
   const send = useCallback(async () => {
     const text = draft.trim();
