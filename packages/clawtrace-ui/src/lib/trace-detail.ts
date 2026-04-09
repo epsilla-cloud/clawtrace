@@ -38,6 +38,8 @@ export type TraceDetailSpan = {
   tokensIn: number;
   tokensOut: number;
   totalTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
   attributes: Record<string, unknown>;
   sourceCount: number;
   hasClosedRecord: boolean;
@@ -157,6 +159,8 @@ type RawTraceSpan = {
   model?: string;
   tokensIn?: number;
   tokensOut?: number;
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
   attributes?: Record<string, unknown>;
 };
 
@@ -297,6 +301,8 @@ function mergeRawSpans(rows: RawTraceSpan[]): Map<string, TraceDetailSpan> {
         tokensIn: rowTokensIn,
         tokensOut: rowTokensOut,
         totalTokens: rowTotalTokens,
+        cacheReadTokens: Math.max(0, toNumber(row.cacheReadTokens)),
+        cacheWriteTokens: Math.max(0, toNumber(row.cacheWriteTokens)),
         attributes: (row.attributes ?? {}) as Record<string, unknown>,
         sourceCount: 1,
         hasClosedRecord: rowEndMs !== null,

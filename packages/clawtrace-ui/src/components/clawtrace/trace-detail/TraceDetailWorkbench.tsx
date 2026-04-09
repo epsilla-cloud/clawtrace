@@ -268,7 +268,7 @@ function shortModelName(model: string): string {
 
 function formatSpanCostValue(span: TraceDetailSpan): string | null {
   if (span.kind !== 'llm_call' || span.totalTokens <= 0) return null;
-  const cost = estimateSpanCost(span.model, span.tokensIn, span.tokensOut);
+  const cost = estimateSpanCost(span.model, span.tokensIn, span.tokensOut, span.cacheReadTokens, span.cacheWriteTokens);
   if (cost <= 0) return null;
   return formatCurrency(cost);
 }
