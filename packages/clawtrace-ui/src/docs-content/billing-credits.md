@@ -46,7 +46,7 @@ The table at the bottom of the Billing page shows your complete credit history:
 
 ## Free Credits
 
-New users receive **200 free credits** on sign-up. If you sign up through a referral link, both you and the referrer each receive an additional **100 credits**.
+New users receive **100 free credits** on sign-up. If you sign up through a referral link, both you and the referrer each receive an additional **200 credits**.
 
 ## Deficit State
 

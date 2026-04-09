@@ -31,15 +31,15 @@ async function grantCredits(userId: string, credits: number, source: string): Pr
   }
 }
 
-/** Grant 200 signup credits to a newly registered user. */
+/** Grant 100 signup credits to a newly registered user. */
 export async function grantInitialCredits(userId: string): Promise<void> {
-  await grantCredits(userId, 200, 'signup_bonus');
+  await grantCredits(userId, 100, 'signup_bonus');
 }
 
-/** Grant 100 referral credits to both the new user and the referrer. */
+/** Grant 200 referral credits to both the new user and the referrer. */
 export async function grantReferralCredits(newUserId: string, referrerId: string): Promise<void> {
   await Promise.all([
-    grantCredits(newUserId, 100, 'referee_bonus'),
-    grantCredits(referrerId, 100, 'referrer_bonus'),
+    grantCredits(newUserId, 200, 'referee_bonus'),
+    grantCredits(referrerId, 200, 'referrer_bonus'),
   ]);
 }

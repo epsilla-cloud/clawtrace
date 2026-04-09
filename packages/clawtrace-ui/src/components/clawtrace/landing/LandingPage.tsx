@@ -394,7 +394,7 @@ export function LandingPage() {
       {/* ── S9: CTA ────────────────────────────────────────────────── */}
       <section className={`${styles.cta} ${styles.reveal}`} id="get-started" ref={ctaRef}>
         <h2 className={styles.ctaTitle}>Start improving your agents today</h2>
-        <p className={styles.ctaSub}>200 free credits. No credit card required.</p>
+        <p className={styles.ctaSub}>100 free credits. No credit card required.</p>
         <a className={styles.ctaButton} href="/login">Get Started Free</a>
         <p className={styles.ctaSignin}>
           Already have an account? <Link href="/login" className={styles.ctaLink}>Sign in</Link>
