@@ -70,6 +70,18 @@ export const DOC_SECTIONS: DocSection[] = [
     ],
   },
   {
+    title: 'Ask Tracy',
+    pages: [
+      {
+        slug: 'ask-tracy',
+        title: 'Your OpenClaw Doctor Agent',
+        file: 'ask-tracy.md',
+        description: 'Tracy is ClawTrace\'s AI observability analyst — ask questions about your agent trajectories, costs, errors, and get actionable optimization advice through natural conversation.',
+        keywords: ['Tracy AI', 'AI observability', 'agent doctor', 'cost analysis', 'performance debugging', 'OpenClaw optimization', 'conversational analytics'],
+      },
+    ],
+  },
+  {
     title: 'Billing & Credits',
     pages: [
       {
