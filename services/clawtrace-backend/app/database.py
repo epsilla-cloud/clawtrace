@@ -87,11 +87,17 @@ CREATE INDEX IF NOT EXISTS tracy_messages_session_idx ON tracy_messages(session_
 """
 
 
+MIGRATE_TRACY_DELETED = """
+ALTER TABLE tracy_sessions ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+"""
+
+
 async def run_migrations(settings: Settings) -> None:
     pool = await get_pool(settings)
     async with pool.acquire() as conn:
         await conn.execute(CREATE_KEYS_TABLE)
         await conn.execute(CREATE_TRACY_TABLES)
+        await conn.execute(MIGRATE_TRACY_DELETED)
 
 
 # ── Key helpers ───────────────────────────────────────────────────────────────
@@ -421,7 +427,7 @@ async def save_tracy_message(
 async def list_tracy_sessions(
     user_id: str, settings: Settings, limit: int = 20
 ) -> list[dict]:
-    """List recent Tracy sessions for a user."""
+    """List recent non-deleted Tracy sessions for a user."""
     pool = await get_pool(settings)
     async with pool.acquire() as conn:
         rows = await conn.fetch(
@@ -430,13 +436,29 @@ async def list_tracy_sessions(
                    s.agent_id, s.trace_id, s.created_at, s.updated_at,
                    (SELECT count(*) FROM tracy_messages m WHERE m.session_id = s.id) AS message_count
             FROM tracy_sessions s
-            WHERE s.user_id = $1
+            WHERE s.user_id = $1 AND s.deleted_at IS NULL
             ORDER BY s.updated_at DESC
             LIMIT $2
             """,
             UUID(user_id), limit,
         )
     return [dict(r) for r in rows]
+
+
+async def delete_tracy_session(
+    session_id: str, user_id: str, settings: Settings
+) -> bool:
+    """Soft-delete a Tracy session. Returns True if found and deleted."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        result = await conn.execute(
+            """
+            UPDATE tracy_sessions SET deleted_at = now()
+            WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+            """,
+            UUID(session_id), UUID(user_id),
+        )
+    return result == "UPDATE 1"
 
 
 async def get_tracy_messages(
