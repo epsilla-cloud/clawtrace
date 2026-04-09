@@ -85,83 +85,89 @@ def _build_context_prefix(
 # ---------------------------------------------------------------------------
 # SSE streaming generator
 # ---------------------------------------------------------------------------
-async def _stream_tracy(
+def _stream_tracy(
     message: str,
     context_prefix: str,
     session_id: Optional[str],
     settings: Settings,
 ):
-    """Create/reuse a managed agent session and yield SSE events."""
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    """Create/reuse a managed agent session and yield SSE events.
+    Sync generator — FastAPI runs it in a threadpool so blocking SDK calls work."""
+    try:
+        client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
-    # Create or reuse session
-    if session_id:
-        sid = session_id
-    else:
-        session = client.beta.sessions.create(
-            agent={"type": "agent", "id": settings.tracy_agent_id},
-            environment_id=settings.tracy_environment_id,
-            betas=BETAS,
-        )
-        sid = session.id
-        # Send session_id as first SSE event so UI can reuse it
-        yield _sse_event("session", {"session_id": sid})
+        # Create or reuse session
+        if session_id:
+            sid = session_id
+        else:
+            session = client.beta.sessions.create(
+                agent={"type": "agent", "id": settings.tracy_agent_id},
+                environment_id=settings.tracy_environment_id,
+                betas=BETAS,
+            )
+            sid = session.id
+            yield _sse_event("session", {"session_id": sid})
 
-    # Compose the full message with context
-    full_message = f"<context>\n{context_prefix}\n</context>\n\n{message}"
+        # Compose the full message with context
+        full_message = f"<context>\n{context_prefix}\n</context>\n\n{message}"
 
-    # Open the event stream and send the user message
-    with client.beta.sessions.events.stream(
-        session_id=sid,
-        betas=BETAS,
-    ) as stream:
-        client.beta.sessions.events.send(
+        # Open the event stream and send the user message
+        with client.beta.sessions.events.stream(
             session_id=sid,
-            events=[
-                {
-                    "type": "user.message",
-                    "content": [{"type": "text", "text": full_message}],
-                },
-            ],
             betas=BETAS,
-        )
+        ) as stream:
+            client.beta.sessions.events.send(
+                session_id=sid,
+                events=[
+                    {
+                        "type": "user.message",
+                        "content": [{"type": "text", "text": full_message}],
+                    },
+                ],
+                betas=BETAS,
+            )
 
-        for event in stream:
-            if event.type == "agent.message":
-                for block in event.content:
-                    if hasattr(block, "text"):
-                        yield _sse_event("text", {"text": block.text})
-            elif event.type == "agent.message_delta":
-                # Streaming text delta
-                if hasattr(event, "delta") and hasattr(event.delta, "text"):
-                    yield _sse_event("text_delta", {"text": event.delta.text})
-            elif event.type == "agent.tool_use":
-                yield _sse_event("tool_use", {
-                    "tool": event.name,
-                    "input": event.input if hasattr(event, "input") else {},
-                })
-            elif event.type == "agent.tool_result":
-                content_text = ""
-                if hasattr(event, "content"):
+            for event in stream:
+                etype = event.type
+                if etype == "agent.message":
                     for block in event.content:
                         if hasattr(block, "text"):
-                            content_text += block.text
-                # Truncate large tool results for the SSE stream
-                if len(content_text) > 5000:
-                    content_text = content_text[:5000] + "... [truncated]"
-                yield _sse_event("tool_result", {"text": content_text})
-            elif event.type == "agent.thinking":
-                if hasattr(event, "text"):
-                    yield _sse_event("thinking", {"text": event.text})
-            elif event.type == "session.status_idle":
-                yield _sse_event("done", {"status": "idle"})
-                break
-            elif event.type == "error":
-                msg = str(event.error) if hasattr(event, "error") else "Unknown error"
-                yield _sse_event("error", {"message": msg})
-                break
+                            yield _sse_event("text", {"text": block.text})
+                elif etype == "agent.message_delta":
+                    if hasattr(event, "delta") and hasattr(event.delta, "text"):
+                        yield _sse_event("text_delta", {"text": event.delta.text})
+                elif etype == "agent.tool_use":
+                    yield _sse_event("tool_use", {
+                        "tool": event.name,
+                        "input": event.input if hasattr(event, "input") else {},
+                    })
+                elif etype == "agent.tool_result":
+                    content_text = ""
+                    if hasattr(event, "content"):
+                        for block in event.content:
+                            if hasattr(block, "text"):
+                                content_text += block.text
+                    if len(content_text) > 5000:
+                        content_text = content_text[:5000] + "... [truncated]"
+                    yield _sse_event("tool_result", {"text": content_text})
+                elif etype == "agent.thinking":
+                    if hasattr(event, "text"):
+                        yield _sse_event("thinking", {"text": event.text})
+                elif etype == "session.status_idle":
+                    yield _sse_event("done", {"status": "idle"})
+                    break
+                elif etype == "error":
+                    msg = str(event.error) if hasattr(event, "error") else "Unknown error"
+                    yield _sse_event("error", {"message": msg})
+                    break
+                else:
+                    logger.debug("Tracy SSE unknown event: %s", etype)
 
-    yield _sse_event("done", {"status": "complete"})
+        yield _sse_event("done", {"status": "complete"})
+
+    except Exception as exc:
+        logger.exception("Tracy chat stream error")
+        yield _sse_event("error", {"message": str(exc)})
 
 
 def _sse_event(event_type: str, data: dict) -> str:
