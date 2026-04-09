@@ -9,7 +9,7 @@ from .config import Settings
 from .database import close_pool, run_migrations
 from .deficit_guard import DeficitGuard
 from .models import HealthResponse
-from .routers import agents, auth, keys, tenant, traces
+from .routers import agents, auth, keys, tenant, traces, tracy_mcp
 
 
 @asynccontextmanager
@@ -58,6 +58,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(agents.router)
     app.include_router(tenant.router)
     app.include_router(traces.router)
+    app.include_router(tracy_mcp.router)
 
     @app.get("/healthz", response_model=HealthResponse, tags=["health"])
     async def healthz() -> HealthResponse:
