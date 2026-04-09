@@ -25,87 +25,34 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["tracy-mcp"])
 
 # ---------------------------------------------------------------------------
-# Graph schema description — embedded in the tool so Tracy knows what to query
-# ---------------------------------------------------------------------------
-GRAPH_SCHEMA_DESCRIPTION = """\
-ClawTrace PuppyGraph schema (Cypher):
-
-VERTEX TYPES:
-  Tenant   — id: tenant_id (String). Root of hierarchy.
-  Agent    — id: agent_id (String). Props: tenant_id.
-  Trace    — id: trace_id (String). Props: tenant_id, agent_id, agent_name,
-             session_key, trace_start_ts_ms (Long), trace_end_ts_ms (Long),
-             duration_ms (Long), event_count (Long), trace_date (Date).
-  Span     — id: span_id (String). Props: tenant_id, agent_id, trace_id,
-             parent_span_id (nullable), span_start_ts_ms (Long),
-             span_end_ts_ms (Long), duration_ms (Long), actor_label (String),
-             actor_type (llm_call|tool_call|subagent|session),
-             input_tokens (Long), output_tokens (Long), total_tokens (Long),
-             has_error (Int 0|1), input_payload (JSON String),
-             output_payload (JSON String).
-
-EDGE TYPES:
-  Tenant -[:HAS_AGENT]-> Agent
-  Agent  -[:OWNS]->      Trace
-  Trace  -[:HAS_SPAN]->  Span
-  Span   -[:CHILD_OF]->  Span   (child -> parent; only when parent_span_id IS NOT NULL)
-
-IMPORTANT CYPHER RULES (verified empirically against PuppyGraph):
-  - CRITICAL BUG: A vertex's own ID field returns NULL via dot notation.
-    The ID fields are: Tenant.tenant_id, Agent.agent_id, Trace.trace_id, Span.span_id.
-    v.id_field → NULL in both WHERE and RETURN. Use elementId(v) instead → "Label[uuid]".
-  - Non-ID attributes work fine with dot notation:
-      t.tenant_id on Trace ✓ (tenant_id is a regular attr on Trace, not its ID)
-      t.agent_id on Trace ✓ (agent_id is a regular attr on Trace)
-      s.trace_id on Span ✓ (trace_id is a regular attr on Span, not its ID)
-      s.actor_type on Span ✓, s.duration_ms on Span ✓, etc.
-      a.tenant_id on Agent ✓ (tenant_id is a regular attr on Agent)
-  - Tenant vertex has NO usable dot-notation attributes (its only column is the ID).
-    To filter by tenant, always filter on Trace/Span/Agent: WHERE t.tenant_id = '...'
-  - In RETURN clauses, always use elementId(t) AS trace_id, elementId(s) AS span_id,
-    elementId(a) AS agent_id. Never return v.id_field — it will be NULL.
-  - String values must be single-quoted: WHERE t.tenant_id = 'abc-123'
-  - EVERY query MUST include a WHERE filter on tenant_id for data isolation.
-  - If agent_id is provided, the query MUST also filter on agent_id.
-  - If trajectory_id is provided, the query MUST also filter on trace_id matching that value.
-  - Prefer direct attribute filters (WHERE s.trace_id = '...') over edge traversal for performance.
-    Example: to get spans for a trace, use MATCH (s:Span) WHERE s.trace_id = 'uuid'
-    instead of MATCH (t:Trace)-[:HAS_SPAN]->(s:Span).
-  - PuppyGraph supports: MATCH, OPTIONAL MATCH, WHERE, RETURN, ORDER BY, LIMIT, SKIP,
-    count(), sum(), avg(), min(), max(), collect(), DISTINCT, CASE WHEN, coalesce(), substring().
-"""
-
-# ---------------------------------------------------------------------------
-# MCP tool definition
+# MCP tool definition — kept concise; schema knowledge belongs in system prompt
 # ---------------------------------------------------------------------------
 MCP_TOOL = {
     "name": "run_cypher_query",
     "description": (
-        "Execute a Cypher query against the ClawTrace PuppyGraph database to "
-        "analyze agent execution trajectories, spans, tokens, costs, and errors. "
-        "SECURITY: The query MUST contain a WHERE filter on tenant_id matching the "
-        "provided tenant_id. If agent_id is given, the query must also filter on it. "
-        "If trajectory_id is given, the query must filter on trace_id = trajectory_id.\n\n"
-        + GRAPH_SCHEMA_DESCRIPTION
+        "Execute a Cypher query against the ClawTrace PuppyGraph graph database. "
+        "Returns rows as JSON. The server enforces tenant data isolation: the query "
+        "string must contain the provided tenant_id (and agent_id / trajectory_id if given), "
+        "otherwise the request is rejected."
     ),
     "inputSchema": {
         "type": "object",
         "properties": {
             "tenant_id": {
                 "type": "string",
-                "description": "The tenant UUID to scope all queries to (REQUIRED in every query WHERE clause).",
+                "description": "Tenant UUID. Must appear in the query WHERE clause.",
             },
             "agent_id": {
                 "type": "string",
-                "description": "Optional agent UUID. If provided, query MUST also filter on agent_id.",
+                "description": "Agent UUID. If provided, must also appear in the query.",
             },
             "trajectory_id": {
                 "type": "string",
-                "description": "Optional trajectory/trace UUID. If provided, query MUST filter on trace_id = this value.",
+                "description": "Trace UUID. If provided, must appear in the query as trace_id filter.",
             },
             "query": {
                 "type": "string",
-                "description": "The Cypher query to execute. Must include tenant_id filter.",
+                "description": "Cypher query. Must include a WHERE filter on tenant_id.",
             },
         },
         "required": ["tenant_id", "query"],
