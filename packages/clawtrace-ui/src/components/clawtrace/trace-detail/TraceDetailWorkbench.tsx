@@ -1279,19 +1279,17 @@ function ActorMapView({
       circle.dataset.spanId = node.spanId;
       group.appendChild(circle);
 
-      // Icon image — LLM vendor icons get padding, others fill the circle
+      // Icon image — all icons fill the circle equally
       const iconSrc = resolveSpanIcon(node.span);
-      const isVendor = iconSrc.includes('/llms/');
-      const pad = isVendor ? Math.round(node.r * 0.3) : 0;
-      const imgSize = (node.r - pad) * 2;
+      const imgSize = node.r * 2;
       const img = document.createElementNS(ns, 'image');
       img.setAttribute('href', iconSrc);
-      img.setAttribute('x', String(-node.r + pad));
-      img.setAttribute('y', String(-node.r + pad));
+      img.setAttribute('x', String(-node.r));
+      img.setAttribute('y', String(-node.r));
       img.setAttribute('width', String(imgSize));
       img.setAttribute('height', String(imgSize));
       img.setAttribute('clip-path', `url(#${clipId})`);
-      img.setAttribute('preserveAspectRatio', isVendor ? 'xMidYMid meet' : 'xMidYMid slice');
+      img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
       group.appendChild(img);
 
       // Label below the circle
