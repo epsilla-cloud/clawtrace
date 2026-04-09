@@ -1,19 +1,20 @@
 .page {
-  min-height: 100dvh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   background: #faf4ec;
+  overflow: hidden;
 }
 
 .body {
   flex: 1;
   display: flex;
   min-height: 0;
-  overflow: hidden;
 }
 
+/* Left sidebar — fixed, scrolls independently */
 .sidebar {
-  width: 260px;
+  width: 240px;
   flex-shrink: 0;
   border-right: 1px solid #e8d9c4;
   background: #fffdf8;
@@ -26,23 +27,23 @@
 .sidebar::-webkit-scrollbar-track { background: transparent; }
 .sidebar::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 2px; }
 
-.sidebarNav { display: flex; flex-direction: column; gap: 4px; }
+.sidebarNav { display: flex; flex-direction: column; gap: 2px; }
 
-.sidebarSection { padding: 0 16px; margin-bottom: 8px; }
+.sidebarSection { padding: 0 12px; margin-bottom: 12px; }
 .sidebarSectionTitle {
   display: block;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 650;
-  color: #7c6854;
+  color: #b89c84;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  padding: 8px 10px 4px;
+  letter-spacing: 0.06em;
+  padding: 6px 10px 4px;
 }
 
 .sidebarLink {
   display: block;
-  padding: 6px 10px;
-  font-size: 13px;
+  padding: 7px 10px;
+  font-size: 14px;
   font-weight: 480;
   color: #5a4534;
   text-decoration: none;
@@ -56,6 +57,7 @@
   font-weight: 560;
 }
 
+/* Main content — scrolls independently */
 .content {
   flex: 1;
   min-width: 0;
@@ -68,6 +70,46 @@
 .content::-webkit-scrollbar-track { background: transparent; }
 .content::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
 
+/* Right TOC — fixed, scrolls independently */
+.toc {
+  width: 200px;
+  flex-shrink: 0;
+  border-left: 1px solid #e8d9c4;
+  background: #fffdf8;
+  overflow-y: auto;
+  padding: 20px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.toc::-webkit-scrollbar { width: 4px; }
+.toc::-webkit-scrollbar-track { background: transparent; }
+.toc::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 2px; }
+
+.tocTitle {
+  font-size: 10px;
+  font-weight: 650;
+  color: #b89c84;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 8px 4px;
+}
+
+.tocLink {
+  display: block;
+  padding: 4px 8px;
+  font-size: 12px;
+  color: #7c6854;
+  text-decoration: none;
+  border-radius: 4px;
+  line-height: 1.4;
+  transition: color 80ms, background 80ms;
+}
+.tocLink:hover { color: #2e2115; background: #f5e2d0; }
+.tocLinkH3 { padding-left: 16px; font-size: 11px; }
+
+@media (max-width: 1100px) {
+  .toc { display: none; }
+}
 @media (max-width: 860px) {
   .sidebar { display: none; }
   .content { padding: 24px 20px 48px; }

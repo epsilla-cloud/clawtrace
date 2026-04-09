@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { WebsiteHeader } from '@/components/website/WebsiteHeader';
+import { TableOfContents } from '@/components/docs/TableOfContents';
 import { DOC_SECTIONS } from '@/lib/docs-nav';
 import styles from './DocsLayout.module.css';
 
@@ -37,6 +38,8 @@ export function DocsLayout({ children }: { children: React.ReactNode }) {
         <main className={styles.content}>
           {children}
         </main>
+
+        <TableOfContents />
       </div>
     </div>
   );

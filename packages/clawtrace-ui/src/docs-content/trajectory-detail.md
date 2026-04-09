@@ -51,16 +51,6 @@ Each bar is colored by step type and sized proportionally to duration. Hover for
 
 ![Timeline View](/docs/images/2.2.3-see-detail-trajectory---timeline-view.png)
 
-## Efficiency View
-
-The efficiency view scores the trajectory's resource usage across time phases. Each phase is evaluated on:
-
-- **Tool density** — Ratio of tool calls to LLM calls
-- **Token efficiency** — Useful work per token spent
-- **Sub-agent utilization** — Whether delegation was used effectively
-
-Phases are color-coded: green (efficient), yellow (active but heavy), red (high spend, low progress).
-
 ## Switching Between Views
 
-Use the tab bar at the top of the workspace to switch between views. On narrow screens, a dropdown menu replaces the tabs. The step detail panel is shared across all views — selecting a step in any view updates the inspector.
+Use the view switcher at the top of the workspace to toggle between Trace View, Call Graph View, and Timeline View. The step detail panel is shared across all views — selecting a step in any view updates the inspector.

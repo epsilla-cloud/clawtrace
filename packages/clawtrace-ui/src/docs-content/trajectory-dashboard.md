@@ -2,6 +2,8 @@
 
 The trajectory dashboard gives you a complete view of all agent runs for a specific connection. It combines metrics, trends, and a detailed run table to help you understand agent behavior at a glance.
 
+
+![Trajectory Dashboard](/docs/images/2.1-see-all-trajectories-of-an-agent.png)
 ## Metrics Overview
 
 The top section shows four key metrics for the selected time range:
@@ -22,7 +24,6 @@ Four bar charts show how metrics change over time:
 
 The time bucketing adapts to your selected range: hourly for 1 day, daily for 7 days, weekly for 30+ days.
 
-![Trajectory Dashboard](/docs/images/2.1-see-all-trajectories-of-an-agent.png)
 
 ## Time Range Selector
 
