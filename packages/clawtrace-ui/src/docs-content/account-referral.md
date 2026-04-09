@@ -10,13 +10,13 @@ Your account page shows your name, email, and avatar from your OAuth provider (G
 
 ## Referral Program
 
-Invite friends to ClawTrace and both of you earn **100 free credits** each.
+Invite friends to ClawTrace and both of you earn **200 free credits** each.
 
 ### How It Works
 
 1. Copy your unique referral link from the Account page
 2. Share it with a friend
-3. When they sign up using your link, you both receive 100 credits
+3. When they sign up using your link, you both receive 200 credits
 4. Credits appear in your billing history as "Referral Reward" (for you) and "Invited Bonus" (for your friend)
 
 ### Referral Link
