@@ -36,7 +36,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["https://clawtrace.ai", "http://localhost:3000"],
+        allow_origins=[
+            "https://clawtrace.ai",
+            "http://localhost:3000",
+            "https://console.anthropic.com",
+            "https://api.anthropic.com",
+        ],
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

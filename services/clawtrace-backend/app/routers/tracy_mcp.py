@@ -164,8 +164,23 @@ async def _handle_tool_call(
 
 
 # ---------------------------------------------------------------------------
-# MCP endpoint — Streamable HTTP (single POST endpoint)
+# MCP endpoint — Streamable HTTP
 # ---------------------------------------------------------------------------
+@router.get("/tracy/mcp")
+async def tracy_mcp_get() -> Response:
+    """GET handler for MCP discovery / SSE probe.
+    Returns server info so platforms can verify the server exists."""
+    return Response(
+        content=json.dumps({
+            "name": "ClawTrace Tracy MCP",
+            "version": "1.0.0",
+            "protocol": "MCP/2025-03-26",
+            "transport": "streamable-http",
+        }),
+        media_type="application/json",
+    )
+
+
 @router.post("/tracy/mcp")
 async def tracy_mcp(
     request: Request,
