@@ -38,18 +38,18 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   storage_mb_day: 'Storage',
-  trace_list_query: 'Trace Queries',
-  trace_detail_query: 'Detail Queries',
-  tracy_input_token_1k: 'Tracy Input',
-  tracy_output_token_1k: 'Tracy Output',
+  trace_list_query: 'List Trajectories',
+  trace_detail_query: 'Trajectory Detail',
+  tracy_input_token_1k: 'Tracy Agent Input Tokens',
+  tracy_output_token_1k: 'Tracy Agent Output Tokens',
 };
 
 const PRICING_CARDS = [
-  { key: 'storage_mb_day', label: 'Storage Price', unit: 'credits / MB / day', color: '#d4a030' },
-  { key: 'trace_list_query', label: 'Trace List Query', unit: 'credits / query', color: '#4d9f6e' },
-  { key: 'trace_detail_query', label: 'Detail Query', unit: 'credits / query', color: '#3a918e' },
-  { key: 'tracy_input_token_1k', label: 'Tracy Input', unit: 'credits / 1k tokens', color: '#7663ad' },
-  { key: 'tracy_output_token_1k', label: 'Tracy Output', unit: 'credits / 1k tokens', color: '#a4532b' },
+  { key: 'storage_mb_day', label: 'Storage', unit: 'credits / MB / day', color: '#d4a030' },
+  { key: 'trace_list_query', label: 'List Trajectories', unit: 'credits / query', color: '#4d9f6e' },
+  { key: 'trace_detail_query', label: 'Trajectory Detail', unit: 'credits / query', color: '#3a918e' },
+  { key: 'tracy_input_token_1k', label: 'Tracy Agent Input Tokens', unit: 'credits / 1k tokens', color: '#7663ad' },
+  { key: 'tracy_output_token_1k', label: 'Tracy Agent Output Tokens', unit: 'credits / 1k tokens', color: '#a4532b' },
 ];
 
 function formatCredits(n: number): string {
@@ -64,6 +64,7 @@ export function UsagePage() {
   const [data, setData] = useState<UsageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [pricing, setPricing] = useState<Record<string, number>>({});
+  const [rangeMs, setRangeMs] = useState(7 * MS_PER_DAY);
   const chartRef = useRef<HTMLDivElement>(null);
 
   // Fetch pricing table
@@ -97,6 +98,7 @@ export function UsagePage() {
       toMs = now;
     }
 
+    setRangeMs(toMs - fromMs);
     try {
       const res = await fetch(`/api/billing/usage?from_ms=${fromMs}&to_ms=${toMs}`, { cache: 'no-store' });
       if (res.ok) setData(await res.json());
@@ -130,7 +132,18 @@ export function UsagePage() {
       if (disposed) return;
 
       chart = echarts.init(dom);
-      const dates = data.series.map((r) => String(r.date));
+      // Convert UTC dates to local timezone for display
+      const dates = data.series.map((r) => {
+        const utc = String(r.date);
+        const d = new Date(utc.includes('T') ? utc : utc + 'Z');
+        if (isNaN(d.getTime())) return utc;
+        if (rangeMs <= 2 * 86_400_000) {
+          // Hourly: show "Apr 8, 2pm"
+          return d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' });
+        }
+        // Daily+: show "Apr 8"
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      });
 
       chart.setOption({
         animation: false,
@@ -180,7 +193,7 @@ export function UsagePage() {
       disposed = true;
       chart?.dispose();
     };
-  }, [data, allCategories]);
+  }, [data, allCategories, rangeMs]);
 
   return (
     <section className={styles.shell}>
