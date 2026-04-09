@@ -316,8 +316,11 @@ async def tracy_chat(
     # Shared dict — mutated by the generator, read by persistence task
     collected: dict[str, Any] = {}
 
+    # Grab the main event loop before entering the threadpool
+    main_loop = asyncio.get_event_loop()
+
     def streaming_with_persist():
-        """Yield SSE events, then trigger DB persistence."""
+        """Yield SSE events, then trigger DB persistence on the main event loop."""
         yield from _stream_tracy(
             message=body.message,
             context_prefix=context_prefix,
@@ -325,11 +328,9 @@ async def tracy_chat(
             settings=settings,
             collected=collected,
         )
-        # After stream completes, persist asynchronously
-        # (we're in a threadpool, so we can schedule the coroutine)
+        # Schedule persistence on the main event loop (where asyncpg pool lives)
         try:
-            loop = asyncio.new_event_loop()
-            loop.run_until_complete(
+            future = asyncio.run_coroutine_threadsafe(
                 _persist_conversation(
                     user_id=session.db_id,
                     raw_message=body.message,
@@ -337,11 +338,12 @@ async def tracy_chat(
                     trace_id=body.trace_id,
                     collected=collected,
                     settings=settings,
-                )
+                ),
+                main_loop,
             )
-            loop.close()
+            future.result(timeout=10)  # wait up to 10s for persistence
         except Exception:
-            logger.exception("Failed to run persistence task")
+            logger.exception("Failed to persist Tracy conversation")
 
     return StreamingResponse(
         streaming_with_persist(),
