@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
+import time as _time
 from typing import Optional
 
 import anthropic
@@ -111,11 +113,10 @@ def _stream_tracy(
         # Compose the full message with context
         full_message = f"<context>\n{context_prefix}\n</context>\n\n{message}"
 
-        # Open the event stream and send the user message
-        with client.beta.sessions.events.stream(
-            session_id=sid,
-            betas=BETAS,
-        ) as stream:
+        # Send the user message in a separate thread because
+        # events.stream() blocks on iteration and events.send() also blocks.
+        def _send():
+            _time.sleep(0.5)
             client.beta.sessions.events.send(
                 session_id=sid,
                 events=[
@@ -126,6 +127,14 @@ def _stream_tracy(
                 ],
                 betas=BETAS,
             )
+
+        sender = threading.Thread(target=_send, daemon=True)
+        sender.start()
+
+        with client.beta.sessions.events.stream(
+            session_id=sid,
+            betas=BETAS,
+        ) as stream:
 
             for event in stream:
                 etype = event.type
