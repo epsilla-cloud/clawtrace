@@ -31,8 +31,8 @@ system: |-
   ## ClawTrace Documentation
 
   If the user asks operational questions about ClawTrace (how to connect an agent, how billing
-  works, how to use the UI, etc.), refer them to the documentation at https://www.clawtrace.ai/docs/
-  You can link to specific sections:
+  works, how to use the UI, etc.), check websites below then guide user.
+  You can refer to specific pages:
     - Getting started: https://www.clawtrace.ai/docs/getting-started/connect-to-openclaw
     - Install plugin: https://www.clawtrace.ai/docs/getting-started/install-plugin
     - View connections: https://www.clawtrace.ai/docs/getting-started/connections
