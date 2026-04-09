@@ -74,9 +74,12 @@ SERVER_INFO = {
 # ---------------------------------------------------------------------------
 def _verify_bearer(authorization: Optional[str], settings: Settings) -> None:
     if not authorization or not authorization.startswith("Bearer "):
+        logger.warning("MCP auth failed: no Bearer header. Got: %s", authorization[:40] if authorization else None)
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     token = authorization[7:]
     if not hmac.compare_digest(token, settings.internal_secret):
+        logger.warning("MCP auth failed: token mismatch. Got len=%d, expected len=%d, first8=%s",
+                       len(token), len(settings.internal_secret), token[:8])
         raise HTTPException(status_code=401, detail="Invalid token")
 
 
