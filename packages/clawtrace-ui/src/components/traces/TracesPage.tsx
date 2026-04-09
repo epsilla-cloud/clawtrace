@@ -183,7 +183,9 @@ function bucketTrends(trends: TrendPoint[], rangeDays: number, traces: TraceRow[
   for (const t of trends) {
     let key: string;
     if (rangeDays <= 90) {
-      const d = new Date(t.date);
+      // Parse YYYY-MM-DD as local date (not UTC)
+      const [y, m, dd] = t.date.split('-').map(Number);
+      const d = new Date(y, m - 1, dd);
       d.setDate(d.getDate() - d.getDay());
       key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     } else {
@@ -281,7 +283,22 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
   // Compute chart data
   const rangeDays = presetIdx !== null ? PRESETS[presetIdx].ms / MS_PER_DAY : Math.max(1, (dateToMs(customTo, true) - dateToMs(customFrom)) / MS_PER_DAY);
   const bucketed = bucketTrends(data?.trends ?? [], rangeDays, data?.traces ?? []);
-  const chartLabels = bucketed.map(t => t.date);
+  const chartLabels = bucketed.map(t => {
+    const raw = t.date;
+    // Hourly (HH:00) — already local, use as-is
+    if (/^\d{2}:\d{2}$/.test(raw)) return raw;
+    // Date-only (YYYY-MM-DD) — parse as local date, not UTC
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      const [y, m, d] = raw.split('-').map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    // Week/month key — same treatment
+    if (/^\d{4}-\d{2}$/.test(raw)) {
+      const [y, m] = raw.split('-').map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString([], { month: 'short', year: 'numeric' });
+    }
+    return raw;
+  });
   const trajValues = bucketed.map(t => t.run_count);
   const inputValues = bucketed.map(t => t.input_tokens);
   const outputValues = bucketed.map(t => t.output_tokens);
