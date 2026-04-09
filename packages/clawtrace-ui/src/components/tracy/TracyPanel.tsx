@@ -470,11 +470,23 @@ export function TracyPanel() {
     return () => { mq.removeEventListener('change', apply); document.body.style.marginRight = '0'; };
   }, [open]);
 
-  const clearConversation = useCallback(() => {
+  const clearConversation = useCallback(async () => {
+    // Soft-delete session on backend so it doesn't reload on refresh
+    if (harnessSessionId) {
+      try {
+        const sessRes = await fetch('/api/tracy/sessions?limit=1', { cache: 'no-store' });
+        if (sessRes.ok) {
+          const { sessions } = await sessRes.json();
+          if (sessions?.length) {
+            await fetch(`/api/tracy/sessions/${sessions[0].id}`, { method: 'DELETE' });
+          }
+        }
+      } catch { /* best-effort */ }
+    }
     setMessages([]);
     setHarnessSessionId(undefined);
     localStorage.removeItem(SESSION_KEY);
-  }, []);
+  }, [harnessSessionId]);
 
   const send = useCallback(async () => {
     const text = draft.trim();
@@ -576,14 +588,12 @@ export function TracyPanel() {
               <span className={styles.avatarHeader}>
                 <Image src="/tracy.png" alt="Tracy" width={28} height={28} className={styles.avatarImage} />
               </span>
-              <div>
-                <p className={styles.name}>Tracy</p>
-                <p className={styles.subtitle}>Your OpenClaw Doctor Agent</p>
-              </div>
+              <p className={styles.name}>Tracy</p>
+              <span className={styles.subtitle}>Your OpenClaw Doctor Agent</span>
             </div>
             <div className={styles.headerActions}>
               {messages.length > 0 && (
-                <button type="button" className={styles.clearButton} onClick={clearConversation}
+                <button type="button" className={styles.clearButton} onClick={() => void clearConversation()}
                   aria-label="Clear conversation" title="New conversation">
                   <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
                     strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">

@@ -33,6 +33,7 @@ from ..auth import get_current_user, get_settings
 from ..config import Settings
 from ..database import (
     create_tracy_session,
+    delete_tracy_session,
     get_tracy_messages,
     get_tracy_session_by_harness_id,
     list_tracy_sessions,
@@ -383,3 +384,13 @@ async def tracy_session_messages(
 ):
     messages = await get_tracy_messages(session_id, session.db_id, settings)
     return {"messages": messages}
+
+
+@router.delete("/sessions/{session_id}")
+async def tracy_delete_session(
+    session_id: str,
+    session: UserSession = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    deleted = await delete_tracy_session(session_id, session.db_id, settings)
+    return {"deleted": deleted}
