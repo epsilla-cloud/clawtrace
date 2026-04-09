@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Request, Response
 
 from ..auth import get_settings
 from ..config import Settings
+from ..consumption import report_consumption
 from ..puppygraph import run_cypher
 
 logger = logging.getLogger(__name__)
@@ -140,6 +141,8 @@ async def _handle_tool_call(
         result_text = json.dumps(rows, default=str)
         if len(result_text) > 100_000:
             result_text = result_text[:100_000] + "\n... [truncated — add LIMIT to your query]"
+        # Report MCP query consumption to payment service
+        await report_consumption(tenant_id, {"tracy_mcp_query": 1.0}, settings)
         return {
             "content": [{"type": "text", "text": result_text}],
             "isError": False,
