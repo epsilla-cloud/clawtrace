@@ -11,4 +11,9 @@ screenshots
 plugins/clawtrace/node_modules/
 packages/clawtrace-ui/nanobanana-output/
 clawtrace-ingest-vm_key.pem
+__pycache__/
+*.pyc
+.venv/
+*.pem
+!*.example
 
