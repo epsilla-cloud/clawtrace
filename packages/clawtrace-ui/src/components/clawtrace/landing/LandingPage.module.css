@@ -259,18 +259,22 @@
 .stepDesc { margin: 8px 0 0; font-size: 13px; color: var(--ct-soft-text); line-height: 1.5; }
 
 .codeSnippet {
-  margin: 24px auto 0; max-width: 480px; text-align: center;
+  margin: 24px auto 0; max-width: 520px; text-align: center;
 }
 .codeLabel {
-  margin: 0 0 8px; font-size: 11px; color: var(--ct-muted);
+  margin: 0 0 12px; font-size: 11px; color: var(--ct-muted);
   text-transform: uppercase; letter-spacing: 0.06em; font-weight: 520;
 }
-.codeBlock {
-  display: inline-block; padding: 10px 20px;
-  background: #2e2115; color: #f5e2d0; border-radius: 10px;
-  font-size: 14px; font-family: 'SF Mono', 'Fira Code', monospace;
-  letter-spacing: 0.02em;
+.codeSteps {
+  display: grid; gap: 6px;
 }
+.codeBlock {
+  display: block; padding: 10px 16px; text-align: left;
+  background: #2e2115; color: #f5e2d0; border-radius: 10px;
+  font-size: 13px; font-family: 'SF Mono', 'Fira Code', monospace;
+  letter-spacing: 0.02em; white-space: pre-wrap; line-height: 1.5;
+}
+.codeComment { color: #7c6854; }
 
 /* ── S7: Coming Soon ─────────────────────────────────────────────────── */
 .roadmapSection { margin-top: 88px; }

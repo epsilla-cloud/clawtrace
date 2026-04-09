@@ -356,8 +356,12 @@ export function LandingPage() {
         </div>
 
         <div className={styles.codeSnippet}>
-          <p className={styles.codeLabel}>Quick install</p>
-          <code className={styles.codeBlock}>openclaw plugins install @epsilla/clawtrace</code>
+          <p className={styles.codeLabel}>Quick setup</p>
+          <div className={styles.codeSteps}>
+            <code className={styles.codeBlock}><span className={styles.codeComment}># Step 1: Install the plugin</span>{'\n'}openclaw plugins install @epsilla/clawtrace</code>
+            <code className={styles.codeBlock}><span className={styles.codeComment}># Step 2: Authenticate with your observe key</span>{'\n'}openclaw clawtrace setup</code>
+            <code className={styles.codeBlock}><span className={styles.codeComment}># Step 3: Restart the gateway</span>{'\n'}openclaw gateway restart</code>
+          </div>
         </div>
       </section>
 
