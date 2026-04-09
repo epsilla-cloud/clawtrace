@@ -202,7 +202,7 @@
   border-radius: 14px; border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   background: #fffdf8; padding: 16px;
 }
-.tracyFeatureIcon { font-size: 22px; display: block; margin-bottom: 8px; }
+.tracyFeatureIcon { width: 36px; height: 36px; display: block; margin-bottom: 8px; }
 .tracyFeatureTitle { margin: 0; font-size: 15px; font-weight: 520; color: var(--ct-text); }
 .tracyFeatureDesc { margin: 6px 0 0; font-size: 13px; color: var(--ct-soft-text); line-height: 1.45; }
 
@@ -236,7 +236,7 @@
   border-radius: 16px; border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
   background: #fffdf8; padding: 20px 16px; text-align: center;
 }
-.stepNum { font-size: 32px; display: block; margin-bottom: 10px; }
+.stepNum { width: 40px; height: 40px; display: block; margin: 0 auto 10px; }
 .stepTitle { margin: 0; font-size: 20px; font-weight: 520; color: var(--ct-text); }
 .stepDesc { margin: 8px 0 0; font-size: 13px; color: var(--ct-soft-text); line-height: 1.5; }
 

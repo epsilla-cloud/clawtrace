@@ -7,10 +7,6 @@ import { UserButton } from '@/components/auth/user-button';
 import idcLogo from '../../../../idc.png';
 import logoImage from '../../../../logo.png';
 import nvidiaLogo from '../../../../nvidia.png';
-import overviewImage from '../../../../overview.png';
-import tracingGraphImage from '../../../../tracing_graph.png';
-import tracingPathImage from '../../../../tracing_path.png';
-import tracingTimelineImage from '../../../../tracing_timeline.png';
 import yCombinatorLogo from '../../../../ycombinator.png';
 import styles from './LandingPage.module.css';
 
@@ -43,10 +39,10 @@ const IMPROVEMENT_BLOCKS = [
 ];
 
 const PREVIEW_SLIDES = [
-  { key: 'overview', image: overviewImage, alt: 'ClawTrace overview dashboard' },
-  { key: 'tracing-path', image: tracingPathImage, alt: 'ClawTrace execution path tracing view' },
-  { key: 'tracing-graph', image: tracingGraphImage, alt: 'ClawTrace actor graph tracing view' },
-  { key: 'tracing-timeline', image: tracingTimelineImage, alt: 'ClawTrace step timeline tracing view' },
+  { key: 'dashboard', src: '/docs/images/2.1-see-all-trajectories-of-an-agent.png', alt: 'Trajectory dashboard with metrics and trends' },
+  { key: 'tracing-path', src: '/docs/images/2.2.1-see-detail-trajectory---tracing-view.png', alt: 'Execution path tracing view' },
+  { key: 'tracing-graph', src: '/docs/images/2.2.1-see-detail-trajectory---graph-view.png', alt: 'Actor graph tracing view' },
+  { key: 'tracing-timeline', src: '/docs/images/2.2.3-see-detail-trajectory---timeline-view.png', alt: 'Step timeline tracing view' },
 ];
 
 const TRACY_QUESTIONS = [
@@ -57,17 +53,17 @@ const TRACY_QUESTIONS = [
 
 const TRACY_FEATURES = [
   {
-    icon: '\u{1F3AF}',
+    icon: '/landing-icons/context.svg',
     title: 'Context-aware',
     desc: 'Tracy knows which page you are on and scopes all analysis to that agent or trajectory automatically.',
   },
   {
-    icon: '\u26A1',
+    icon: '/landing-icons/realtime.svg',
     title: 'Real-time queries',
     desc: 'Queries your trajectory graph database live. No pre-computed reports or stale dashboards.',
   },
   {
-    icon: '\u{1F4CA}',
+    icon: '/landing-icons/drilldown.svg',
     title: 'Charts and drill-down',
     desc: 'Inline visualizations with multi-turn follow-up conversations for deeper investigation.',
   },
@@ -93,10 +89,10 @@ const FEATURES = [
     alt: 'Timeline view',
   },
   {
-    title: 'Cost Analytics',
-    desc: 'Token usage, credit consumption, and spend trends broken down by agent, trajectory, and step.',
+    title: 'Trajectory Dashboard',
+    desc: 'All trajectories at a glance with metrics, daily trends, token usage, and run-level drill-down.',
     src: '/docs/images/2.1-see-all-trajectories-of-an-agent.png',
-    alt: 'Trajectory dashboard with cost analytics',
+    alt: 'Trajectory dashboard for an OpenClaw agent',
   },
 ];
 
@@ -105,19 +101,19 @@ const STEPS = [
     num: '1',
     title: 'Connect',
     desc: 'Add the ClawTrace plugin to your OpenClaw agent. One npm install, one config line.',
-    icon: '\u{1F50C}',
+    icon: '/landing-icons/connect.svg',
   },
   {
     num: '2',
     title: 'Observe',
     desc: 'Every trajectory streams to ClawTrace automatically. See traces, spans, tokens, and costs.',
-    icon: '\u{1F441}',
+    icon: '/landing-icons/observe.svg',
   },
   {
     num: '3',
     title: 'Improve',
     desc: 'Ask Tracy what went wrong, what costs too much, and how to fix it. Get specific, actionable answers.',
-    icon: '\u{1F680}',
+    icon: '/landing-icons/improve.svg',
   },
 ];
 
@@ -214,11 +210,10 @@ export function LandingPage() {
           >
             {PREVIEW_SLIDES.map((slide, i) => (
               <div key={slide.key} className={styles.heroSlide} aria-hidden={i !== activeSlide}>
-                <Image
-                  src={slide.image} alt={slide.alt}
-                  width={slide.image.width} height={slide.image.height}
-                  priority={i === 0} sizes="(max-width: 980px) 100vw, 1120px"
+                <img
+                  src={slide.src} alt={slide.alt}
                   className={styles.heroImage}
+                  loading={i === 0 ? 'eager' : 'lazy'}
                 />
               </div>
             ))}
@@ -306,7 +301,7 @@ export function LandingPage() {
         <div className={styles.tracyFeatures}>
           {TRACY_FEATURES.map((f) => (
             <div key={f.title} className={styles.tracyFeatureCard}>
-              <span className={styles.tracyFeatureIcon}>{f.icon}</span>
+              <img src={f.icon} alt="" className={styles.tracyFeatureIcon} />
               <h4 className={styles.tracyFeatureTitle}>{f.title}</h4>
               <p className={styles.tracyFeatureDesc}>{f.desc}</p>
             </div>
@@ -344,7 +339,7 @@ export function LandingPage() {
         <div className={styles.stepsGrid}>
           {STEPS.map((s) => (
             <article key={s.num} className={styles.stepCard}>
-              <span className={styles.stepNum}>{s.icon}</span>
+              <img src={s.icon} alt="" className={styles.stepNum} />
               <h3 className={styles.stepTitle}>{s.title}</h3>
               <p className={styles.stepDesc}>{s.desc}</p>
             </article>
