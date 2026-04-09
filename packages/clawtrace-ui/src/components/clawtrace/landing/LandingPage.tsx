@@ -46,7 +46,7 @@ const PREVIEW_SLIDES = [
 ];
 
 const TRACY_QUESTIONS = [
-  'Which trace cost the most?',
+  'Why did this run fail?',
   'Where is the bottleneck?',
   'How can I reduce costs?',
 ];
@@ -54,43 +54,43 @@ const TRACY_QUESTIONS = [
 const TRACY_FEATURES = [
   {
     icon: '/landing-icons/context.svg',
-    title: 'Context-aware',
-    desc: 'Tracy knows which page you are on and scopes all analysis to that agent or trajectory automatically.',
+    title: 'Understands your context',
+    desc: 'Tracy adapts to the page you are on and focuses on the agent or trajectory you are looking at.',
   },
   {
     icon: '/landing-icons/realtime.svg',
-    title: 'Real-time queries',
-    desc: 'Queries your trajectory graph database live. No pre-computed reports or stale dashboards.',
+    title: 'Always up to date',
+    desc: 'Every answer comes from live data. No stale dashboards, no waiting for reports to refresh.',
   },
   {
     icon: '/landing-icons/drilldown.svg',
-    title: 'Charts and drill-down',
-    desc: 'Inline visualizations with multi-turn follow-up conversations for deeper investigation.',
+    title: 'Follow up naturally',
+    desc: 'Ask a question, then dig deeper. Tracy remembers the conversation and builds on previous answers.',
   },
 ];
 
 const FEATURES = [
   {
     title: 'Execution Path',
-    desc: 'Interactive trace tree showing every LLM call, tool use, and sub-agent delegation with full input/output payloads.',
+    desc: 'See every LLM call, tool use, and sub-agent delegation in an interactive trace tree with full payloads.',
     src: '/docs/images/2.2.1-see-detail-trajectory---tracing-view.png',
     alt: 'Execution path view',
   },
   {
     title: 'Call Graph',
-    desc: 'Node-link diagram visualizing the relationships between agents, tools, and models at a glance.',
+    desc: 'Visualize how agents, tools, and models relate to each other across the entire trajectory.',
     src: '/docs/images/2.2.1-see-detail-trajectory---graph-view.png',
     alt: 'Call graph view',
   },
   {
     title: 'Timeline',
-    desc: 'Gantt chart showing when each step started, how long it ran, and where parallelism or gaps exist.',
+    desc: 'Spot bottlenecks and parallelism at a glance with a Gantt chart of every step in the run.',
     src: '/docs/images/2.2.3-see-detail-trajectory---timeline-view.png',
     alt: 'Timeline view',
   },
   {
     title: 'Trajectory Dashboard',
-    desc: 'All trajectories at a glance with metrics, daily trends, token usage, and run-level drill-down.',
+    desc: 'All trajectories at a glance with metrics, daily trends, token usage, and run level drill down.',
     src: '/docs/images/2.1-see-all-trajectories-of-an-agent.png',
     alt: 'Trajectory dashboard for an OpenClaw agent',
   },
@@ -100,19 +100,19 @@ const STEPS = [
   {
     num: '1',
     title: 'Connect',
-    desc: 'Add the ClawTrace plugin to your OpenClaw agent. One npm install, one config line.',
+    desc: 'Install the ClawTrace plugin on your OpenClaw agent and authenticate with your observe key.',
     icon: '/landing-icons/connect.svg',
   },
   {
     num: '2',
     title: 'Observe',
-    desc: 'Every trajectory streams to ClawTrace automatically. See traces, spans, tokens, and costs.',
+    desc: 'Every trajectory streams to ClawTrace automatically. See traces, spans, tokens, and costs in real time.',
     icon: '/landing-icons/observe.svg',
   },
   {
     num: '3',
     title: 'Improve',
-    desc: 'Ask Tracy what went wrong, what costs too much, and how to fix it. Get specific, actionable answers.',
+    desc: 'Ask Tracy to analyze your runs, find what costs too much, and recommend specific improvements.',
     icon: '/landing-icons/improve.svg',
   },
 ];
@@ -120,15 +120,15 @@ const STEPS = [
 const ROADMAP = [
   {
     title: 'Rubric-Based Evaluation',
-    desc: 'Define quality rubrics, auto-score agent trajectories, catch regressions before deployment.',
+    desc: 'Define quality rubrics, auto-score agent trajectories, and catch regressions before deployment.',
   },
   {
     title: 'A/B Testing',
-    desc: 'Run agent variants side-by-side, compare cost, quality, and speed. Promote winners with confidence.',
+    desc: 'Run agent variants side by side, compare cost, quality, and speed, then promote winners with confidence.',
   },
   {
     title: 'Version Control',
-    desc: 'Track agent config changes over time, roll back to known-good versions, audit who changed what.',
+    desc: 'Track agent config changes over time, roll back to known good versions, and audit who changed what.',
   },
   {
     title: 'Self-Evolving Agents',
@@ -164,6 +164,7 @@ export function LandingPage() {
   const featuresRef = useScrollReveal();
   const stepsRef = useScrollReveal();
   const roadmapRef = useScrollReveal();
+  const billingRef = useScrollReveal();
   const ctaRef = useScrollReveal();
 
   useEffect(() => {
@@ -195,7 +196,7 @@ export function LandingPage() {
         </div>
       </header>
 
-      {/* ── S1: Hero (kept as-is) ──────────────────────────────────── */}
+      {/* ── S1: Hero ───────────────────────────────────────────────── */}
       <section className={styles.hero} id="hero">
         <h1 className={styles.headline}>
           Make your OpenClaw agents <span>better, cheaper, and faster.</span>
@@ -240,7 +241,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── S2: Backers (kept as-is) ───────────────────────────────── */}
+      {/* ── S2: Backers ────────────────────────────────────────────── */}
       <section className={styles.backers} aria-label="Backed by">
         <div className={styles.backersList}>
           {BACKERS.map((b) => (
@@ -251,7 +252,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── S3: Better / Cheaper / Faster (kept as-is) ─────────────── */}
+      {/* ── S3: Better / Cheaper / Faster ──────────────────────────── */}
       <section className={styles.improvementSection} id="improvement">
         <p className={styles.sectionKicker}>How it works</p>
         <h2 className={styles.sectionTitle}>Three moves to improve your OpenClaw agent.</h2>
@@ -267,20 +268,22 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── S4: Tracy Showcase (NEW) ───────────────────────────────── */}
+      {/* ── S4: Tracy Showcase ─────────────────────────────────────── */}
       <section className={`${styles.tracySection} ${styles.reveal}`} id="tracy" ref={tracyRef}>
-        <p className={styles.sectionKicker}>Meet Tracy</p>
+        <div className={styles.tracyHeader}>
+          <img src="/tracy.png" alt="Tracy" className={styles.tracyAvatar} />
+          <p className={styles.sectionKicker}>Meet Tracy</p>
+        </div>
         <h2 className={styles.sectionTitle}>Your OpenClaw Doctor Agent</h2>
         <p className={styles.sectionSub}>
-          Don't just see what happened. Ask why — and get answers.
+          Don't just see what happened. Ask why, and get tailored recommendations.
         </p>
 
         <div className={styles.tracyShowcase}>
           <div className={styles.tracyLeft}>
             <p className={styles.tracyDesc}>
-              Tracy is an AI observability analyst that lives inside ClawTrace.
-              She queries your trajectory data in real time, spots anomalies you would miss,
-              and delivers actionable optimization advice — all through natural conversation.
+              Tracy is your OpenClaw's doctor. She watches every run, spots the problems
+              you would miss, and tells you exactly what to fix and why.
             </p>
             <div className={styles.tracyQuestions}>
               {TRACY_QUESTIONS.map((q) => (
@@ -289,12 +292,18 @@ export function LandingPage() {
             </div>
           </div>
           <div className={styles.tracyRight}>
-            <Image
-              src="/docs/images/ask_tracy_4_result.png" alt="Tracy analyzing trajectory costs"
-              width={510} height={680}
-              className={styles.tracyScreenshot}
-              sizes="(max-width: 760px) 100vw, 510px"
-            />
+            <div className={styles.tracyScreenshots}>
+              <img
+                src="/docs/images/ask_tracy_4_result.png" alt="Tracy analyzing trajectory costs with chart"
+                className={styles.tracyScreenshot}
+                loading="lazy"
+              />
+              <img
+                src="/docs/images/ask_tracy_5_drilldown_1.png" alt="Tracy providing detailed cost analysis and recommendations"
+                className={styles.tracyScreenshot}
+                loading="lazy"
+              />
+            </div>
           </div>
         </div>
 
@@ -309,7 +318,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── S5: Product Features Grid (NEW) ────────────────────────── */}
+      {/* ── S5: Product Features Grid ──────────────────────────────── */}
       <section className={`${styles.featuresSection} ${styles.reveal}`} id="features" ref={featuresRef}>
         <p className={styles.sectionKicker}>Full visibility</p>
         <h2 className={styles.sectionTitle}>Everything you need to understand your agents</h2>
@@ -331,7 +340,7 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── S6: How It Works (NEW) ─────────────────────────────────── */}
+      {/* ── S6: How It Works ───────────────────────────────────────── */}
       <section className={`${styles.stepsSection} ${styles.reveal}`} id="how-it-works" ref={stepsRef}>
         <p className={styles.sectionKicker}>Get started in minutes</p>
         <h2 className={styles.sectionTitle}>Three steps to reliable agents</h2>
@@ -347,12 +356,12 @@ export function LandingPage() {
         </div>
 
         <div className={styles.codeSnippet}>
-          <p className={styles.codeLabel}>One-line install</p>
-          <code className={styles.codeBlock}>npm install @epsilla/clawtrace</code>
+          <p className={styles.codeLabel}>Quick install</p>
+          <code className={styles.codeBlock}>openclaw plugins install @epsilla/clawtrace</code>
         </div>
       </section>
 
-      {/* ── S7: Coming Soon (NEW) ──────────────────────────────────── */}
+      {/* ── S7: Coming Soon ────────────────────────────────────────── */}
       <section className={`${styles.roadmapSection} ${styles.reveal}`} id="roadmap" ref={roadmapRef}>
         <p className={styles.sectionKicker}>On the horizon</p>
         <h2 className={styles.sectionTitle}>Building the foundation for self-evolving agents</h2>
@@ -367,7 +376,35 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* ── S8: CTA (replaced waitlist) ────────────────────────────── */}
+      {/* ── S8: Billing ────────────────────────────────────────────── */}
+      <section className={`${styles.billingSection} ${styles.reveal}`} id="billing" ref={billingRef}>
+        <p className={styles.sectionKicker}>Simple pricing</p>
+        <h2 className={styles.sectionTitle}>Pay for what you use</h2>
+        <p className={styles.sectionSub}>
+          Buy credits instead of seat based monthly subscriptions.
+          No minimum commitment, no surprise invoices.
+        </p>
+        <div className={styles.billingHighlights}>
+          <div className={styles.billingCard}>
+            <p className={styles.billingValue}>200</p>
+            <p className={styles.billingLabel}>Free credits on signup</p>
+          </div>
+          <div className={styles.billingCard}>
+            <p className={styles.billingValue}>$10</p>
+            <p className={styles.billingLabel}>Starter pack, 1,000 credits</p>
+          </div>
+          <div className={styles.billingCard}>
+            <p className={styles.billingValue}>$90</p>
+            <p className={styles.billingLabel}>Pro pack, 10,000 credits</p>
+          </div>
+        </div>
+        <p className={styles.billingSub}>
+          Credits cover Tracy conversations, trajectory queries, and storage.{' '}
+          <Link href="/docs/billing/credits" className={styles.billingLink}>Learn more</Link>
+        </p>
+      </section>
+
+      {/* ── S9: CTA ────────────────────────────────────────────────── */}
       <section className={`${styles.cta} ${styles.reveal}`} id="get-started" ref={ctaRef}>
         <h2 className={styles.ctaTitle}>Start improving your agents today</h2>
         <p className={styles.ctaSub}>200 free credits. No credit card required.</p>
@@ -377,21 +414,31 @@ export function LandingPage() {
         </p>
       </section>
 
-      {/* ── S9: Footer (NEW) ───────────────────────────────────────── */}
+      {/* ── S10: Footer ────────────────────────────────────────────── */}
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
           <div className={styles.footerBrand}>
             <Image src={logoImage} alt="ClawTrace" width={120} height={30}
               className={styles.footerLogo} sizes="120px" />
-            <p className={styles.footerTagline}>Workflow reliability for OpenClaw agents</p>
+            <p className={styles.footerTagline}>Make your OpenClaw agents better, cheaper, and faster.</p>
           </div>
           <nav className={styles.footerLinks}>
             <a href="#features" className={styles.footerLink}>Product</a>
             <a href="/docs" className={styles.footerLink}>Documentation</a>
-            <a href="/billing" className={styles.footerLink}>Billing</a>
+            <a href="#billing" className={styles.footerLink}>Billing</a>
             <a href="/docs/ask-tracy" className={styles.footerLink}>Ask Tracy</a>
           </nav>
-          <p className={styles.footerCopy}>Built by Epsilla Inc.</p>
+          <p className={styles.footerCopy}>
+            Built with{' '}
+            <svg className={styles.heart} viewBox="0 0 16 16" aria-label="love">
+              <path d="M8 14s-5.5-3.5-5.5-7A3.5 3.5 0 018 4a3.5 3.5 0 015.5 3c0 3.5-5.5 7-5.5 7z" fill="#c0392b" />
+            </svg>
+            {' '}by{' '}
+            <a href="https://epsilla.com?utm_source=clawtrace&utm_medium=landing&utm_campaign=footer"
+              target="_blank" rel="noopener" className={styles.epsillaLink}>
+              <img src="/epsilla-logo.png" alt="Epsilla" className={styles.epsillaLogo} />
+            </a>
+          </p>
         </div>
       </footer>
     </main>
