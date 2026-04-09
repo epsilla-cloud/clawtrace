@@ -312,9 +312,16 @@ function useTypingAnimation(fullText: string, streaming: boolean): string {
 }
 
 /* ── Markdown message renderer ──────────────────────────────────────────── */
-function MessageContent({ text, streaming }: { text: string; streaming?: boolean }) {
+function MessageContent({
+  text,
+  streaming,
+  onExpandChart,
+}: {
+  text: string;
+  streaming?: boolean;
+  onExpandChart: (config: string) => void;
+}) {
   const displayed = useTypingAnimation(text, streaming ?? false);
-  const [expandedChart, setExpandedChart] = useState<string | null>(null);
   const blocks = splitChartBlocks(displayed);
   return (
     <>
@@ -323,16 +330,13 @@ function MessageContent({ text, streaming }: { text: string; streaming?: boolean
           <InlineEChart
             key={i}
             config={block.content}
-            onExpand={() => setExpandedChart(block.content)}
+            onExpand={() => onExpandChart(block.content)}
           />
         ) : (
           <div key={i} className={styles.markdown}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
           </div>
         ),
-      )}
-      {expandedChart && (
-        <ChartOverlay config={expandedChart} onClose={() => setExpandedChart(null)} />
       )}
     </>
   );
@@ -407,6 +411,7 @@ export function TracyPanel() {
     return localStorage.getItem(SESSION_KEY) ?? undefined;
   });
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [expandedChart, setExpandedChart] = useState<string | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -629,7 +634,8 @@ export function TracyPanel() {
                         <ReasoningBar steps={msg.reasoning!} active={msg.streaming ?? false} />
                       )}
                       {msg.text ? (
-                        <MessageContent text={msg.text} streaming={msg.streaming} />
+                        <MessageContent text={msg.text} streaming={msg.streaming}
+                          onExpandChart={setExpandedChart} />
                       ) : msg.streaming ? (
                         <span className={styles.streamingCursor} />
                       ) : null}
@@ -639,6 +645,10 @@ export function TracyPanel() {
               </div>
             ))}
           </div>
+
+          {expandedChart && (
+            <ChartOverlay config={expandedChart} onClose={() => setExpandedChart(null)} />
+          )}
 
           <footer className={styles.composer}>
             <div className={styles.composerRow}>
