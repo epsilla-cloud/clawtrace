@@ -678,7 +678,7 @@ function buildTracyReply(query: string, detail: TraceDetailSnapshot): Omit<Tracy
     return {
       text: [
         `Average run efficiency score is ${detail.workIndex.averageScore}/100 across ${detail.workIndex.phases.length} phases.`,
-        `The lowest-scoring phase is where we should add first verifier and contract tightening.`,
+        `The lowest scoring phase is where we should add the first verifier and contract tightening.`,
       ].join('\n'),
       charts: [
         {

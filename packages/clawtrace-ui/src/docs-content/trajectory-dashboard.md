@@ -4,6 +4,7 @@ The trajectory dashboard gives you a complete view of all agent runs for a speci
 
 
 ![Trajectory Dashboard](/docs/images/2.1-see-all-trajectories-of-an-agent.png)
+
 ## Metrics Overview
 
 The top section shows four key metrics for the selected time range:

@@ -2,6 +2,9 @@
 
 The Usage page provides a detailed breakdown of how your credits are being spent over time. Access it from the **View Usage** button on the Billing page.
 
+
+![Usage History](/docs/images/3.2-usage-history.png)
+
 ## Time Range
 
 Select a time range to analyze:
@@ -27,7 +30,6 @@ The stacked bar chart shows credit consumption broken down by category for each 
 
 Hover over any bar to see the exact credit amounts per category.
 
-![Usage History](/docs/images/3.2-usage-history.png)
 
 ## Pricing Reference
 

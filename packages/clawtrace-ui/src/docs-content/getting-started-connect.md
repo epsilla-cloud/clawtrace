@@ -4,6 +4,7 @@ To start observing your AI agent's behavior, you first need to create a connecti
 
 
 ![Connect to OpenClaw](/docs/images/1.1-connect-to-openclaw.png)
+
 ## Creating a Connection
 
 1. Navigate to the **Trajectories** page from the left sidebar.

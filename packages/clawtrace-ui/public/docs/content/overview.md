@@ -28,7 +28,7 @@ ClawTrace is the **observability layer for OpenClaw AI agents** — the fastest 
 - **Trajectory tracing** — See every step an agent takes: LLM calls, tool executions, sub-agent delegations, with full input/output payloads.
 - **Cost attribution** — Per-call cost breakdowns with model-specific pricing. Know exactly where spend goes.
 - **Timeline analysis** — Visual waterfall of agent execution to spot bottlenecks, parallelism opportunities, and wasted wait time.
-- **Reliability debugging** — Error flagging, call graph visualization, and efficiency scoring to reduce Mean Time To Resolution from hours to minutes.
+- **Reliability debugging** — Error flagging, call graph visualization, and efficiency scoring to reduce Mean Time to Resolution from hours to minutes.
 
 Teams that win treat agents as infrastructure. They run cost audits, enforce controls, and continuously improve routing and workload shape. ClawTrace gives them the tools to do it.
 
