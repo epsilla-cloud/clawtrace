@@ -39,24 +39,89 @@ type EChartsLike = {
 };
 
 const STORAGE_KEY = 'clawtrace:tracy-expanded';
+const SESSION_KEY = 'clawtrace:tracy-session';
 
 /* ── Context extraction from URL ────────────────────────────────────────── */
-function usePageContext(): { agentId?: string; traceId?: string; pageData?: Record<string, unknown> } {
+function usePageContext(): {
+  agentId?: string;
+  traceId?: string;
+  page: 'agents' | 'dashboard' | 'trajectory' | 'account' | 'billing' | 'general';
+} {
   const pathname = usePathname();
-  // /trace/[agentId] → agent dashboard
-  // /trace/[agentId]/[trajectoryId] → trace detail
   const parts = pathname.split('/').filter(Boolean);
+
   if (parts[0] === 'trace' && parts.length >= 3) {
-    return { agentId: parts[1], traceId: parts[2] };
+    return { agentId: parts[1], traceId: parts[2], page: 'trajectory' };
   }
   if (parts[0] === 'trace' && parts.length === 2) {
-    return { agentId: parts[1] };
+    return { agentId: parts[1], page: 'dashboard' };
   }
-  return {};
+  if (parts[0] === 'trace' && parts.length === 1) {
+    return { page: 'agents' };
+  }
+  if (parts[0] === 'account') return { page: 'account' };
+  if (parts[0] === 'billing') return { page: 'billing' };
+  return { page: 'general' };
 }
 
-/* ── ECharts renderer for <Chart> blocks ────────────────────────────────── */
-function InlineEChart({ config }: { config: string }) {
+function getStarterQuestions(page: string): string[] {
+  switch (page) {
+    case 'agents':
+      return [
+        'How many agents do I have connected?',
+        'Which agent was most recently active?',
+        'Compare token usage across my agents',
+      ];
+    case 'dashboard':
+      return [
+        'Which trajectory cost the most tokens?',
+        'What types of work does this agent do?',
+        'Show me error trends for this agent',
+      ];
+    case 'trajectory':
+      return [
+        'What is this trajectory doing?',
+        'Where is the bottleneck in this trace?',
+        'How can I optimize this run?',
+      ];
+    case 'account':
+      return [
+        'How do I refer a friend?',
+        'What rewards do I get for referrals?',
+        'How do I update my profile?',
+      ];
+    case 'billing':
+      return [
+        'Which credit pack is the best value?',
+        'How much am I spending per day?',
+        'When will my credits run out?',
+      ];
+    default:
+      return [
+        'Which trace cost the most?',
+        'Show me error trends',
+        'How can I reduce costs?',
+      ];
+  }
+}
+
+/* ── ECharts renderer ───────────────────────────────────────────────────── */
+function parseEChartsConfig(raw: string): unknown | null {
+  // ECharts configs from Tracy may contain JS functions (e.g. formatter)
+  // JSON.parse can't handle these, so use eval-based parsing
+  try {
+    return JSON.parse(raw);
+  } catch {
+    try {
+      // eslint-disable-next-line no-eval
+      return (0, eval)('(' + raw + ')');
+    } catch {
+      return null;
+    }
+  }
+}
+
+function InlineEChart({ config, onExpand }: { config: string; onExpand: () => void }) {
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     const dom = ref.current;
@@ -67,15 +132,60 @@ function InlineEChart({ config }: { config: string }) {
     void (async () => {
       const echarts = (await import('echarts')) as unknown as EChartsLike;
       if (disposed || !dom) return;
-      try {
-        inst = echarts.init(dom);
-        inst.setOption(JSON.parse(config), true);
-        window.addEventListener('resize', onResize);
-      } catch { /* ignore bad config */ }
+      const parsed = parseEChartsConfig(config);
+      if (!parsed) return;
+      inst = echarts.init(dom);
+      inst.setOption(parsed, true);
+      window.addEventListener('resize', onResize);
     })();
-    return () => { disposed = true; window.removeEventListener('resize', onResize); inst?.dispose(); };
+    return () => {
+      disposed = true;
+      window.removeEventListener('resize', onResize);
+      inst?.dispose();
+    };
   }, [config]);
-  return <div ref={ref} className={styles.echartCanvas} />;
+  return (
+    <div className={styles.echartWrap} onClick={onExpand} title="Click to expand">
+      <div ref={ref} className={styles.echartCanvas} />
+      <span className={styles.echartExpand}>&#x26F6;</span>
+    </div>
+  );
+}
+
+/* Fullscreen chart overlay */
+function ChartOverlay({ config, onClose }: { config: string; onClose: () => void }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const dom = ref.current;
+    if (!dom) return;
+    let disposed = false;
+    let inst: ReturnType<EChartsLike['init']> | null = null;
+    const onResize = () => inst?.resize();
+    void (async () => {
+      const echarts = (await import('echarts')) as unknown as EChartsLike;
+      if (disposed || !dom) return;
+      const parsed = parseEChartsConfig(config);
+      if (!parsed) return;
+      inst = echarts.init(dom);
+      inst.setOption(parsed, true);
+      window.addEventListener('resize', onResize);
+    })();
+    return () => {
+      disposed = true;
+      window.removeEventListener('resize', onResize);
+      inst?.dispose();
+    };
+  }, [config]);
+  return (
+    <div className={styles.chartOverlay} onClick={onClose}>
+      <div className={styles.chartOverlayInner} onClick={(e) => e.stopPropagation()}>
+        <button type="button" className={styles.chartOverlayClose} onClick={onClose}>
+          &#x2715;
+        </button>
+        <div ref={ref} className={styles.chartOverlayCanvas} />
+      </div>
+    </div>
+  );
 }
 
 /* ── Parse <Chart>{...}</Chart> blocks from text ────────────────────────── */
@@ -101,18 +211,20 @@ function splitChartBlocks(text: string): Array<{ type: 'text' | 'chart'; content
 /* ── Reasoning steps — collapsible bar ──────────────────────────────────── */
 function ReasoningBar({ steps, active }: { steps: ReasoningStep[]; active: boolean }) {
   const [expanded, setExpanded] = useState(false);
-  if (!steps.length) return null;
+  // Filter out empty thinking steps
+  const meaningful = steps.filter(
+    (s) => !(s.type === 'thinking' && !s.text),
+  );
+  if (!meaningful.length && !active) return null;
 
-  const lastStep = steps[steps.length - 1];
+  const lastStep = meaningful.length ? meaningful[meaningful.length - 1] : steps[steps.length - 1];
   const label = active
-    ? lastStep.type === 'tool_use'
+    ? lastStep?.type === 'tool_use'
       ? `Querying: ${lastStep.tool ?? 'tool'}...`
-      : lastStep.type === 'tool_result'
+      : lastStep?.type === 'tool_result'
         ? 'Processing results...'
-        : lastStep.type === 'thinking'
-          ? 'Thinking...'
-          : 'Working...'
-    : `${steps.length} step${steps.length > 1 ? 's' : ''}`;
+        : 'Thinking...'
+    : `${meaningful.length} step${meaningful.length !== 1 ? 's' : ''}`;
 
   return (
     <div className={styles.reasoningBar}>
@@ -123,17 +235,19 @@ function ReasoningBar({ steps, active }: { steps: ReasoningStep[]; active: boole
       >
         {active && <span className={styles.reasoningPulse} />}
         <span className={styles.reasoningLabel}>{label}</span>
-        <svg
-          viewBox="0 0 10 6"
-          className={`${styles.reasoningChevron} ${expanded ? styles.reasoningChevronOpen : ''}`}
-        >
-          <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.3" fill="none"
-            strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
+        {meaningful.length > 0 && (
+          <svg
+            viewBox="0 0 10 6"
+            className={`${styles.reasoningChevron} ${expanded ? styles.reasoningChevronOpen : ''}`}
+          >
+            <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.3" fill="none"
+              strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
       </button>
-      {expanded && (
+      {expanded && meaningful.length > 0 && (
         <div className={styles.reasoningSteps}>
-          {steps.map((step, i) => (
+          {meaningful.map((step, i) => (
             <div key={i} className={styles.reasoningStep}>
               {step.type === 'tool_use' && (
                 <span className={styles.stepTool}>
@@ -163,19 +277,62 @@ function ReasoningBar({ steps, active }: { steps: ReasoningStep[]; active: boole
   );
 }
 
+/* ── Typing animation hook ──────────────────────────────────────────────── */
+function useTypingAnimation(fullText: string, streaming: boolean): string {
+  const [displayed, setDisplayed] = useState('');
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    if (streaming) {
+      // While streaming, show everything immediately
+      setDisplayed(fullText);
+      indexRef.current = fullText.length;
+      return;
+    }
+    if (indexRef.current >= fullText.length) {
+      setDisplayed(fullText);
+      return;
+    }
+    // Animate remaining text
+    const remaining = fullText.length - indexRef.current;
+    // Speed: fast for long texts, slow for short
+    const charDelay = remaining > 500 ? 2 : remaining > 200 ? 5 : 10;
+    // Batch size: larger for long texts
+    const batchSize = remaining > 500 ? 20 : remaining > 200 ? 8 : 3;
+
+    const timer = setInterval(() => {
+      indexRef.current = Math.min(indexRef.current + batchSize, fullText.length);
+      setDisplayed(fullText.slice(0, indexRef.current));
+      if (indexRef.current >= fullText.length) clearInterval(timer);
+    }, charDelay);
+    return () => clearInterval(timer);
+  }, [fullText, streaming]);
+
+  return displayed;
+}
+
 /* ── Markdown message renderer ──────────────────────────────────────────── */
-function MessageContent({ text }: { text: string }) {
-  const blocks = splitChartBlocks(text);
+function MessageContent({ text, streaming }: { text: string; streaming?: boolean }) {
+  const displayed = useTypingAnimation(text, streaming ?? false);
+  const [expandedChart, setExpandedChart] = useState<string | null>(null);
+  const blocks = splitChartBlocks(displayed);
   return (
     <>
       {blocks.map((block, i) =>
         block.type === 'chart' ? (
-          <InlineEChart key={i} config={block.content} />
+          <InlineEChart
+            key={i}
+            config={block.content}
+            onExpand={() => setExpandedChart(block.content)}
+          />
         ) : (
           <div key={i} className={styles.markdown}>
             <ReactMarkdown remarkPlugins={[remarkGfm]}>{block.content}</ReactMarkdown>
           </div>
         ),
+      )}
+      {expandedChart && (
+        <ChartOverlay config={expandedChart} onClose={() => setExpandedChart(null)} />
       )}
     </>
   );
@@ -245,29 +402,74 @@ export function TracyPanel() {
   const [draft, setDraft] = useState('');
   const [messages, setMessages] = useState<TracyMessage[]>([]);
   const [loading, setLoading] = useState(false);
-  const [harnessSessionId, setHarnessSessionId] = useState<string | undefined>();
+  const [harnessSessionId, setHarnessSessionId] = useState<string | undefined>(() => {
+    if (typeof window === 'undefined') return undefined;
+    return localStorage.getItem(SESSION_KEY) ?? undefined;
+  });
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
-  const { agentId, traceId } = usePageContext();
+  const { agentId, traceId, page } = usePageContext();
+  const starters = getStarterQuestions(page);
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom
   useEffect(() => {
     const el = transcriptRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [messages]);
 
+  // Load previous conversation on mount
+  useEffect(() => {
+    if (historyLoaded) return;
+    setHistoryLoaded(true);
+    void (async () => {
+      try {
+        const sessRes = await fetch('/api/tracy/sessions?limit=1', { cache: 'no-store' });
+        if (!sessRes.ok) return;
+        const { sessions } = await sessRes.json();
+        if (!sessions?.length) return;
+        const sess = sessions[0];
+        const msgRes = await fetch(`/api/tracy/sessions/${sess.id}/messages`, { cache: 'no-store' });
+        if (!msgRes.ok) return;
+        const { messages: dbMsgs } = await msgRes.json();
+        if (!dbMsgs?.length) return;
+        const loaded: TracyMessage[] = dbMsgs.map((m: Record<string, unknown>, i: number) => ({
+          id: `hist-${i}`,
+          role: m.role as string,
+          text: m.role === 'user' ? (m.raw_message as string) : (m.response_text as string) ?? '',
+          reasoning: m.reasoning_steps
+            ? (typeof m.reasoning_steps === 'string'
+                ? JSON.parse(m.reasoning_steps)
+                : m.reasoning_steps)
+            : undefined,
+          streaming: false,
+        }));
+        setMessages(loaded);
+        setHarnessSessionId(sess.harness_session_id);
+        localStorage.setItem(SESSION_KEY, sess.harness_session_id);
+      } catch { /* ignore */ }
+    })();
+  }, [historyLoaded]);
+
+  // Panel open/close margin management
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, String(open));
     const mq = window.matchMedia('(min-width: 901px)');
     document.body.style.transition = 'margin-right 200ms ease-out';
     const apply = () => {
-      document.body.style.marginRight = open && mq.matches ? '340px' : '0';
+      document.body.style.marginRight = open && mq.matches ? '510px' : '0';
     };
     apply();
     mq.addEventListener('change', apply);
     return () => { mq.removeEventListener('change', apply); document.body.style.marginRight = '0'; };
   }, [open]);
+
+  const clearConversation = useCallback(() => {
+    setMessages([]);
+    setHarnessSessionId(undefined);
+    localStorage.removeItem(SESSION_KEY);
+  }, []);
 
   const send = useCallback(async () => {
     const text = draft.trim();
@@ -278,10 +480,7 @@ export function TracyPanel() {
     const userId = `user-${Date.now()}`;
     const assistantId = `assistant-${Date.now()}`;
 
-    // Add user message
     setMessages((prev) => [...prev, { id: userId, role: 'user', text }]);
-
-    // Add empty streaming assistant message
     setMessages((prev) => [
       ...prev,
       { id: assistantId, role: 'assistant', text: '', reasoning: [], streaming: true },
@@ -292,28 +491,16 @@ export function TracyPanel() {
 
     try {
       await streamChat(
-        text,
-        agentId,
-        traceId,
-        undefined,
-        harnessSessionId,
+        text, agentId, traceId, undefined, harnessSessionId,
         (type, data) => {
           if (type === 'session') {
-            setHarnessSessionId(data.session_id as string);
-          } else if (type === 'text') {
+            const sid = data.session_id as string;
+            setHarnessSessionId(sid);
+            localStorage.setItem(SESSION_KEY, sid);
+          } else if (type === 'text' || type === 'text_delta') {
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId
-                  ? { ...m, text: m.text + (data.text as string) }
-                  : m,
-              ),
-            );
-          } else if (type === 'text_delta') {
-            setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId
-                  ? { ...m, text: m.text + (data.text as string) }
-                  : m,
+                m.id === assistantId ? { ...m, text: m.text + (data.text as string) } : m,
               ),
             );
           } else if (type === 'tool_use' || type === 'tool_result' || type === 'thinking') {
@@ -328,19 +515,13 @@ export function TracyPanel() {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
-                  ? {
-                      ...m,
-                      text: m.text || `Error: ${data.message ?? 'Unknown error'}`,
-                      streaming: false,
-                    }
+                  ? { ...m, text: m.text || `Error: ${data.message ?? 'Unknown error'}`, streaming: false }
                   : m,
               ),
             );
           } else if (type === 'done') {
             setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, streaming: false } : m,
-              ),
+              prev.map((m) => (m.id === assistantId ? { ...m, streaming: false } : m)),
             );
           }
         },
@@ -359,48 +540,32 @@ export function TracyPanel() {
     } finally {
       setLoading(false);
       abortRef.current = null;
-      // Mark as done in case stream ended without 'done' event
       setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId && m.streaming ? { ...m, streaming: false } : m,
-        ),
+        prev.map((m) => (m.id === assistantId && m.streaming ? { ...m, streaming: false } : m)),
       );
     }
   }, [draft, loading, agentId, traceId, harnessSessionId]);
 
   return (
     <>
-      {/* Floating avatar — visible only when collapsed */}
       {!open && (
-        <button
-          type="button"
-          className={styles.floatingAvatar}
-          onClick={() => setOpen(true)}
-          aria-label="Open Tracy"
-          title="Ask Tracy"
-        >
+        <button type="button" className={styles.floatingAvatar} onClick={() => setOpen(true)}
+          aria-label="Open Tracy" title="Ask Tracy">
           <Image src="/tracy.png" alt="Tracy" width={36} height={36} className={styles.floatingAvatarImg} />
           <span className={styles.floatingAvatarLabel}>Ask Tracy</span>
         </button>
       )}
 
-      {/* Rail — always rendered, slides in/out */}
       <aside className={`${styles.rail} ${open ? styles.railOpen : styles.railClosed}`}>
         <div className={styles.panel}>
-          {/* Handle */}
-          <button
-            type="button"
-            className={styles.handle}
-            onClick={() => setOpen(false)}
-            aria-label="Collapse Tracy panel"
-          >
+          <button type="button" className={styles.handle} onClick={() => setOpen(false)}
+            aria-label="Collapse Tracy panel">
             <svg viewBox="0 0 8 14" fill="none" aria-hidden="true">
               <path d="M2 1l4 6-4 6" stroke="currentColor" strokeWidth="1.5"
                 strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </button>
 
-          {/* Header */}
           <header className={styles.header}>
             <div className={styles.headerIdentity}>
               <span className={styles.avatarHeader}>
@@ -408,36 +573,38 @@ export function TracyPanel() {
               </span>
               <p className={styles.name}>Tracy</p>
             </div>
-            <button
-              type="button"
-              className={styles.closeButton}
-              onClick={() => setOpen(false)}
-              aria-label="Close Tracy"
-            >
-              <svg viewBox="0 0 14 14" fill="none" aria-hidden="true" width="14" height="14">
-                <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
+            <div className={styles.headerActions}>
+              {messages.length > 0 && (
+                <button type="button" className={styles.clearButton} onClick={clearConversation}
+                  aria-label="Clear conversation" title="New conversation">
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor"
+                    strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M2 4h12M5.3 4V2.7a1.3 1.3 0 011.4-1.4h2.6a1.3 1.3 0 011.4 1.4V4M13 4v9.3a1.3 1.3 0 01-1.3 1.4H4.3A1.3 1.3 0 013 13.3V4" />
+                  </svg>
+                </button>
+              )}
+              <button type="button" className={styles.closeButton} onClick={() => setOpen(false)}
+                aria-label="Close Tracy">
+                <svg viewBox="0 0 14 14" fill="none" aria-hidden="true" width="14" height="14">
+                  <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
           </header>
 
-          {/* Transcript */}
           <div className={styles.transcript} ref={transcriptRef}>
             {messages.length === 0 && (
               <div className={styles.emptyState}>
                 <Image src="/tracy.png" alt="" width={48} height={48} className={styles.emptyAvatar} />
                 <p className={styles.emptyTitle}>Hi, I'm Tracy</p>
                 <p className={styles.emptyDesc}>
-                  I can help you understand your agent trajectories, find cost hotspots,
-                  debug failures, and suggest improvements.
+                  Your AI observability analyst. I can analyze your agent trajectories,
+                  find cost hotspots, debug failures, and suggest improvements.
                 </p>
                 <div className={styles.emptyActions}>
-                  {['Which trace cost the most?', 'Show error trends', 'How to reduce costs?'].map((q) => (
-                    <button
-                      key={q}
-                      type="button"
-                      className={styles.emptyAction}
-                      onClick={() => { setDraft(q); }}
-                    >
+                  {starters.map((q) => (
+                    <button key={q} type="button" className={styles.emptyAction}
+                      onClick={() => { setDraft(q); }}>
                       {q}
                     </button>
                   ))}
@@ -446,36 +613,23 @@ export function TracyPanel() {
             )}
 
             {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`${styles.messageRow} ${
-                  msg.role === 'assistant' ? styles.messageRowAssistant : styles.messageRowUser
-                }`}
-              >
+              <div key={msg.id}
+                className={`${styles.messageRow} ${msg.role === 'assistant' ? styles.messageRowAssistant : styles.messageRowUser}`}>
                 {msg.role === 'assistant' && (
                   <span className={styles.avatarBubble}>
                     <Image src="/tracy.png" alt="" width={24} height={24} className={styles.avatarImage} />
                   </span>
                 )}
-                <article
-                  className={`${styles.message} ${
-                    msg.role === 'assistant' ? styles.messageAssistant : styles.messageUser
-                  }`}
-                >
+                <article className={`${styles.message} ${msg.role === 'assistant' ? styles.messageAssistant : styles.messageUser}`}>
                   {msg.role === 'user' ? (
                     <p className={styles.messageText}>{msg.text}</p>
                   ) : (
                     <>
-                      {/* Reasoning steps */}
                       {(msg.reasoning?.length ?? 0) > 0 && (
-                        <ReasoningBar
-                          steps={msg.reasoning!}
-                          active={msg.streaming ?? false}
-                        />
+                        <ReasoningBar steps={msg.reasoning!} active={msg.streaming ?? false} />
                       )}
-                      {/* Response text */}
                       {msg.text ? (
-                        <MessageContent text={msg.text} />
+                        <MessageContent text={msg.text} streaming={msg.streaming} />
                       ) : msg.streaming ? (
                         <span className={styles.streamingCursor} />
                       ) : null}
@@ -486,36 +640,17 @@ export function TracyPanel() {
             ))}
           </div>
 
-          {/* Composer */}
           <footer className={styles.composer}>
             <div className={styles.composerRow}>
               <div className={styles.inputShell}>
-                <input
-                  type="text"
-                  className={styles.textInput}
-                  value={draft}
+                <input type="text" className={styles.textInput} value={draft}
                   onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.currentTarget.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      void send();
-                    }
-                  }}
-                  placeholder="Ask Tracy..."
-                  disabled={loading}
-                />
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void send(); } }}
+                  placeholder="Ask Tracy..." disabled={loading} />
               </div>
-              <button
-                type="button"
-                className={styles.sendButton}
-                onClick={() => void send()}
-                disabled={loading || !draft.trim()}
-              >
-                {loading ? (
-                  <span className={styles.sendSpinner} />
-                ) : (
-                  'Send'
-                )}
+              <button type="button" className={styles.sendButton} onClick={() => void send()}
+                disabled={loading || !draft.trim()}>
+                {loading ? <span className={styles.sendSpinner} /> : 'Send'}
               </button>
             </div>
           </footer>
