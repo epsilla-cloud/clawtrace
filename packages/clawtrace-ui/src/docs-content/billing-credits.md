@@ -32,7 +32,7 @@ Credits are deducted based on your usage across these categories:
 | **List Trajectories** | 0.5 credits/query | Loading the trajectory dashboard |
 | **Trajectory Detail** | 0.2 credits/query | Drilling into a specific trajectory |
 | **Tracy Agent Input** | 0.5 credits/1k tokens | Tokens sent to the Tracy chat assistant |
-| **Tracy Agent Output** | 1.5 credits/1k tokens | Tokens received from Tracy |
+| **Tracy Agent Output** | 2.5 credits/1k tokens | Tokens received from Tracy |
 
 ## Credit History
 

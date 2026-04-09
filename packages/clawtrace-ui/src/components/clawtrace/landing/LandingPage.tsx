@@ -386,24 +386,7 @@ export function LandingPage() {
         <h2 className={styles.sectionTitle}>Pay for what you use</h2>
         <p className={styles.sectionSub}>
           Buy credits instead of seat based monthly subscriptions.
-          No minimum commitment, no surprise invoices.
-        </p>
-        <div className={styles.billingHighlights}>
-          <div className={styles.billingCard}>
-            <p className={styles.billingValue}>200</p>
-            <p className={styles.billingLabel}>Free credits on signup</p>
-          </div>
-          <div className={styles.billingCard}>
-            <p className={styles.billingValue}>$10</p>
-            <p className={styles.billingLabel}>Starter pack, 1,000 credits</p>
-          </div>
-          <div className={styles.billingCard}>
-            <p className={styles.billingValue}>$90</p>
-            <p className={styles.billingLabel}>Pro pack, 10,000 credits</p>
-          </div>
-        </div>
-        <p className={styles.billingSub}>
-          Credits cover Tracy conversations, trajectory queries, and storage.{' '}
+          No minimum commitment, no surprise invoices.{' '}
           <Link href="/docs/billing/credits" className={styles.billingLink}>Learn more</Link>
         </p>
       </section>

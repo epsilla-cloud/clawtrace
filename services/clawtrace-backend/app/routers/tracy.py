@@ -31,6 +31,7 @@ from pydantic import BaseModel
 
 from ..auth import get_current_user, get_settings
 from ..config import Settings
+from ..consumption import report_consumption
 from ..database import (
     create_tracy_session,
     delete_tracy_session,
@@ -306,6 +307,18 @@ async def _persist_conversation(
             metadata=None,
             settings=settings,
         )
+
+        # Report token consumption to payment service
+        inp = collected.get("input_tokens", 0) or 0
+        out = collected.get("output_tokens", 0) or 0
+        if inp > 0 or out > 0:
+            items: dict[str, float] = {}
+            if inp > 0:
+                items["tracy_input_token_1k"] = inp / 1000.0
+            if out > 0:
+                items["tracy_output_token_1k"] = out / 1000.0
+            await report_consumption(user_id, items, settings)
+            logger.info("Tracy consumption reported: tenant=%s input=%d output=%d", user_id, inp, out)
 
         logger.info("Tracy conversation saved: session=%s", db_session_id)
 
