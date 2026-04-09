@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
+import { UserButton } from '@/components/auth/user-button';
 import { DOC_SECTIONS } from '@/lib/docs-nav';
 import styles from './DocsLayout.module.css';
 
@@ -12,16 +13,19 @@ export function DocsLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={styles.page}>
-      {/* Top nav */}
+      {/* Reuse landing page header style */}
       <header className={styles.topNav}>
         <Link href="/" className={styles.logo}>
           <Image src="/clawtrace-logo.png" alt="ClawTrace" height={22} width={120} style={{ objectFit: 'contain' }} />
         </Link>
-        <nav className={styles.topLinks}>
-          <Link href="/" className={styles.topLink}>Product</Link>
-          <Link href="/docs/overview" className={`${styles.topLink} ${styles.topLinkActive}`}>Documentation</Link>
-          <Link href="/login" className={styles.topLink}>Sign In</Link>
-        </nav>
+        <div className={styles.headerRight}>
+          <nav className={styles.topLinks}>
+            <Link href="/#improvement" className={styles.topLink}>Product</Link>
+            <Link href="/#improvement" className={styles.topLink}>How It Works</Link>
+            <Link href="/docs" className={`${styles.topLink} ${styles.topLinkActive}`}>Documentation</Link>
+          </nav>
+          <UserButton />
+        </div>
       </header>
 
       <div className={styles.body}>

@@ -39,7 +39,8 @@ export default async function DocPage({ params }: Props) {
   const page = findDocBySlug(joined);
   if (!page) notFound();
 
-  const filePath = path.join(process.cwd(), 'public', 'docs', 'content', page.file);
+  // Read from src/docs-content/ (bundled with the app, not public/)
+  const filePath = path.join(process.cwd(), 'src', 'docs-content', page.file);
   let content: string;
   try {
     content = await fs.readFile(filePath, 'utf-8');
