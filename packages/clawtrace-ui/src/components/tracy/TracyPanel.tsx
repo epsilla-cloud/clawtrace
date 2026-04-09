@@ -576,7 +576,10 @@ export function TracyPanel() {
               <span className={styles.avatarHeader}>
                 <Image src="/tracy.png" alt="Tracy" width={28} height={28} className={styles.avatarImage} />
               </span>
-              <p className={styles.name}>Tracy</p>
+              <div>
+                <p className={styles.name}>Tracy</p>
+                <p className={styles.subtitle}>Your OpenClaw Doctor Agent</p>
+              </div>
             </div>
             <div className={styles.headerActions}>
               {messages.length > 0 && (
@@ -603,7 +606,7 @@ export function TracyPanel() {
                 <Image src="/tracy.png" alt="" width={48} height={48} className={styles.emptyAvatar} />
                 <p className={styles.emptyTitle}>Hi, I'm Tracy</p>
                 <p className={styles.emptyDesc}>
-                  Your AI observability analyst. I can analyze your agent trajectories,
+                  Your OpenClaw Doctor Agent. I can analyze your agent trajectories,
                   find cost hotspots, debug failures, and suggest improvements.
                 </p>
                 <div className={styles.emptyActions}>
