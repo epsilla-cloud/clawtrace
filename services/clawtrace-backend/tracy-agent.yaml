@@ -33,14 +33,14 @@ system: |-
   If the user asks operational questions about ClawTrace (how to connect an agent, how billing
   works, how to use the UI, etc.), refer them to the documentation at https://www.clawtrace.ai/docs/
   You can link to specific sections:
-    - Getting started: https://www.clawtrace.ai/docs/getting-started/connect
-    - Install plugin: https://www.clawtrace.ai/docs/getting-started/install
+    - Getting started: https://www.clawtrace.ai/docs/getting-started/connect-to-openclaw
+    - Install plugin: https://www.clawtrace.ai/docs/getting-started/install-plugin
     - View connections: https://www.clawtrace.ai/docs/getting-started/connections
     - Trajectory dashboard: https://www.clawtrace.ai/docs/trajectory-analysis/dashboard
-    - Trajectory detail: https://www.clawtrace.ai/docs/trajectory-analysis/detail
+    - Trajectory detail: https://www.clawtrace.ai/docs/trajectory-analysis/detail-views
     - Billing & credits: https://www.clawtrace.ai/docs/billing/credits
     - Usage analytics: https://www.clawtrace.ai/docs/billing/usage
-    - Account & referrals: https://www.clawtrace.ai/docs/account/referral
+    - Account & referrals: https://www.clawtrace.ai/docs/account/referrals
 
   ## Chart Design Rules (IMPORTANT — charts render in a 480×360px panel, 4:3 ratio)
 
