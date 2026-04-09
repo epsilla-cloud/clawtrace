@@ -201,10 +201,30 @@ const DEFAULT_OPENCLAW_PATH = path.join(HOME_DIR, '.openclaw');
 const DEFAULT_WORKSPACE_PATH = path.join(HOME_DIR, 'ClawWork');
 const DEFAULT_COST_PER_1K_TOKENS_USD = 0.004;
 const MODEL_COST_PER_1K_TOKENS_USD: Record<string, number> = {
-  'gemini-3.1-pro-preview': 0.008,
-  'gpt-5.4': 0.015,
-  'gpt-5.2': 0.012,
-  'claude-opus-4': 0.02,
+  'claude-opus-4-6': 0.015,
+  'claude-opus-4-5': 0.015,
+  'claude-opus-4-1': 0.045,
+  'claude-opus-4': 0.045,
+  'claude-sonnet-4-6': 0.009,
+  'claude-sonnet-4': 0.009,
+  'claude-haiku-4-5': 0.003,
+  'gpt-4o': 0.00625,
+  'gpt-4o-mini': 0.000375,
+  'o3': 0.005,
+  'o3-mini': 0.00275,
+  'o4-mini': 0.00275,
+  'gemini-2.5-pro': 0.005625,
+  'gemini-2.5-flash': 0.0014,
+  'gemini-2.0-flash': 0.00025,
+  'gemini-1.5-pro': 0.003125,
+  'gemini-1.5-flash': 0.0001875,
+  'gemini-3.1-pro-preview': 0.005625,
+  'deepseek-chat': 0.00035,
+  'deepseek-reasoner': 0.00035,
+  'mistral-large': 0.004,
+  'mistral-small': 0.0004,
+  'llama-3.3-70b': 0.00069,
+  'llama-3.1-8b': 0.000065,
 };
 
 function compactText(value: string | null | undefined, max = 220): string {

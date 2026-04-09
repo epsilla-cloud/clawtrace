@@ -51,21 +51,59 @@ function extractUuid(elementId: string): string {
   return m ? m[1] : elementId;
 }
 
-/* ── Cost pricing table (USD per 1M tokens) ──────────────────────────────── */
+/* ── Cost pricing table (USD per 1M tokens, updated April 2026) ──────────── */
 const MODEL_PRICING: Array<{ pattern: RegExp; input: number; output: number }> = [
-  { pattern: /claude.*opus/i,     input: 15.0,  output: 75.0  },
-  { pattern: /claude.*sonnet/i,   input: 3.0,   output: 15.0  },
-  { pattern: /claude.*haiku/i,    input: 0.25,  output: 1.25  },
-  { pattern: /gpt-4o-mini/i,     input: 0.15,  output: 0.60  },
-  { pattern: /gpt-4o/i,          input: 2.5,   output: 10.0  },
-  { pattern: /gpt-4/i,           input: 30.0,  output: 60.0  },
-  { pattern: /o3-mini/i,         input: 1.1,   output: 4.4   },
-  { pattern: /o3/i,              input: 10.0,  output: 40.0  },
-  { pattern: /gemini.*flash/i,   input: 0.075, output: 0.30  },
-  { pattern: /gemini.*pro/i,     input: 1.25,  output: 5.0   },
-  { pattern: /deepseek/i,        input: 0.27,  output: 1.10  },
+  // ── Anthropic Claude ──────────────────────────────────────────────────
+  { pattern: /claude.*opus.*4\.[56]/i,   input: 5.0,    output: 25.0   }, // Opus 4.5/4.6
+  { pattern: /claude.*opus.*4\.[01]/i,   input: 15.0,   output: 75.0   }, // Opus 4.0/4.1
+  { pattern: /claude.*opus/i,            input: 15.0,   output: 75.0   }, // Opus fallback
+  { pattern: /claude.*sonnet/i,          input: 3.0,    output: 15.0   }, // Sonnet 4.x
+  { pattern: /claude.*haiku.*4/i,        input: 1.0,    output: 5.0    }, // Haiku 4.5
+  { pattern: /claude.*haiku.*3\.5/i,     input: 0.80,   output: 4.0    }, // Haiku 3.5
+  { pattern: /claude.*haiku/i,           input: 0.25,   output: 1.25   }, // Haiku 3 (deprecated)
+
+  // ── OpenAI ────────────────────────────────────────────────────────────
+  { pattern: /o4-mini/i,                 input: 1.1,    output: 4.4    },
+  { pattern: /o3-mini/i,                 input: 1.1,    output: 4.4    },
+  { pattern: /o3(?!-mini)/i,             input: 2.0,    output: 8.0    },
+  { pattern: /o1-mini/i,                 input: 1.1,    output: 4.4    },
+  { pattern: /o1(?!-mini)/i,             input: 15.0,   output: 60.0   },
+  { pattern: /gpt-4o-mini/i,            input: 0.15,   output: 0.60   },
+  { pattern: /gpt-4o/i,                 input: 2.5,    output: 10.0   },
+  { pattern: /gpt-4-turbo/i,            input: 10.0,   output: 30.0   },
+  { pattern: /gpt-4/i,                  input: 30.0,   output: 60.0   }, // GPT-4 (legacy)
+  { pattern: /gpt-3\.5/i,               input: 0.50,   output: 1.50   },
+
+  // ── Google Gemini ─────────────────────────────────────────────────────
+  { pattern: /gemini.*2\.5.*pro/i,       input: 1.25,   output: 10.0   },
+  { pattern: /gemini.*2\.5.*flash/i,     input: 0.30,   output: 2.50   },
+  { pattern: /gemini.*2\.0.*flash/i,     input: 0.10,   output: 0.40   },
+  { pattern: /gemini.*1\.5.*pro/i,       input: 1.25,   output: 5.0    },
+  { pattern: /gemini.*1\.5.*flash/i,     input: 0.075,  output: 0.30   },
+  { pattern: /gemini.*flash/i,           input: 0.30,   output: 2.50   }, // Flash fallback
+  { pattern: /gemini.*pro/i,             input: 1.25,   output: 10.0   }, // Pro fallback
+
+  // ── DeepSeek ──────────────────────────────────────────────────────────
+  { pattern: /deepseek.*r1|deepseek.*reasoner/i, input: 0.28, output: 0.42 },
+  { pattern: /deepseek/i,               input: 0.28,   output: 0.42   }, // V3
+
+  // ── Mistral ───────────────────────────────────────────────────────────
+  { pattern: /mistral.*large/i,          input: 2.0,    output: 6.0    },
+  { pattern: /mistral.*medium/i,         input: 2.75,   output: 8.10   },
+  { pattern: /mistral.*small/i,          input: 0.20,   output: 0.60   },
+  { pattern: /codestral/i,              input: 0.30,   output: 0.90   },
+
+  // ── Groq hosted open models ───────────────────────────────────────────
+  { pattern: /llama.*4.*scout/i,         input: 0.11,   output: 0.34   },
+  { pattern: /llama.*3\.3.*70b/i,        input: 0.59,   output: 0.79   },
+  { pattern: /llama.*3\.1.*405b/i,       input: 3.50,   output: 3.50   },
+  { pattern: /llama.*3\.1.*70b/i,        input: 0.59,   output: 0.79   },
+  { pattern: /llama.*3\.1.*8b/i,         input: 0.05,   output: 0.08   },
+  { pattern: /llama/i,                   input: 0.59,   output: 0.79   }, // Llama fallback
+  { pattern: /mixtral/i,                 input: 0.24,   output: 0.24   },
+  { pattern: /qwen/i,                    input: 0.29,   output: 0.59   },
 ];
-const FALLBACK_PRICING = { input: 4.0, output: 12.0 };
+const FALLBACK_PRICING = { input: 3.0, output: 10.0 };
 
 export function estimateSpanCost(
   model: string | null,
