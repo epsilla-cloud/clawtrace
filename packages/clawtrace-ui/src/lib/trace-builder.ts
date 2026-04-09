@@ -242,6 +242,8 @@ function mapBackendSpan(traceUuid: string, s: BackendSpanData): TraceDetailSpan 
     tokensIn: toNum(s.input_tokens),
     tokensOut: toNum(s.output_tokens),
     totalTokens: toNum(s.total_tokens),
+    cacheReadTokens: toNum((outputPayload.usage as Record<string, unknown>)?.cacheRead),
+    cacheWriteTokens: toNum((outputPayload.usage as Record<string, unknown>)?.cacheWrite),
     attributes: {
       has_error: s.has_error ?? 0,
       // Input (from before-call payload)
@@ -557,7 +559,7 @@ export function buildSnapshot(
 
   // Cost calculated locally from model + tokens (backend does not store cost)
   const estimatedCostUsd = spans.reduce(
-    (sum, s) => sum + estimateSpanCost(s.model, s.tokensIn, s.tokensOut),
+    (sum, s) => sum + estimateSpanCost(s.model, s.tokensIn, s.tokensOut, s.cacheReadTokens, s.cacheWriteTokens),
     0,
   );
 
