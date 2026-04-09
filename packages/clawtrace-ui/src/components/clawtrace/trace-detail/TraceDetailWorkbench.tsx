@@ -2576,26 +2576,31 @@ export function TraceDetailContent({ workflowId, detail }: TraceDetailContentPro
     [detail?.spans],
   );
 
-  // Find the first root span (no parent or parent not in the span set)
-  const firstRootSpanId = useMemo(() => {
+  // Find the first root span, then default to its first child (first step below session start)
+  const defaultSpanId = useMemo(() => {
     if (!detail) return null;
     const ids = new Set(detail.spans.map((s) => s.spanId));
     const root = detail.spans
       .filter((s) => !s.parentSpanId || !ids.has(s.parentSpanId))
       .sort((a, b) => a.startMs - b.startMs)[0];
-    return root?.spanId ?? detail.spans[0]?.spanId ?? null;
+    if (!root) return detail.spans[0]?.spanId ?? null;
+    // Find the first child of the root span (first step below Session Start)
+    const firstChild = detail.spans
+      .filter((s) => s.parentSpanId === root.spanId)
+      .sort((a, b) => a.startMs - b.startMs)[0];
+    return firstChild?.spanId ?? root.spanId;
   }, [detail]);
 
   const selectedSpan = useMemo(() => {
     if (!detail) return null;
     if (selection?.spanId) return spanById.get(selection.spanId) ?? null;
-    if (firstRootSpanId) return spanById.get(firstRootSpanId) ?? null;
+    if (defaultSpanId) return spanById.get(defaultSpanId) ?? null;
     return detail.spans[0] ?? null;
-  }, [detail, selection, spanById, firstRootSpanId]);
+  }, [detail, selection, spanById, defaultSpanId]);
 
   useEffect(() => {
     if (!detail) return;
-    const initialSpanId = firstRootSpanId ?? detail.spans[0]?.spanId ?? null;
+    const initialSpanId = defaultSpanId ?? detail.spans[0]?.spanId ?? null;
     if (!initialSpanId) return;
     const span = spanById.get(initialSpanId) ?? detail.spans[0];
     setSelection({
