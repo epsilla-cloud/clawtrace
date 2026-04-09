@@ -1645,9 +1645,7 @@ function StepTimelineView({
                     {isWide ? (
                       <>
                         {isVendorIcon ? (
-                          <span className={styles.tlBarIconWrap}>
-                            <Image src={iconSrc} width={14} height={14} alt="" unoptimized style={{ borderRadius: 2, objectFit: 'contain' }} />
-                          </span>
+                          <Image src={iconSrc} width={ICON_SIZE} height={ICON_SIZE} alt="" className={styles.tlBarIcon} unoptimized />
                         ) : (
                           <Image src={iconSrc} width={ICON_SIZE} height={ICON_SIZE} alt="" className={styles.tlBarIcon} unoptimized />
                         )}
@@ -1656,9 +1654,7 @@ function StepTimelineView({
                     ) : (
                       <>
                         {isVendorIcon ? (
-                          <span className={styles.tlBarIconWrapCenter}>
-                            <Image src={iconSrc} width={14} height={14} alt="" unoptimized style={{ borderRadius: 2, objectFit: 'contain' }} />
-                          </span>
+                          <Image src={iconSrc} width={ICON_SIZE} height={ICON_SIZE} alt="" className={styles.tlBarIconCenter} unoptimized />
                         ) : (
                           <Image src={iconSrc} width={ICON_SIZE} height={ICON_SIZE} alt="" className={styles.tlBarIconCenter} unoptimized />
                         )}
