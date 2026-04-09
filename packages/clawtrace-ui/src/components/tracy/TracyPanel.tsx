@@ -322,7 +322,10 @@ function MessageContent({
   onExpandChart: (config: string) => void;
 }) {
   const displayed = useTypingAnimation(text, streaming ?? false, animate);
-  const blocks = splitChartBlocks(displayed);
+  // Fix markdown: "#1 Title" isn't valid heading syntax (needs space after #).
+  // Convert "#N " to "**N.** " to render as bold numbered items.
+  const fixedText = displayed.replace(/^#{1,3}(\d+)\s+/gm, '**$1.** ');
+  const blocks = splitChartBlocks(fixedText);
   return (
     <>
       {blocks.map((block, i) =>
