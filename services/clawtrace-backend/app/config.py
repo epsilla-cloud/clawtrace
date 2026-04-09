@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     # Payment service — deficit guard
     payment_url: str = ""  # e.g. http://localhost:8083
-    deficit_check_interval_seconds: int = 900  # 15 minutes
+    deficit_check_interval_seconds: int = 60  # 1 minute
 
     # Tracy — Anthropic managed agent
     anthropic_api_key: str = ""

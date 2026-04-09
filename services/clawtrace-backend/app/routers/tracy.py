@@ -25,7 +25,7 @@ import time as _time
 from typing import Any, Optional
 
 import anthropic
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -334,9 +334,13 @@ async def _persist_conversation(
 @router.post("/chat")
 async def tracy_chat(
     body: ChatRequest,
+    request: Request,
     session: UserSession = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> StreamingResponse:
+    # Deficit check — block Tracy chat if credits exhausted
+    await request.app.state.deficit_guard.check(session.db_id)
+
     if not settings.anthropic_api_key or not settings.tracy_agent_id:
         return StreamingResponse(
             iter([_sse_event("error", {"message": "Tracy is not configured"})]),
