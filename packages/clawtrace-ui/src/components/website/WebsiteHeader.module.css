@@ -1,0 +1,55 @@
+/* Exact match of landing page header */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background: rgba(255, 253, 248, 0.92);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid color-mix(in srgb, var(--ct-border, #dacbb4) 60%, white);
+}
+
+.brand {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.navLink {
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid transparent;
+  color: #5a4534;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 530;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 11px;
+  transition: background 120ms, border-color 120ms;
+}
+.navLink:hover {
+  border-color: #dacbb4;
+  background: #f5e2d0;
+}
+.navLinkActive {
+  color: #a4532b;
+  font-weight: 600;
+}

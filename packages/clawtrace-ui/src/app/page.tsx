@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import { redirect } from 'next/navigation';
-import { getUserSession } from '@/lib/auth';
 import { LandingPage } from '../components/clawtrace/landing/LandingPage';
 import { siteConfig } from '../lib/site';
 
@@ -13,9 +11,6 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  // Redirect logged-in users straight to the app
-  const session = await getUserSession();
-  if (session) redirect('/trace');
 
   const jsonLd = {
     '@context': 'https://schema.org',
