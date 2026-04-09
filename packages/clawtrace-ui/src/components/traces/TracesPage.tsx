@@ -183,9 +183,9 @@ function bucketTrends(trends: TrendPoint[], rangeDays: number, traces: TraceRow[
   for (const t of trends) {
     let key: string;
     if (rangeDays <= 90) {
-      // Parse YYYY-MM-DD as local date (not UTC)
-      const [y, m, dd] = t.date.split('-').map(Number);
-      const d = new Date(y, m - 1, dd);
+      // Extract YYYY-MM-DD from ISO string and parse as local date
+      const dm = t.date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      const d = dm ? new Date(+dm[1], +dm[2] - 1, +dm[3]) : new Date(t.date);
       d.setDate(d.getDate() - d.getDay());
       key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     } else {
@@ -287,14 +287,16 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
     const raw = t.date;
     // Hourly (HH:00) — already local, use as-is
     if (/^\d{2}:\d{2}$/.test(raw)) return raw;
-    // Date-only (YYYY-MM-DD) — parse as local date, not UTC
-    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
-      const [y, m, d] = raw.split('-').map(Number);
+    // Extract YYYY-MM-DD from any format (ISO with T, date-only, etc.)
+    const dateMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, y, m, d] = dateMatch.map(Number);
       return new Date(y, m - 1, d).toLocaleDateString([], { month: 'short', day: 'numeric' });
     }
-    // Week/month key — same treatment
-    if (/^\d{4}-\d{2}$/.test(raw)) {
-      const [y, m] = raw.split('-').map(Number);
+    // Month key (YYYY-MM)
+    const monthMatch = raw.match(/^(\d{4})-(\d{2})$/);
+    if (monthMatch) {
+      const [, y, m] = monthMatch.map(Number);
       return new Date(y, m - 1, 1).toLocaleDateString([], { month: 'short', year: 'numeric' });
     }
     return raw;
