@@ -139,9 +139,7 @@
 .backersList { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
 .backerLogo {
   height: 48px; width: auto; max-width: 200px; object-fit: contain; display: block;
-  padding: 8px 16px; border-radius: 12px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 60%, white);
-  background: #fffdf8;
+  border-radius: 10px;
 }
 
 /* ── S3: Better/Cheaper/Faster ───────────────────────────────────────── */

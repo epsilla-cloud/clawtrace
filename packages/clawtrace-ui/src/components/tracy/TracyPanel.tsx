@@ -29,6 +29,7 @@ type TracyMessage = {
   reasoning?: ReasoningStep[];
   streaming?: boolean;
   thinkingLabel?: string;
+  fromHistory?: boolean;
 };
 
 type EChartsLike = {
@@ -276,13 +277,12 @@ function ReasoningBar({ steps, active, thinkingLabel }: { steps: ReasoningStep[]
 }
 
 /* ── Typing animation hook ──────────────────────────────────────────────── */
-function useTypingAnimation(fullText: string, streaming: boolean): string {
-  const [displayed, setDisplayed] = useState('');
-  const indexRef = useRef(0);
+function useTypingAnimation(fullText: string, streaming: boolean, animate: boolean): string {
+  const [displayed, setDisplayed] = useState(animate ? '' : fullText);
+  const indexRef = useRef(animate ? 0 : fullText.length);
 
   useEffect(() => {
-    if (streaming) {
-      // While streaming, show everything immediately
+    if (!animate || streaming) {
       setDisplayed(fullText);
       indexRef.current = fullText.length;
       return;
@@ -313,13 +313,15 @@ function useTypingAnimation(fullText: string, streaming: boolean): string {
 function MessageContent({
   text,
   streaming,
+  animate = true,
   onExpandChart,
 }: {
   text: string;
   streaming?: boolean;
+  animate?: boolean;
   onExpandChart: (config: string) => void;
 }) {
-  const displayed = useTypingAnimation(text, streaming ?? false);
+  const displayed = useTypingAnimation(text, streaming ?? false, animate);
   const blocks = splitChartBlocks(displayed);
   return (
     <>
@@ -461,6 +463,7 @@ export function TracyPanel() {
           id: `hist-${i}`,
           role: m.role as string,
           text: m.role === 'user' ? (m.raw_message as string) : (m.response_text as string) ?? '',
+          fromHistory: true,
           reasoning: m.reasoning_steps
             ? (typeof m.reasoning_steps === 'string'
                 ? JSON.parse(m.reasoning_steps)
@@ -677,7 +680,7 @@ export function TracyPanel() {
                         <ReasoningBar steps={msg.reasoning!} active={msg.streaming ?? false} thinkingLabel={msg.thinkingLabel} />
                       )}
                       {msg.text ? (
-                        <MessageContent text={msg.text} streaming={msg.streaming}
+                        <MessageContent text={msg.text} streaming={msg.streaming} animate={!msg.fromHistory}
                           onExpandChart={setExpandedChart} />
                       ) : msg.streaming ? (
                         <span className={styles.streamingCursor} />
