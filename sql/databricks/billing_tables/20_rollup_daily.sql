@@ -22,8 +22,10 @@ WHERE hour_bucket >= (
 
 -- Step 2: Delete stale daily rows for changed days
 DELETE FROM clawtrace.billing.billing_usage_daily
-WHERE (user_id, day_bucket) IN (
-    SELECT user_id, day_bucket FROM changed_days
+WHERE EXISTS (
+    SELECT 1 FROM changed_days c
+    WHERE clawtrace.billing.billing_usage_daily.user_id = c.user_id
+      AND clawtrace.billing.billing_usage_daily.day_bucket = c.day_bucket
 );
 
 -- Step 3: Insert fresh aggregation for changed days

@@ -72,6 +72,8 @@
   font-size: 13px;
   color: #7c6854;
   font-weight: 500;
+  margin-bottom: 6px;
+  display: block;
 }
 .balanceValue {
   display: flex;

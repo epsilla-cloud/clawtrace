@@ -21,8 +21,10 @@ WHERE day_bucket >= CAST((
 
 -- Step 2: Delete stale monthly rows
 DELETE FROM clawtrace.billing.billing_usage_monthly
-WHERE (user_id, month_bucket) IN (
-    SELECT user_id, month_bucket FROM changed_months
+WHERE EXISTS (
+    SELECT 1 FROM changed_months c
+    WHERE clawtrace.billing.billing_usage_monthly.user_id = c.user_id
+      AND clawtrace.billing.billing_usage_monthly.month_bucket = c.month_bucket
 );
 
 -- Step 3: Insert fresh aggregation
