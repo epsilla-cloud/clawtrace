@@ -132,19 +132,26 @@ export function UsagePage() {
       if (disposed) return;
 
       chart = echarts.init(dom);
-      // Convert UTC dates to local timezone for display
+      // Parse dates as local date labels (not UTC timestamps)
       const dates = data.series.map((r) => {
-        const utc = String(r.date);
-        // Ensure UTC parsing — append Z if not already present
-        const normalized = utc.endsWith('Z') ? utc : utc + 'Z';
-        const d = new Date(normalized);
-        if (isNaN(d.getTime())) return utc;
-        if (rangeMs <= 2 * 86_400_000) {
-          // Hourly: show "Apr 8, 2pm"
-          return d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' });
+        const raw = String(r.date);
+        // For daily data: "2026-04-09T00:00" — treat as a date label, not a UTC instant
+        // Extract YYYY-MM-DD and create local date to avoid timezone shift
+        const dateMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (dateMatch) {
+          const [, y, m, d] = dateMatch;
+          const local = new Date(Number(y), Number(m) - 1, Number(d));
+          if (rangeMs <= 2 * 86_400_000) {
+            // Hourly: also parse the hour if present
+            const hourMatch = raw.match(/T(\d{2})/);
+            if (hourMatch) {
+              local.setHours(Number(hourMatch[1]));
+              return local.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' });
+            }
+          }
+          return local.toLocaleDateString([], { month: 'short', day: 'numeric' });
         }
-        // Daily+: show "Apr 8"
-        return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        return raw;
       });
 
       chart.setOption({
