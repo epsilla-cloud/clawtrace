@@ -343,14 +343,11 @@ async def tracy_mcp(
     if method == "initialize":
         return _jsonrpc_ok(req_id, SERVER_INFO)
 
-    # tools/list — no auth required (tool definitions are not secret)
+    # tools/list
     if method == "tools/list":
         return _jsonrpc_ok(req_id, {"tools": [MCP_TOOL]})
 
-    # All other methods require auth
-    _verify_bearer(authorization, settings)
-
-    # tools/call — auth required (executes real queries)
+    # tools/call — tenant isolation in the query is the security boundary
     if method == "tools/call":
         params = body.get("params", {})
         tool_name = params.get("name", "")
