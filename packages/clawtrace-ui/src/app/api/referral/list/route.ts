@@ -18,9 +18,8 @@ export async function GET(request: NextRequest) {
   const rows = await db
     .select({
       id: referrals.id,
-      referredName: users.name,
+      referredEmail: users.email,
       referredAvatar: users.avatar,
-      referrerPointsAwarded: referrals.referrer_points_awarded,
       createdAt: referrals.created_at,
     })
     .from(referrals)
@@ -30,11 +29,5 @@ export async function GET(request: NextRequest) {
     .limit(limit)
     .offset(offset);
 
-  // Mask names for privacy: show first char + ***
-  const masked = rows.map((r) => ({
-    ...r,
-    referredName: r.referredName.charAt(0) + '***',
-  }));
-
-  return NextResponse.json({ referrals: masked, page, limit });
+  return NextResponse.json({ referrals: rows, page, limit });
 }

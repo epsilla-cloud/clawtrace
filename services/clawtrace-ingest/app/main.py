@@ -6,6 +6,7 @@ from fastapi import FastAPI, Header, HTTPException, status
 
 from .auth import authenticate
 from .config import AuthMode, Settings
+from .deficit_guard import DeficitGuard
 from .models import IngestEventRequest, PersistedEvent
 from .publisher import NoopPublisher, PubSubEventPublisher
 from .service import IngestService
@@ -37,6 +38,11 @@ def create_app(
 
     app.state.settings = resolved_settings
     app.state.ingest_service = ingest_service or create_ingest_service(resolved_settings)
+    app.state.deficit_guard = DeficitGuard(
+        payment_url=resolved_settings.payment_url,
+        internal_secret=resolved_settings.internal_secret,
+        check_interval_s=resolved_settings.deficit_check_interval_seconds,
+    )
 
     def resolve_account_id(settings: Settings, auth_account_id: str, tenant_id_header: str | None) -> str:
         if not tenant_id_header:
@@ -76,13 +82,17 @@ def create_app(
         return {"status": "ok"}
 
     @app.post("/v1/traces/events")
-    def ingest_event(
+    async def ingest_event(
         body: IngestEventRequest,
         authorization: str | None = Header(default=None, alias="Authorization"),
         tenant_id_header: str | None = Header(default=None, alias="x-clawtrace-tenant-id"),
     ):
         auth_context = authenticate(app.state.settings, authorization)
         account_id = resolve_account_id(app.state.settings, auth_context.accountId, tenant_id_header)
+
+        # Deficit guard: deny ingestion if tenant credits are exhausted
+        await app.state.deficit_guard.check(account_id)
+
         persisted = PersistedEvent.from_request(
             body,
             auth_context,

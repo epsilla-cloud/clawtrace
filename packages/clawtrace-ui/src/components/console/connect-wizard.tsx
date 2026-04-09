@@ -2,7 +2,27 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { duotoneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import styles from './connect-wizard.module.css';
+
+const codeStyle: Record<string, React.CSSProperties> = {
+  ...duotoneLight,
+  'pre[class*="language-"]': {
+    ...(duotoneLight['pre[class*="language-"]'] as React.CSSProperties),
+    background: 'transparent',
+    margin: 0,
+    padding: 0,
+    fontSize: '13px',
+    lineHeight: '1.5',
+  },
+  'code[class*="language-"]': {
+    ...(duotoneLight['code[class*="language-"]'] as React.CSSProperties),
+    background: 'transparent',
+    fontSize: '13px',
+    lineHeight: '1.5',
+  },
+};
 
 type Step = 1 | 2;
 
@@ -24,8 +44,13 @@ function CopyButton({ text }: { text: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
+      title="Copy to clipboard"
     >
-      {copied ? '✓ Copied' : 'Copy'}
+      {copied ? (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+      ) : (
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+      )}
     </button>
   );
 }
@@ -66,13 +91,13 @@ export function ConnectWizard() {
         <div className={styles.card}>
           <form onSubmit={handleContinue}>
             <label className={styles.label} htmlFor="conn-name">
-              OpenClaw Agent Name
+              Connection Name
             </label>
             <input
               id="conn-name"
               type="text"
               className={styles.input}
-              placeholder="e.g. Eliza Claw"
+              placeholder="e.g. OpenClaw on My Mac Mini"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -82,10 +107,10 @@ export function ConnectWizard() {
             <div className={styles.footer}>
               <button
                 type="submit"
-                className={styles.continueBtn}
+                className={styles.primaryBtn}
                 disabled={!name.trim() || loading}
               >
-                {loading ? 'Creating…' : 'Continue →'}
+                {loading ? 'Creating…' : 'Continue'}
               </button>
             </div>
           </form>
@@ -94,102 +119,97 @@ export function ConnectWizard() {
 
       {step === 2 && createdKey && (
         <div className={styles.page2}>
-          <p className={styles.stepLabel}>STEP 2: SECURITY & SETUP</p>
-          <h1 className={styles.heading}>Observe Key &amp; Guidance</h1>
+          <h1 className={styles.heading}>Observe Key &amp; Setup</h1>
           <p className={styles.subheading}>
-            Your unique observe key links this OpenClaw instance to ClawTrace.
-            Install the plugin and paste the key to start streaming telemetry.
+            Follow the steps below to install and configure the ClawTrace plugin in your OpenClaw.
           </p>
 
           {/* Key panel */}
           <div className={styles.keyPanel}>
             <div className={styles.keyPanelHeader}>
               <span className={styles.keyPanelTitle}>Your Observe Key</span>
-              <span className={styles.keyLiveTag}>
-                <span className={styles.keyLiveDot} />
-                Live &amp; Ready
-              </span>
             </div>
             <div className={styles.keyRow}>
               <code className={styles.keyValue}>{createdKey.observe_key}</code>
               <CopyButton text={createdKey.observe_key} />
             </div>
             <p className={styles.keyWarning}>
-              Treat this key as a password. ClawTrace will not show it again once you leave this screen.
+              Treat this key as a password. Copy and store it in a safe place. ClawTrace will not show it again once you leave this screen.
             </p>
           </div>
 
           {/* Setup instructions */}
           <div className={styles.briefing}>
-            <h2 className={styles.briefingTitle}>System Briefing</h2>
+            <h2 className={styles.briefingTitle}>Setup Guide</h2>
 
             <div className={styles.step}>
-              <span className={styles.stepNum}>1</span>
-              <div>
-                <p className={styles.stepTitle}>Install the ClawTrace plugin</p>
-                <p className={styles.stepDesc}>Run this in your terminal on the machine running OpenClaw.</p>
-                <div className={styles.codeBlock}>
-                  <span className={styles.codeLang}>BASH</span>
-                  <code>openclaw plugins install @epsilla/clawtrace</code>
-                  <CopyButton text="openclaw plugins install @epsilla/clawtrace" />
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>1</span>
+                <div>
+                  <p className={styles.stepTitle}>Install the ClawTrace plugin</p>
+                  <p className={styles.stepDesc}>Run this in your terminal on the machine running OpenClaw.</p>
                 </div>
+              </div>
+              <div className={styles.codeBlock}>
+                <SyntaxHighlighter language="bash" style={codeStyle} wrapLongLines>
+                  openclaw plugins install @epsilla/clawtrace
+                </SyntaxHighlighter>
+                <CopyButton text="openclaw plugins install @epsilla/clawtrace" />
               </div>
             </div>
 
             <div className={styles.step}>
-              <span className={styles.stepNum}>2</span>
-              <div>
-                <p className={styles.stepTitle}>Authenticate with your observe key</p>
-                <p className={styles.stepDesc}>
-                  Run the interactive setup. When prompted for your observe key,
-                  paste the key shown above.
-                </p>
-                <div className={styles.codeBlock}>
-                  <span className={styles.codeLang}>BASH</span>
-                  <code>openclaw clawtrace setup</code>
-                  <CopyButton text="openclaw clawtrace setup" />
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>2</span>
+                <div>
+                  <p className={styles.stepTitle}>Authenticate with your observe key</p>
+                  <p className={styles.stepDesc}>Run the interactive setup. When prompted, paste the key shown above.</p>
                 </div>
+              </div>
+              <div className={styles.codeBlock}>
+                <SyntaxHighlighter language="bash" style={codeStyle} wrapLongLines>
+                  openclaw clawtrace setup
+                </SyntaxHighlighter>
+                <CopyButton text="openclaw clawtrace setup" />
               </div>
             </div>
 
             <div className={styles.step}>
-              <span className={styles.stepNum}>3</span>
-              <div>
-                <p className={styles.stepTitle}>Restart OpenClaw gateway</p>
-                <p className={styles.stepDesc}>Reload the gateway so the plugin picks up your new key.</p>
-                <div className={styles.codeBlock}>
-                  <span className={styles.codeLang}>BASH</span>
-                  <code>openclaw gateway restart</code>
-                  <CopyButton text="openclaw gateway restart" />
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>3</span>
+                <div>
+                  <p className={styles.stepTitle}>Restart OpenClaw gateway</p>
+                  <p className={styles.stepDesc}>Reload the gateway so the plugin picks up your new key.</p>
+                </div>
+              </div>
+              <div className={styles.codeBlock}>
+                <SyntaxHighlighter language="bash" style={codeStyle} wrapLongLines>
+                  openclaw gateway restart
+                </SyntaxHighlighter>
+                <CopyButton text="openclaw gateway restart" />
+              </div>
+            </div>
+
+            <div className={styles.step}>
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>4</span>
+                <div>
+                  <p className={styles.stepTitle}>Wait for trajectories to appear</p>
+                  <p className={styles.stepDesc}>
+                    It usually takes about 5 minutes for trajectories to show up on the dashboard.
+                  </p>
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Listener status */}
-          <div className={styles.listener}>
-            <div className={styles.listenerIcon}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zM8 12h8M12 8v8" />
-              </svg>
-            </div>
-            <div>
-              <p className={styles.listenerTitle}>Connection Listener</p>
-              <p className={styles.listenerDesc}>
-                ClawTrace is waiting for a heartbeat from your instance. The dashboard will populate
-                after the first agent run.
-              </p>
-            </div>
-            <span className={styles.listeningBadge}>● LISTENING…</span>
           </div>
 
           <div className={styles.footer2}>
             <button
               type="button"
-              className={styles.continueBtn}
-              onClick={() => router.push('/overview')}
+              className={styles.primaryBtn}
+              onClick={() => router.push(`/trace/${createdKey.id}`)}
             >
-              Done →
+              Go to Dashboard
             </button>
           </div>
         </div>

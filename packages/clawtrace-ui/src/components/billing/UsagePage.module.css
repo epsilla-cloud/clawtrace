@@ -1,0 +1,178 @@
+.shell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: #faf4ec;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.shell::-webkit-scrollbar { width: 6px; }
+.shell::-webkit-scrollbar-track { background: transparent; }
+.shell::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
+
+.content {
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Breadcrumb */
+.header { display: flex; align-items: center; }
+.breadcrumb { display: flex; align-items: center; gap: 8px; font-size: 16px; color: #7c6854; }
+.breadcrumbLink { color: #7c6854; text-decoration: none; }
+.breadcrumbLink:hover { color: #2e2115; text-decoration: underline; }
+.breadcrumbSep { color: #b89c84; }
+.breadcrumbCurrent { color: #2e2115; font-weight: 560; }
+
+/* Time range */
+.timeRange {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.rangeBtn {
+  height: 32px;
+  padding: 0 14px;
+  border: 1px solid #dacbb4;
+  border-radius: 7px;
+  background: #fffdf8;
+  color: #7c6854;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 100ms;
+}
+.rangeBtn:hover { background: #f5e2d0; }
+.rangeBtnActive {
+  background: #f5e2d0;
+  color: #2e2115;
+  border-color: #c9a882;
+  font-weight: 600;
+}
+.customRange {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 8px;
+}
+.dateInput {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid #dacbb4;
+  border-radius: 7px;
+  background: #fffdf8;
+  color: #2e2115;
+  font-size: 13px;
+  font-family: inherit;
+}
+
+/* Spent Credits card */
+.spentCard {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 20px;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  background: #fffdf8;
+  max-width: 240px;
+}
+.spentLabel { font-size: 13px; color: #7c6854; font-weight: 500; }
+.spentValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 28px;
+  font-weight: 680;
+  color: #2e2115;
+  line-height: 1;
+}
+.spentCoin {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+/* Chart */
+.chartCard {
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  background: #fffdf8;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.chartTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 620;
+  color: #2e2115;
+}
+.chartCanvas {
+  width: 100%;
+  height: 280px;
+}
+.chartEmpty {
+  height: 200px;
+  display: grid;
+  place-items: center;
+  color: #b89c84;
+  font-size: 13px;
+}
+
+/* Pricing cards */
+.pricingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.pricingCard {
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  background: #fffdf8;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pricingLabel {
+  font-size: 13px;
+  color: #7c6854;
+  font-weight: 500;
+}
+.pricingValue {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 620;
+  color: #2e2115;
+}
+.pricingDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Skeleton */
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0e4d4 25%, #f8f0e4 50%, #f0e4d4 75%);
+  background-size: 200% 100%;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+@keyframes pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

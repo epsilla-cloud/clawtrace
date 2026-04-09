@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { AgentsListPage } from '@/components/traces/AgentsListPage';
 
-export const metadata = { title: 'OpenClaw Agents — ClawTrace' };
+export const metadata = { title: 'OpenClaw Agents' };
 
 function PageSkeleton() {
   const bar = { borderRadius: 6, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite' } as const;
