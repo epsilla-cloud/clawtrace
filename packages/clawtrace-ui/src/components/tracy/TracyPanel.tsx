@@ -416,13 +416,28 @@ export function TracyPanel() {
   const { agentId, traceId, page } = usePageContext();
   const starters = getStarterQuestions(page);
 
-  // Scroll to bottom on any message change (including history load)
+  // On history load: scroll to last user message. On new messages: scroll to bottom.
+  const prevCountRef = useRef(0);
   useEffect(() => {
     const el = transcriptRef.current;
-    if (!el) return;
-    // Immediate + deferred scroll to handle both live updates and post-render history load
-    el.scrollTop = el.scrollHeight;
-    const raf = requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+    if (!el || !messages.length) return;
+
+    const isHistoryLoad = prevCountRef.current === 0 && messages.length > 1;
+    prevCountRef.current = messages.length;
+
+    const raf = requestAnimationFrame(() => {
+      if (isHistoryLoad) {
+        // Find last user message element and scroll it into view
+        const userMsgs = el.querySelectorAll('[data-role="user"]');
+        const last = userMsgs[userMsgs.length - 1];
+        if (last) {
+          last.scrollIntoView({ block: 'start' });
+          return;
+        }
+      }
+      // Default: scroll to bottom (for new messages during conversation)
+      el.scrollTop = el.scrollHeight;
+    });
     return () => cancelAnimationFrame(raf);
   }, [messages]);
 
@@ -645,6 +660,7 @@ export function TracyPanel() {
 
             {messages.map((msg) => (
               <div key={msg.id}
+                data-role={msg.role}
                 className={`${styles.messageRow} ${msg.role === 'assistant' ? styles.messageRowAssistant : styles.messageRowUser}`}>
                 {msg.role === 'assistant' && (
                   <span className={styles.avatarBubble}>
