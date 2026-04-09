@@ -164,21 +164,41 @@ async def _handle_tool_call(
 
 
 # ---------------------------------------------------------------------------
-# OAuth 2.0 Protected Resource Metadata (RFC 9728 / MCP Authorization spec)
-# Anthropic's platform probes these endpoints during MCP server setup.
-# We advertise that the server accepts Bearer tokens directly.
+# OAuth 2.0 Authorization Code + PKCE flow (MCP Authorization spec)
+#
+# Anthropic's platform follows the full MCP OAuth spec:
+#   1. GET /.well-known/oauth-protected-resource  → resource metadata
+#   2. GET /.well-known/oauth-authorization-server → auth server metadata
+#   3. POST /register                             → dynamic client registration
+#   4. GET  /authorize                            → authorization (auto-approve)
+#   5. POST /token                                → exchange code for access token
+#
+# Since ClawTrace uses static Bearer tokens (stored in the Anthropic vault),
+# the OAuth flow auto-approves and returns a simple opaque token.
 # ---------------------------------------------------------------------------
+import secrets
+import time as _time
+from urllib.parse import urlencode, parse_qs, urlparse
+
+# In-memory auth code store: code -> {client_id, redirect_uri, code_challenge, expires}
+_auth_codes: dict[str, dict] = {}
+
+_BASE = "https://api.clawtrace.ai"
+
 _OAUTH_RESOURCE_META = {
-    "resource": "https://api.clawtrace.ai/tracy/mcp",
+    "resource": f"{_BASE}/tracy/mcp",
+    "authorization_servers": [_BASE],
     "bearer_methods_supported": ["header"],
-    "resource_documentation": "https://clawtrace.ai/docs",
 }
 
 _OAUTH_AUTHZ_META = {
-    "issuer": "https://api.clawtrace.ai",
-    "token_endpoint": "https://api.clawtrace.ai/token",
-    "response_types_supported": ["token"],
-    "grant_types_supported": ["client_credentials"],
+    "issuer": _BASE,
+    "authorization_endpoint": f"{_BASE}/authorize",
+    "token_endpoint": f"{_BASE}/token",
+    "registration_endpoint": f"{_BASE}/register",
+    "response_types_supported": ["code"],
+    "grant_types_supported": ["authorization_code"],
+    "code_challenge_methods_supported": ["S256"],
     "token_endpoint_auth_methods_supported": ["none"],
 }
 
@@ -202,32 +222,86 @@ async def oauth_authorization_server() -> Response:
 
 @router.post("/register")
 async def oauth_register(request: Request) -> Response:
-    """Dynamic client registration (RFC 7591).
-    Returns a dummy client_id — the actual auth uses static Bearer tokens."""
+    """Dynamic client registration (RFC 7591)."""
     body = await request.json()
     return Response(
         content=json.dumps({
-            "client_id": "clawtrace-tracy-mcp",
+            "client_id": "clawtrace-tracy-" + secrets.token_hex(8),
             "client_name": body.get("client_name", "ClawTrace MCP Client"),
-            "grant_types": ["client_credentials"],
+            "grant_types": ["authorization_code"],
             "token_endpoint_auth_method": "none",
             "redirect_uris": body.get("redirect_uris", []),
+            "response_types": ["code"],
         }),
         media_type="application/json",
         status_code=201,
     )
 
 
+@router.get("/authorize")
+async def oauth_authorize(request: Request) -> Response:
+    """Authorization endpoint — auto-approves and redirects back with auth code."""
+    params = dict(request.query_params)
+    redirect_uri = params.get("redirect_uri", "")
+    state = params.get("state", "")
+    client_id = params.get("client_id", "")
+    code_challenge = params.get("code_challenge", "")
+
+    if not redirect_uri:
+        return Response(content="missing redirect_uri", status_code=400)
+
+    # Generate auth code
+    code = secrets.token_urlsafe(32)
+    _auth_codes[code] = {
+        "client_id": client_id,
+        "redirect_uri": redirect_uri,
+        "code_challenge": code_challenge,
+        "expires": _time.time() + 300,  # 5 minutes
+    }
+
+    # Clean expired codes
+    now = _time.time()
+    expired = [k for k, v in _auth_codes.items() if v["expires"] < now]
+    for k in expired:
+        del _auth_codes[k]
+
+    # Redirect back with code
+    sep = "&" if "?" in redirect_uri else "?"
+    location = f"{redirect_uri}{sep}" + urlencode({"code": code, "state": state})
+    return Response(status_code=302, headers={"Location": location})
+
+
 @router.post("/token")
-async def oauth_token() -> Response:
-    """Token endpoint — not actually used; static Bearer tokens are configured in vault."""
+async def oauth_token(request: Request, settings: Settings = Depends(get_settings)) -> Response:
+    """Token endpoint — exchanges auth code for access token."""
+    body = await request.form()
+    grant_type = body.get("grant_type", "")
+    code = body.get("code", "")
+
+    if grant_type != "authorization_code" or not code:
+        return Response(
+            content=json.dumps({"error": "unsupported_grant_type"}),
+            media_type="application/json",
+            status_code=400,
+        )
+
+    entry = _auth_codes.pop(code, None)
+    if not entry or entry["expires"] < _time.time():
+        return Response(
+            content=json.dumps({"error": "invalid_grant", "error_description": "code expired or invalid"}),
+            media_type="application/json",
+            status_code=400,
+        )
+
+    # Return the internal secret as the access token —
+    # this is the same token the MCP endpoint validates against
     return Response(
         content=json.dumps({
-            "error": "unsupported_grant_type",
-            "error_description": "This server uses static Bearer tokens configured in the vault, not OAuth token exchange.",
+            "access_token": settings.internal_secret,
+            "token_type": "bearer",
+            "expires_in": 86400 * 365,
         }),
         media_type="application/json",
-        status_code=400,
     )
 
 
