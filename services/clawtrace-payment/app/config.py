@@ -64,7 +64,7 @@ class Settings(BaseSettings):
     # - trace_list_query: per GET /v1/traces call
     # - trace_detail_query: per GET /v1/traces/{id} call
     pricing_table_json: str = (
-        '{"tracy_input_token_1k": 0.5, "tracy_output_token_1k": 1.5,'
+        '{"tracy_input_token_1k": 0.5, "tracy_output_token_1k": 2.5,'
         ' "storage_mb_day": 1.35, "trace_list_query": 0.5,'
         ' "trace_detail_query": 0.2}'
     )

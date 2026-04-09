@@ -77,7 +77,7 @@ export function UsagePage() {
       trace_list_query: 0.5,
       trace_detail_query: 0.2,
       tracy_input_token_1k: 0.5,
-      tracy_output_token_1k: 1.5,
+      tracy_output_token_1k: 2.5,
     });
   }, []);
 
