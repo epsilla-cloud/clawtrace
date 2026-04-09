@@ -191,16 +191,22 @@ def _stream_tracy(
                     # Extract token usage
                     if hasattr(event, "model_usage"):
                         u = event.model_usage
-                        collected["input_tokens"] = (
-                            collected.get("input_tokens", 0)
-                            + getattr(u, "input_tokens", 0)
-                        )
-                        collected["output_tokens"] = (
-                            collected.get("output_tokens", 0)
-                            + getattr(u, "output_tokens", 0)
+                        inp = getattr(u, "input_tokens", 0) or 0
+                        out = getattr(u, "output_tokens", 0) or 0
+                        cache_create = getattr(u, "cache_creation_input_tokens", 0) or 0
+                        cache_read = getattr(u, "cache_read_input_tokens", 0) or 0
+                        collected["input_tokens"] = collected.get("input_tokens", 0) + inp + cache_create + cache_read
+                        collected["output_tokens"] = collected.get("output_tokens", 0) + out
+                        logger.info(
+                            "Tracy tokens: input=%d (cache_create=%d, cache_read=%d, direct=%d), output=%d",
+                            inp + cache_create + cache_read, cache_create, cache_read, inp, out,
                         )
                 elif etype == "session.status_idle":
-                    yield _sse_event("done", {"status": "idle"})
+                    yield _sse_event("done", {
+                        "status": "idle",
+                        "input_tokens": collected.get("input_tokens", 0),
+                        "output_tokens": collected.get("output_tokens", 0),
+                    })
                     break
                 elif etype == "session.error" or etype == "error":
                     msg = str(event) if not hasattr(event, "error") else str(event.error)
