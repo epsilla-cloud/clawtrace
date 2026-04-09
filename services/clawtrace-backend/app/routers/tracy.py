@@ -73,20 +73,35 @@ def _build_context_prefix(
     parts.append(f"Tenant ID: {tenant_id}")
     parts.append(f"User: {user_name}")
 
-    if agent_id:
-        parts.append(f"Current page: Agent dashboard (agent_id: {agent_id})")
-        parts.append("Scope: queries should focus on this agent's trajectories and spans.")
-    elif trace_id:
-        parts.append(f"Current page: Trace detail (trace_id: {trace_id})")
-        parts.append("Scope: queries should focus on this specific trace and its spans.")
+    if trace_id and agent_id:
+        parts.append(f"Current page: Trajectory detail")
+        parts.append(f"agent_id: {agent_id}")
+        parts.append(f"trace_id: {trace_id}")
+        parts.append("")
+        parts.append("SCOPE CONSTRAINT (MANDATORY):")
+        parts.append(f"- You MUST pass agent_id='{agent_id}' AND trajectory_id='{trace_id}' in every run_cypher_query tool call.")
+        parts.append(f"- Every Cypher query MUST include WHERE filters on both agent_id='{agent_id}' AND trace_id='{trace_id}'.")
+        parts.append("- Focus ONLY on this specific trajectory's spans, tokens, duration, and errors.")
+        parts.append("- Do NOT query other traces or aggregate across the agent unless the user explicitly asks to compare.")
+    elif agent_id:
+        parts.append(f"Current page: Agent dashboard")
+        parts.append(f"agent_id: {agent_id}")
+        parts.append("")
+        parts.append("SCOPE CONSTRAINT (MANDATORY):")
+        parts.append(f"- You MUST pass agent_id='{agent_id}' in every run_cypher_query tool call.")
+        parts.append(f"- Every Cypher query MUST include WHERE t.agent_id='{agent_id}' (or s.agent_id for span queries).")
+        parts.append("- Focus ONLY on this agent's trajectories and spans.")
+        parts.append("- Do NOT query other agents unless the user explicitly asks to compare.")
     else:
         parts.append("Current page: General (no specific agent or trace selected)")
+        parts.append("")
+        parts.append("SCOPE: You may query across all agents and traces for this tenant.")
 
     if local_context:
         ctx_str = json.dumps(local_context, default=str)
         if len(ctx_str) > 20_000:
             ctx_str = ctx_str[:20_000] + "... [truncated]"
-        parts.append(f"Page data:\n{ctx_str}")
+        parts.append(f"\nPage data:\n{ctx_str}")
 
     return "\n".join(parts)
 

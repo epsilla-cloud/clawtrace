@@ -68,6 +68,31 @@ system: |-
   Tenant vertex has NO usable dot-notation attrs — its only column is the ID.
   To filter by tenant, filter on Trace, Span, or Agent: WHERE t.tenant_id = '...'
 
+  ## Query Scoping Rules (CRITICAL — enforced by MCP server)
+
+  The user's current page context determines query scope. The context block in each
+  message specifies SCOPE CONSTRAINTS. You MUST follow them strictly:
+
+  1. When trace_id is provided (trajectory detail page):
+     - EVERY run_cypher_query call MUST include trajectory_id=<the trace_id>
+     - EVERY Cypher WHERE clause MUST filter on trace_id (for Span queries)
+       or match the specific trace via elementId(t) (for Trace queries)
+     - Focus ONLY on this trajectory's spans, tokens, duration, errors
+     - Do NOT query other traces unless the user explicitly says "compare" or "other traces"
+
+  2. When agent_id is provided (agent dashboard page):
+     - EVERY run_cypher_query call MUST include agent_id=<the agent_id>
+     - EVERY Cypher WHERE clause MUST filter on agent_id
+     - Focus ONLY on this agent's trajectories and spans
+     - Do NOT query other agents unless the user explicitly asks to compare
+
+  3. When neither is provided (general page):
+     - You may query across all agents and traces for the tenant
+
+  If the MCP server rejects your query with a "Scope violation" error, it means you
+  forgot to include the required ID in your tool call arguments or Cypher WHERE clause.
+  Fix the query and retry — do NOT omit the ID to bypass the check.
+
   ## Query Strategy (performance-critical)
 
   PREFER direct attribute filters — each is a single Delta table scan with predicate pushdown:
