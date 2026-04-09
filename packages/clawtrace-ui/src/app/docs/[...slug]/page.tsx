@@ -2,8 +2,14 @@ import { notFound } from 'next/navigation';
 import { promises as fs } from 'fs';
 import path from 'path';
 import type { Metadata } from 'next';
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkRehype from 'remark-rehype';
+import rehypeSlug from 'rehype-slug';
+import rehypeStringify from 'rehype-stringify';
 import { findDocBySlug, getAllDocSlugs } from '@/lib/docs-nav';
-import { MarkdownContent } from '@/components/docs/MarkdownContent';
+import styles from './page.module.css';
 
 type Props = {
   params: Promise<{ slug: string[] }>;
@@ -17,10 +23,8 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const joined = slug.join('/');
-  const page = findDocBySlug(joined);
+  const page = findDocBySlug(slug.join('/'));
   if (!page) return { title: 'Documentation' };
-
   return {
     title: page.title,
     description: page.description,
@@ -33,20 +37,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
+async function renderMarkdown(md: string): Promise<string> {
+  const result = await unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(remarkRehype, { allowDangerousHtml: true })
+    .use(rehypeSlug)
+    .use(rehypeStringify, { allowDangerousHtml: true })
+    .process(md);
+  return String(result);
+}
+
 export default async function DocPage({ params }: Props) {
   const { slug } = await params;
-  const joined = slug.join('/');
-  const page = findDocBySlug(joined);
+  const page = findDocBySlug(slug.join('/'));
   if (!page) notFound();
 
-  // Read from src/docs-content/ (bundled with the app, not public/)
   const filePath = path.join(process.cwd(), 'src', 'docs-content', page.file);
   let content: string;
   try {
-    content = await fs.readFile(filePath, 'utf-8');
+    const md = await fs.readFile(filePath, 'utf-8');
+    content = await renderMarkdown(md);
   } catch {
     notFound();
   }
 
-  return <MarkdownContent content={content} />;
+  return (
+    <article
+      className={styles.markdown}
+      dangerouslySetInnerHTML={{ __html: content }}
+    />
+  );
 }

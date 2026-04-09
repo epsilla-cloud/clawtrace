@@ -5,30 +5,6 @@
   background: #faf4ec;
 }
 
-/* ── Top nav ───────────────────────────────────────────────────────────── */
-.topNav {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  border-bottom: 1px solid #e8d9c4;
-  background: #fffdf8;
-  flex-shrink: 0;
-}
-.logo { display: flex; align-items: center; text-decoration: none; }
-.headerRight { display: flex; align-items: center; gap: 24px; }
-.topLinks { display: flex; align-items: center; gap: 24px; }
-.topLink {
-  font-size: 14px;
-  font-weight: 500;
-  color: #7c6854;
-  text-decoration: none;
-  transition: color 100ms;
-}
-.topLink:hover { color: #2e2115; }
-.topLinkActive { color: #a4532b; font-weight: 600; }
-
-/* ── Body: sidebar + content ───────────────────────────────────────────── */
 .body {
   flex: 1;
   display: flex;
@@ -36,7 +12,6 @@
   overflow: hidden;
 }
 
-/* ── Sidebar ───────────────────────────────────────────────────────────── */
 .sidebar {
   width: 260px;
   flex-shrink: 0;
@@ -81,7 +56,6 @@
   font-weight: 560;
 }
 
-/* ── Content ───────────────────────────────────────────────────────────── */
 .content {
   flex: 1;
   min-width: 0;
@@ -94,7 +68,6 @@
 .content::-webkit-scrollbar-track { background: transparent; }
 .content::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
 
-/* ── Responsive ────────────────────────────────────────────────────────── */
 @media (max-width: 860px) {
   .sidebar { display: none; }
   .content { padding: 24px 20px 48px; }
