@@ -105,6 +105,13 @@
   transition: color 80ms, background 80ms;
 }
 .tocLink:hover { color: #2e2115; background: #f5e2d0; }
+.tocLinkActive {
+  color: #a4532b;
+  font-weight: 560;
+  border-left: 2px solid #a4532b;
+  border-radius: 0 4px 4px 0;
+  padding-left: 6px;
+}
 .tocLinkH3 { padding-left: 16px; font-size: 11px; }
 
 @media (max-width: 1100px) {
