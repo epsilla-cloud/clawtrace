@@ -199,32 +199,56 @@ type TraceGroup = {
 const HOME_DIR = process.env.HOME ?? os.homedir() ?? '';
 const DEFAULT_OPENCLAW_PATH = path.join(HOME_DIR, '.openclaw');
 const DEFAULT_WORKSPACE_PATH = path.join(HOME_DIR, 'ClawWork');
-const DEFAULT_COST_PER_1K_TOKENS_USD = 0.004;
-const MODEL_COST_PER_1K_TOKENS_USD: Record<string, number> = {
-  'claude-opus-4-6': 0.015,
-  'claude-opus-4-5': 0.015,
-  'claude-opus-4-1': 0.045,
-  'claude-opus-4': 0.045,
-  'claude-sonnet-4-6': 0.009,
-  'claude-sonnet-4': 0.009,
-  'claude-haiku-4-5': 0.003,
-  'gpt-4o': 0.00625,
-  'gpt-4o-mini': 0.000375,
-  'o3': 0.005,
-  'o3-mini': 0.00275,
-  'o4-mini': 0.00275,
-  'gemini-2.5-pro': 0.005625,
-  'gemini-2.5-flash': 0.0014,
-  'gemini-2.0-flash': 0.00025,
-  'gemini-1.5-pro': 0.003125,
-  'gemini-1.5-flash': 0.0001875,
-  'gemini-3.1-pro-preview': 0.005625,
-  'deepseek-chat': 0.00035,
-  'deepseek-reasoner': 0.00035,
-  'mistral-large': 0.004,
-  'mistral-small': 0.0004,
-  'llama-3.3-70b': 0.00069,
-  'llama-3.1-8b': 0.000065,
+const DEFAULT_COST_PER_1K_INPUT_USD = 0.003;
+const DEFAULT_COST_PER_1K_OUTPUT_USD = 0.010;
+type ModelCostEntry = { input: number; output: number }; // USD per 1K tokens
+const MODEL_COST_PER_1K_TOKENS_USD: Record<string, ModelCostEntry> = {
+  // Anthropic
+  'claude-opus-4-6':      { input: 0.005,    output: 0.025   },
+  'claude-opus-4-5':      { input: 0.005,    output: 0.025   },
+  'claude-opus-4-1':      { input: 0.015,    output: 0.075   },
+  'claude-opus-4':        { input: 0.015,    output: 0.075   },
+  'claude-sonnet-4-6':    { input: 0.003,    output: 0.015   },
+  'claude-sonnet-4':      { input: 0.003,    output: 0.015   },
+  'claude-haiku-4-5':     { input: 0.001,    output: 0.005   },
+  // OpenAI GPT-5.x
+  'gpt-5.4':              { input: 0.0025,   output: 0.015   },
+  'gpt-5.4-mini':         { input: 0.00075,  output: 0.0045  },
+  'gpt-5.2':              { input: 0.00175,  output: 0.014   },
+  'gpt-5':                { input: 0.00125,  output: 0.010   },
+  'gpt-5-mini':           { input: 0.00025,  output: 0.002   },
+  // OpenAI GPT-4.x
+  'gpt-4.1':              { input: 0.002,    output: 0.008   },
+  'gpt-4.1-mini':         { input: 0.0004,   output: 0.0016  },
+  'gpt-4.1-nano':         { input: 0.0001,   output: 0.0004  },
+  'gpt-4o':               { input: 0.0025,   output: 0.010   },
+  'gpt-4o-mini':          { input: 0.00015,  output: 0.0006  },
+  // OpenAI reasoning
+  'o4-mini':              { input: 0.0011,   output: 0.0044  },
+  'o3':                   { input: 0.002,    output: 0.008   },
+  'o3-mini':              { input: 0.0011,   output: 0.0044  },
+  // Google Gemini
+  'gemini-3.1-pro-preview': { input: 0.002,  output: 0.012   },
+  'gemini-3-flash-preview': { input: 0.0005, output: 0.003   },
+  'gemini-2.5-pro':       { input: 0.00125,  output: 0.010   },
+  'gemini-2.5-flash':     { input: 0.0003,   output: 0.0025  },
+  'gemini-2.0-flash':     { input: 0.0001,   output: 0.0004  },
+  // DeepSeek
+  'deepseek-chat':        { input: 0.00028,  output: 0.00042 },
+  'deepseek-reasoner':    { input: 0.00028,  output: 0.00042 },
+  // Mistral
+  'mistral-large':        { input: 0.002,    output: 0.006   },
+  'mistral-small':        { input: 0.0002,   output: 0.0006  },
+  // Chinese vendors
+  'qwen3-max':            { input: 0.00078,  output: 0.0039  },
+  'qwen3.6-plus':         { input: 0.000325, output: 0.00195 },
+  'glm-5.1':              { input: 0.00126,  output: 0.00396 },
+  'glm-5':                { input: 0.00072,  output: 0.0023  },
+  'kimi-k2.5':            { input: 0.000383, output: 0.00172 },
+  'ernie-5':              { input: 0.00083,  output: 0.00333 },
+  // Open source
+  'llama-3.3-70b':        { input: 0.00059,  output: 0.00079 },
+  'llama-3.1-8b':         { input: 0.00005,  output: 0.00008 },
 };
 
 function compactText(value: string | null | undefined, max = 220): string {
@@ -257,12 +281,26 @@ function normalizeModel(model: string | null | undefined): string | null {
   return normalized.length ? normalized : null;
 }
 
-function estimateCostUsdFromTokens(tokens: number, model: string | null | undefined): number {
+function estimateCostUsdFromTokens(
+  tokens: number,
+  model: string | null | undefined,
+  inputTokens = 0,
+  outputTokens = 0,
+): number {
   const normalizedModel = normalizeModel(model);
-  const per1kRate = normalizedModel
-    ? (MODEL_COST_PER_1K_TOKENS_USD[normalizedModel] ?? DEFAULT_COST_PER_1K_TOKENS_USD)
-    : DEFAULT_COST_PER_1K_TOKENS_USD;
-  return roundUsd((Math.max(tokens, 0) / 1000) * per1kRate);
+  const entry = normalizedModel ? MODEL_COST_PER_1K_TOKENS_USD[normalizedModel] : undefined;
+  if (entry && (inputTokens > 0 || outputTokens > 0)) {
+    // Use separate input/output pricing when token breakdown is available
+    return roundUsd(
+      (Math.max(inputTokens, 0) / 1000) * entry.input +
+      (Math.max(outputTokens, 0) / 1000) * entry.output,
+    );
+  }
+  // Fallback: blended rate using total tokens
+  const blendedRate = entry
+    ? (entry.input + entry.output) / 2
+    : (DEFAULT_COST_PER_1K_INPUT_USD + DEFAULT_COST_PER_1K_OUTPUT_USD) / 2;
+  return roundUsd((Math.max(tokens, 0) / 1000) * blendedRate);
 }
 
 function extractRunCostUsd(run: CronRun): number {

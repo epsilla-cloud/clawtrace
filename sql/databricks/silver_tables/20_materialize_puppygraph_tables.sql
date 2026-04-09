@@ -129,9 +129,11 @@ USING (
       WHEN MAX(parent_span_id)  IS NOT NULL THEN 'subagent'
       ELSE 'session'
     END                                   AS actor_type,
-    MAX(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)) AS input_tokens,
-    MAX(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)) AS output_tokens,
-    MAX(CAST(get_json_object(payload_json, '$.usage.total')  AS BIGINT)) AS total_tokens,
+    MAX(CAST(get_json_object(payload_json, '$.usage.input')     AS BIGINT)) AS input_tokens,
+    MAX(CAST(get_json_object(payload_json, '$.usage.output')    AS BIGINT)) AS output_tokens,
+    MAX(CAST(get_json_object(payload_json, '$.usage.total')     AS BIGINT)) AS total_tokens,
+    MAX(CAST(get_json_object(payload_json, '$.usage.cacheRead') AS BIGINT)) AS cache_read_tokens,
+    MAX(CAST(get_json_object(payload_json, '$.usage.cacheWrite') AS BIGINT)) AS cache_write_tokens,
     MAX(CASE WHEN event_type = 'error' THEN 1 ELSE 0 END)               AS has_error,
     -- Store both input (before-call) and output (after-call) payloads.
     -- Before-call has prompt/params; after-call has result/response.
