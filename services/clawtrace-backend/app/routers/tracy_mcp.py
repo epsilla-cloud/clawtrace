@@ -51,14 +51,23 @@ EDGE TYPES:
   Span   -[:CHILD_OF]->  Span   (child -> parent; only when parent_span_id IS NOT NULL)
 
 IMPORTANT CYPHER RULES:
-  - Use elementId(v) for vertex identity (returns "Label[uuid]").
-  - Use v.attribute for property access (e.g. t.tenant_id, s.actor_type).
+  - CRITICAL BUG: A vertex's own ID field CANNOT be accessed via dot notation.
+    Tenant.tenant_id, Agent.agent_id, Trace.trace_id, Span.span_id are ID fields
+    and v.id_field returns NULL. Use elementId(v) instead (returns "Label[uuid]").
+  - Non-ID attributes work fine with dot notation: t.tenant_id on a Trace works
+    because tenant_id is a regular attribute on Trace (not its ID). Similarly
+    s.trace_id on a Span works because trace_id is a regular attribute on Span.
+  - In RETURN clauses, always use elementId(t) AS trace_id, elementId(s) AS span_id
+    to retrieve vertex IDs. Never use t.trace_id on Trace or s.span_id on Span.
   - String values must be single-quoted: WHERE t.tenant_id = 'abc-123'
   - EVERY query MUST include a WHERE filter on tenant_id for data isolation.
   - If agent_id is provided, the query MUST also filter on agent_id.
   - If trajectory_id is provided, the query MUST also filter on trace_id matching that value.
   - Prefer direct attribute filters (WHERE s.trace_id = '...') over edge traversal for performance.
-  - PuppyGraph supports: MATCH, OPTIONAL MATCH, WHERE, RETURN, ORDER BY, LIMIT, SKIP, count(), sum(), avg(), min(), max(), collect(), DISTINCT, CASE WHEN, coalesce(), substring().
+    Example: to get spans for a trace, use MATCH (s:Span) WHERE s.trace_id = 'uuid'
+    instead of MATCH (t:Trace)-[:HAS_SPAN]->(s:Span).
+  - PuppyGraph supports: MATCH, OPTIONAL MATCH, WHERE, RETURN, ORDER BY, LIMIT, SKIP,
+    count(), sum(), avg(), min(), max(), collect(), DISTINCT, CASE WHEN, coalesce(), substring().
 """
 
 # ---------------------------------------------------------------------------
