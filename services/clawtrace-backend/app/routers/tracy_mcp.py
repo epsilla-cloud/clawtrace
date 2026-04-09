@@ -80,14 +80,25 @@ def _validate_tenant_isolation(
 ) -> Optional[str]:
     """Return an error message if the query violates tenant isolation, else None.
 
-    Only tenant_id is a hard requirement (data isolation boundary).
-    agent_id and trajectory_id are optional scope hints — Tracy may
-    run broader queries even when they're provided as context.
+    tenant_id is always required. agent_id and trajectory_id are enforced
+    when provided — Tracy must scope queries to the user's current context.
     """
     if tenant_id not in query:
         return (
             f"Security violation: query must contain a WHERE filter on "
             f"tenant_id = '{tenant_id}'. The tenant_id value was not found in the query."
+        )
+    if agent_id and agent_id not in query:
+        return (
+            f"Scope violation: agent_id '{agent_id}' was provided but not found "
+            f"in the query. When agent_id is given, the query must filter on it. "
+            f"If you need a cross-agent query, omit agent_id from the tool call arguments."
+        )
+    if trajectory_id and trajectory_id not in query:
+        return (
+            f"Scope violation: trajectory_id '{trajectory_id}' was provided but not found "
+            f"in the query. When trajectory_id is given, the query must filter on trace_id. "
+            f"If you need a cross-trace query, omit trajectory_id from the tool call arguments."
         )
     return None
 
