@@ -50,15 +50,20 @@ EDGE TYPES:
   Trace  -[:HAS_SPAN]->  Span
   Span   -[:CHILD_OF]->  Span   (child -> parent; only when parent_span_id IS NOT NULL)
 
-IMPORTANT CYPHER RULES:
-  - CRITICAL BUG: A vertex's own ID field CANNOT be accessed via dot notation.
-    Tenant.tenant_id, Agent.agent_id, Trace.trace_id, Span.span_id are ID fields
-    and v.id_field returns NULL. Use elementId(v) instead (returns "Label[uuid]").
-  - Non-ID attributes work fine with dot notation: t.tenant_id on a Trace works
-    because tenant_id is a regular attribute on Trace (not its ID). Similarly
-    s.trace_id on a Span works because trace_id is a regular attribute on Span.
-  - In RETURN clauses, always use elementId(t) AS trace_id, elementId(s) AS span_id
-    to retrieve vertex IDs. Never use t.trace_id on Trace or s.span_id on Span.
+IMPORTANT CYPHER RULES (verified empirically against PuppyGraph):
+  - CRITICAL BUG: A vertex's own ID field returns NULL via dot notation.
+    The ID fields are: Tenant.tenant_id, Agent.agent_id, Trace.trace_id, Span.span_id.
+    v.id_field → NULL in both WHERE and RETURN. Use elementId(v) instead → "Label[uuid]".
+  - Non-ID attributes work fine with dot notation:
+      t.tenant_id on Trace ✓ (tenant_id is a regular attr on Trace, not its ID)
+      t.agent_id on Trace ✓ (agent_id is a regular attr on Trace)
+      s.trace_id on Span ✓ (trace_id is a regular attr on Span, not its ID)
+      s.actor_type on Span ✓, s.duration_ms on Span ✓, etc.
+      a.tenant_id on Agent ✓ (tenant_id is a regular attr on Agent)
+  - Tenant vertex has NO usable dot-notation attributes (its only column is the ID).
+    To filter by tenant, always filter on Trace/Span/Agent: WHERE t.tenant_id = '...'
+  - In RETURN clauses, always use elementId(t) AS trace_id, elementId(s) AS span_id,
+    elementId(a) AS agent_id. Never return v.id_field — it will be NULL.
   - String values must be single-quoted: WHERE t.tenant_id = 'abc-123'
   - EVERY query MUST include a WHERE filter on tenant_id for data isolation.
   - If agent_id is provided, the query MUST also filter on agent_id.
