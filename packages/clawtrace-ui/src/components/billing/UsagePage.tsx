@@ -135,7 +135,9 @@ export function UsagePage() {
       // Convert UTC dates to local timezone for display
       const dates = data.series.map((r) => {
         const utc = String(r.date);
-        const d = new Date(utc.includes('T') ? utc : utc + 'Z');
+        // Ensure UTC parsing — append Z if not already present
+        const normalized = utc.endsWith('Z') ? utc : utc + 'Z';
+        const d = new Date(normalized);
         if (isNaN(d.getTime())) return utc;
         if (rangeMs <= 2 * 86_400_000) {
           // Hourly: show "Apr 8, 2pm"
