@@ -161,37 +161,36 @@ def _stream_tracy(
                         if hasattr(block, "text"):
                             text_parts.append(block.text)
                             yield _sse_event("text", {"text": block.text})
-                elif etype == "agent.message_delta":
-                    if hasattr(event, "delta") and hasattr(event.delta, "text"):
-                        yield _sse_event("text_delta", {"text": event.delta.text})
-                elif etype == "agent.tool_use":
+                elif etype == "agent.mcp_tool_use":
+                    # Managed agent MCP tool call
                     step = {
                         "type": "tool_use",
-                        "tool": event.name,
-                        "input": event.input if hasattr(event, "input") else {},
+                        "tool": getattr(event, "name", ""),
+                        "server": getattr(event, "mcp_server_name", ""),
                     }
                     reasoning_steps.append(step)
                     yield _sse_event("tool_use", step)
-                elif etype == "agent.tool_result":
+                elif etype == "agent.mcp_tool_result":
                     content_text = ""
+                    is_error = getattr(event, "is_error", False)
                     if hasattr(event, "content"):
                         for block in event.content:
                             if hasattr(block, "text"):
                                 content_text += block.text
                     if len(content_text) > 5000:
                         content_text = content_text[:5000] + "... [truncated]"
-                    step = {"type": "tool_result", "text": content_text}
+                    step = {"type": "tool_result", "text": content_text, "is_error": is_error}
                     reasoning_steps.append(step)
                     yield _sse_event("tool_result", step)
                 elif etype == "agent.thinking":
-                    text = event.text if hasattr(event, "text") else ""
-                    step = {"type": "thinking", "text": text}
-                    reasoning_steps.append(step)
-                    yield _sse_event("thinking", step)
+                    yield _sse_event("thinking", {"text": ""})
+                    reasoning_steps.append({"type": "thinking", "text": ""})
+                elif etype == "span.model_request_start":
+                    yield _sse_event("thinking", {"text": "Analyzing..."})
                 elif etype == "span.model_request_end":
-                    # Extract token usage from model request metadata
-                    if hasattr(event, "usage"):
-                        u = event.usage
+                    # Extract token usage
+                    if hasattr(event, "model_usage"):
+                        u = event.model_usage
                         collected["input_tokens"] = (
                             collected.get("input_tokens", 0)
                             + getattr(u, "input_tokens", 0)
@@ -203,10 +202,12 @@ def _stream_tracy(
                 elif etype == "session.status_idle":
                     yield _sse_event("done", {"status": "idle"})
                     break
-                elif etype == "error" or etype == "session.error":
-                    msg = str(event.error) if hasattr(event, "error") else str(event)
+                elif etype == "session.error" or etype == "error":
+                    msg = str(event) if not hasattr(event, "error") else str(event.error)
                     reasoning_steps.append({"type": "error", "message": msg})
                     yield _sse_event("error", {"message": msg})
+                elif etype in ("session.status_running", "user.message"):
+                    pass  # expected, no action
                 else:
                     logger.debug("Tracy SSE event: %s", etype)
 
