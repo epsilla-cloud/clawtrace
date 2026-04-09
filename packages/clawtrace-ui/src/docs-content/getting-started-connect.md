@@ -6,7 +6,7 @@ To start observing your AI agent's behavior, you first need to create a connecti
 ![Connect to OpenClaw](/docs/images/1.1-connect-to-openclaw.png)
 ## Creating a Connection
 
-1. Navigate to the **Agents** page from the left sidebar.
+1. Navigate to the **Trajectories** page from the left sidebar.
 2. Click **Observe New Agent** in the top-right corner.
 3. Enter a **Connection Name** — this is a friendly label to identify your agent (e.g., "Production Support Bot" or "SEO Writer").
 4. Click **Continue** to generate your observe key.
