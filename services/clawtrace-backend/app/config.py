@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     )
 
     # JWT — must match the JWT_SECRET used by the clawtrace-ui
-    jwt_secret: str = "REDACTED"
+    jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     jwt_cookie_name: str = "auth_token"
 
@@ -27,12 +27,12 @@ class Settings(BaseSettings):
     api_key_prefix: str = "ct_live"
 
     # Internal shared secret for ingest service → backend validation calls
-    internal_secret: str = "REDACTED"
+    internal_secret: str = ""
 
     # PuppyGraph — HTTP API (same VM; use public URL or http://localhost:8081)
     puppygraph_url: str = "https://puppy.clawtrace.ai"
     puppygraph_user: str = "puppygraph"
-    puppygraph_password: str = "REDACTED"
+    puppygraph_password: str = ""
 
     # Payment service — deficit guard
     payment_url: str = ""  # e.g. http://localhost:8083

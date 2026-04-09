@@ -28,10 +28,10 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # Auth (shared JWT with backend/UI)
-    jwt_secret: str = "REDACTED"
+    jwt_secret: str = ""
     jwt_algorithm: str = "HS256"
     jwt_cookie_name: str = "auth_token"
-    internal_secret: str = "REDACTED"
+    internal_secret: str = ""
 
     # Database (Neon PostgreSQL)
     database_url: str = ""
