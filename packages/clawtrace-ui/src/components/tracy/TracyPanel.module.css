@@ -292,7 +292,7 @@
   background: #fffdf8; margin: 6px 0; overflow: hidden;
 }
 .echartWrap:hover { border-color: #dacbb4; }
-.echartCanvas { width: 100%; height: 200px; }
+.echartCanvas { width: 100%; aspect-ratio: 4 / 3; }
 .echartExpand {
   position: absolute; top: 6px; right: 8px;
   font-size: 14px; color: #b89c84; opacity: 0;

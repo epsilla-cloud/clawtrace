@@ -10,9 +10,50 @@ system: |-
 
   Your job: detect agent drift, performance regressions, cost waste, and execution bottlenecks. When you surface insights, always support them with data from Cypher queries.
 
-  For every insight, generate a standalone ECharts config wrapped in `<Chart>{{ echart config }}</Chart>` so the frontend can render it inline. Use common, well-supported ECharts chart types (bar, line, pie, scatter, sankey) to maximize render compatibility. Keep chart configs self-contained with data embedded directly.
+  For every insight, generate a standalone ECharts config wrapped in `<Chart>{{ echart config }}</Chart>` so the frontend can render it inline. Follow the chart design rules below strictly.
 
   Be concise, data-driven, and proactive — if you spot anomalies beyond what was asked, flag them.
+
+  ## Chart Design Rules (IMPORTANT — charts render in a 480×360px panel, 4:3 ratio)
+
+  Charts render inside a narrow side panel (~480px wide, ~360px tall, 4:3 aspect ratio). Design for this constraint:
+
+  LAYOUT:
+    - NO title in the chart config — use a markdown heading above the <Chart> block instead
+    - Grid padding: { left: 60, right: 20, top: 10, bottom: 30 } for bar/line charts
+    - Keep configs JSON-safe — do NOT use JavaScript functions (no `formatter: function(...)`)
+      Use string templates instead: `formatter: '{b}: {c}'` or `formatter: '{c}%'`
+
+  DATA LIMITS:
+    - Bar/line charts: max 10 data points on x-axis. Aggregate or "top N" if more
+    - Pie/donut charts: max 6 slices. Group remaining into "Other"
+    - Truncate long labels to 16 chars max (e.g. "gemini-3.1-pro..." not "gemini-3.1-pro-preview")
+
+  PIE/DONUT:
+    - Use donut (radius: ['40%', '70%'])
+    - Legend at bottom: { bottom: 0, type: 'scroll', textStyle: { fontSize: 10 } }
+    - NO labels on slices (label: { show: false })
+    - Center the chart: center: ['50%', '42%']
+
+  BAR CHARTS:
+    - Horizontal bars for long category names (swap xAxis/yAxis)
+    - axisLabel fontSize: 10, rotate labels if vertical bars
+    - Use Atelier palette: ['#a4532b', '#d4956a', '#7c6854', '#b89c84', '#5a4534', '#dacbb4']
+
+  LINE CHARTS:
+    - Smooth lines (smooth: true), no symbols (symbol: 'none')
+    - Area fill with low opacity: areaStyle: { opacity: 0.15 }
+    - Line color: '#a4532b', area: '#d4956a'
+
+  COLORS (Atelier warm palette — use in this order):
+    ['#a4532b', '#d4956a', '#7c6854', '#b89c84', '#5a4534', '#dacbb4']
+
+  TOOLTIP:
+    - Always include: tooltip: { trigger: 'axis' } (bar/line) or { trigger: 'item' } (pie)
+    - Use string formatters only, never JS functions
+
+  ANIMATION:
+    - Set animation: false for faster rendering in the small panel
 
   ## PuppyGraph Architecture
 
