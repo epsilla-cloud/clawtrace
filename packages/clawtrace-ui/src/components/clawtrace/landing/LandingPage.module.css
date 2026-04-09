@@ -137,7 +137,12 @@
   justify-content: center; gap: 10px; flex-wrap: wrap;
 }
 .backersList { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
-.backerLogo { height: 36px; width: auto; max-width: 180px; object-fit: contain; display: block; }
+.backerLogo {
+  height: 48px; width: auto; max-width: 200px; object-fit: contain; display: block;
+  padding: 8px 16px; border-radius: 12px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 60%, white);
+  background: #fffdf8;
+}
 
 /* ── S3: Better/Cheaper/Faster ───────────────────────────────────────── */
 .improvementSection { margin-top: 78px; }
@@ -171,6 +176,14 @@
 
 /* ── S4: Tracy Showcase ──────────────────────────────────────────────── */
 .tracySection { margin-top: 88px; }
+.tracyHeader {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  margin-bottom: 4px;
+}
+.tracyAvatar {
+  width: 64px; height: 64px; border-radius: 999px;
+  border: 2px solid var(--ct-border); object-fit: cover;
+}
 .tracyShowcase {
   margin-top: 32px; display: grid;
   grid-template-columns: 1fr 1fr; gap: 32px; align-items: center;
@@ -188,10 +201,15 @@
   font-size: 13px; color: var(--ct-soft-text); font-weight: 480;
 }
 .tracyRight { display: flex; justify-content: center; }
+.tracyScreenshots {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  max-width: 520px; width: 100%;
+}
 .tracyScreenshot {
-  width: 100%; max-width: 460px; height: auto;
-  border-radius: 16px; border: 1px solid var(--ct-border);
-  box-shadow: 0 20px 50px -20px rgba(74, 36, 14, 0.25);
+  width: 100%; height: auto;
+  border-radius: 12px; border: 1px solid var(--ct-border);
+  box-shadow: 0 12px 30px -12px rgba(74, 36, 14, 0.2);
+  object-fit: cover;
 }
 
 .tracyFeatures {
@@ -270,7 +288,31 @@
 .roadmapTitle { margin: 0; font-size: 17px; font-weight: 520; color: var(--ct-text); }
 .roadmapDesc { margin: 6px 0 0; font-size: 13px; color: var(--ct-soft-text); line-height: 1.5; }
 
-/* ── S8: CTA ─────────────────────────────────────────────────────────── */
+/* ── S8: Billing ─────────────────────────────────────────────────────── */
+.billingSection { margin-top: 88px; width: min(1120px, 100%); margin-left: auto; margin-right: auto; }
+.billingHighlights {
+  margin-top: 28px; display: grid;
+  grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.billingCard {
+  border-radius: 16px; border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: #fffdf8; padding: 24px 16px; text-align: center;
+}
+.billingValue {
+  margin: 0; font-size: clamp(32px, 4vw, 48px);
+  font-weight: 540; color: var(--ct-primary); letter-spacing: -0.02em;
+}
+.billingLabel {
+  margin: 6px 0 0; font-size: 14px; color: var(--ct-soft-text);
+}
+.billingSub {
+  margin: 16px 0 0; text-align: center;
+  font-size: 13px; color: var(--ct-muted);
+}
+.billingLink { color: var(--ct-primary); text-decoration: none; font-weight: 500; }
+.billingLink:hover { color: var(--ct-primary-strong); }
+
+/* ── S9: CTA ─────────────────────────────────────────────────────────── */
 .cta {
   margin-top: 72px; border-radius: 18px;
   border: 1px solid color-mix(in srgb, var(--ct-border) 72%, white);
@@ -298,7 +340,8 @@
   display: inline-flex; align-items: center;
 }
 .ctaSignin { margin: 12px 0 0; font-size: 13px; color: var(--ct-soft-text); }
-.ctaLink { color: var(--ct-primary); text-decoration: underline; text-underline-offset: 2px; }
+.ctaLink { color: var(--ct-primary); text-decoration: none; font-weight: 500; }
+.ctaLink:hover { color: var(--ct-primary-strong); }
 
 /* ── S9: Footer ──────────────────────────────────────────────────────── */
 .footer {
@@ -318,15 +361,24 @@
   font-size: 13px; color: var(--ct-soft-text); text-decoration: none; font-weight: 480;
 }
 .footerLink:hover { color: var(--ct-text); }
-.footerCopy { font-size: 11px; color: var(--ct-muted); margin: 0; }
+.footerCopy {
+  font-size: 12px; color: var(--ct-muted); margin: 0;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.heart { width: 14px; height: 14px; flex-shrink: 0; }
+.epsillaLink { display: inline-flex; align-items: center; text-decoration: none; }
+.epsillaLogo { height: 18px; width: auto; object-fit: contain; display: block; opacity: 0.7; transition: opacity 0.15s; }
+.epsillaLogo:hover { opacity: 1; }
 
 /* ── Responsive ──────────────────────────────────────────────────────── */
 @media (max-width: 980px) {
   .improvementGrid { grid-template-columns: 1fr; }
   .tracyShowcase { grid-template-columns: 1fr; }
   .tracyRight { order: -1; }
+  .tracyScreenshots { grid-template-columns: 1fr; }
   .featuresGrid { grid-template-columns: 1fr; }
   .stepsGrid { grid-template-columns: 1fr; }
+  .billingHighlights { grid-template-columns: 1fr; }
   .roadmapGrid { grid-template-columns: 1fr; }
   .tracyFeatures { grid-template-columns: 1fr; }
 }
