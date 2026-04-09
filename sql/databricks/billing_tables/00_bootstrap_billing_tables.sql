@@ -7,7 +7,6 @@
 -- Prerequisites:
 --   1. CREATE SCHEMA IF NOT EXISTS clawtrace.billing;
 --   2. External location registered for clawtrace-billing container
---      (same storage credential as clawtrace-raw)
 -- ============================================================================
 
 -- 1. Checkpoint table for incremental processing
@@ -48,6 +47,7 @@ TBLPROPERTIES (
 );
 
 -- 3. Hourly aggregation per tenant per category
+-- The payment service aggregates daily/weekly/monthly on demand via SQL.
 CREATE TABLE IF NOT EXISTS clawtrace.billing.billing_usage_hourly (
     user_id         STRING NOT NULL,
     category        STRING NOT NULL,
@@ -58,54 +58,6 @@ CREATE TABLE IF NOT EXISTS clawtrace.billing.billing_usage_hourly (
 )
 USING DELTA
 CLUSTER BY (user_id, hour_bucket)
-TBLPROPERTIES (
-    'delta.autoOptimize.optimizeWrite' = 'true',
-    'delta.autoOptimize.autoCompact'   = 'true'
-);
-
--- 4. Daily rollup
-CREATE TABLE IF NOT EXISTS clawtrace.billing.billing_usage_daily (
-    user_id         STRING NOT NULL,
-    category        STRING NOT NULL,
-    day_bucket      DATE NOT NULL,
-    total_credits   DOUBLE NOT NULL,
-    total_raw       DOUBLE NOT NULL,
-    event_count     BIGINT NOT NULL
-)
-USING DELTA
-CLUSTER BY (user_id, day_bucket)
-TBLPROPERTIES (
-    'delta.autoOptimize.optimizeWrite' = 'true',
-    'delta.autoOptimize.autoCompact'   = 'true'
-);
-
--- 5. Weekly rollup
-CREATE TABLE IF NOT EXISTS clawtrace.billing.billing_usage_weekly (
-    user_id         STRING NOT NULL,
-    category        STRING NOT NULL,
-    week_bucket     TIMESTAMP NOT NULL,
-    total_credits   DOUBLE NOT NULL,
-    total_raw       DOUBLE NOT NULL,
-    event_count     BIGINT NOT NULL
-)
-USING DELTA
-CLUSTER BY (user_id, week_bucket)
-TBLPROPERTIES (
-    'delta.autoOptimize.optimizeWrite' = 'true',
-    'delta.autoOptimize.autoCompact'   = 'true'
-);
-
--- 6. Monthly rollup
-CREATE TABLE IF NOT EXISTS clawtrace.billing.billing_usage_monthly (
-    user_id         STRING NOT NULL,
-    category        STRING NOT NULL,
-    month_bucket    TIMESTAMP NOT NULL,
-    total_credits   DOUBLE NOT NULL,
-    total_raw       DOUBLE NOT NULL,
-    event_count     BIGINT NOT NULL
-)
-USING DELTA
-CLUSTER BY (user_id, month_bucket)
 TBLPROPERTIES (
     'delta.autoOptimize.optimizeWrite' = 'true',
     'delta.autoOptimize.autoCompact'   = 'true'
