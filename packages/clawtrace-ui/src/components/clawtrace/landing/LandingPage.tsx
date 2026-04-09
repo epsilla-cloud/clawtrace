@@ -90,7 +90,7 @@ const FEATURES = [
   },
   {
     title: 'Trajectory Dashboard',
-    desc: 'All trajectories at a glance with metrics, daily trends, token usage, and run level drill down.',
+    desc: 'All trajectories at a glance with metrics, daily trends, token usage, and run level drilldown.',
     src: '/docs/images/2.1-see-all-trajectories-of-an-agent.png',
     alt: 'Trajectory dashboard for an OpenClaw agent',
   },
@@ -385,7 +385,7 @@ export function LandingPage() {
         <p className={styles.sectionKicker}>Simple pricing</p>
         <h2 className={styles.sectionTitle}>Pay for what you use</h2>
         <p className={styles.sectionSub}>
-          Buy credits instead of seat based monthly subscriptions.
+          Buy credits instead of monthly subscriptions based on seat count.
           No minimum commitment, no surprise invoices.{' '}
           <Link href="/docs/billing/credits" className={styles.billingLink}>Learn more</Link>
         </p>

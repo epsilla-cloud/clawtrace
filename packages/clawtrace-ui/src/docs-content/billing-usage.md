@@ -4,6 +4,7 @@ The Usage page provides a detailed breakdown of how your credits are being spent
 
 
 ![Usage History](/docs/images/3.2-usage-history.png)
+
 ## Time Range
 
 Select a time range to analyze:

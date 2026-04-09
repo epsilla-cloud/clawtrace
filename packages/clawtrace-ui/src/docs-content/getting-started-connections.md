@@ -4,6 +4,7 @@ The Trajectories page is your home base in ClawTrace. It shows all connected Ope
 
 
 ![All Connections](/docs/images/1.3-see-all-connections.png)
+
 ## Agent Cards
 
 Each connected agent appears as a card showing:

@@ -1,6 +1,9 @@
 # View All Connections
 
-The Agents page is your home base in ClawTrace. It shows all connected OpenClaw agents with their status, last activity, and quick actions.
+The Trajectories page is your home base in ClawTrace. It shows all connected OpenClaw agents with their status, last activity, and quick actions.
+
+
+![All Connections](/docs/images/1.3-see-all-connections.png)
 
 ## Agent Cards
 
@@ -11,7 +14,6 @@ Each connected agent appears as a card showing:
 - **Last active** — When the agent last sent telemetry data
 - **View Trajectories** — Jump directly to the agent's trajectory dashboard
 
-![All Connections](/docs/images/1.3-see-all-connections.png)
 
 ## Managing Connections
 

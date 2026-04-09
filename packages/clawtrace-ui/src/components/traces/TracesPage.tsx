@@ -433,7 +433,7 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
                   <thead>
                     <tr>
                       <th>Trajectory ID</th><th>Category</th><th>Started At</th>
-                      <th>Duration</th><th>Total Events Observed</th>
+                      <th>Duration</th><th>Events</th>
                       <th>Input Tokens</th><th>Output Tokens</th>
                     </tr>
                   </thead>

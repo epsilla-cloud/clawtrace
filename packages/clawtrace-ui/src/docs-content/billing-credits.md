@@ -4,6 +4,7 @@ ClawTrace uses a consumption-based billing model. You purchase credits, and they
 
 
 ![Billing Credit System](/docs/images/3.1-billing-credit-system.png)
+
 ## Credit Balance
 
 Your current credit balance is always visible in the left sidebar and at the top of the Billing page. Credits are displayed with a coin icon and automatically formatted with thousands separators.
