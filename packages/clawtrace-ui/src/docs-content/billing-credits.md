@@ -2,6 +2,8 @@
 
 ClawTrace uses a consumption-based billing model. You purchase credits, and they are consumed as you use the platform's features — storage, queries, and Tracy agent interactions.
 
+
+![Billing Credit System](/docs/images/3.1-billing-credit-system.png)
 ## Credit Balance
 
 Your current credit balance is always visible in the left sidebar and at the top of the Billing page. Credits are displayed with a coin icon and automatically formatted with thousands separators.
@@ -19,7 +21,6 @@ Purchase credits in predefined packages. Higher-tier packages offer better value
 
 All credit packages expire 1 year from the date of purchase.
 
-![Billing Credit System](/docs/images/3.1-billing-credit-system.png)
 
 ## How Credits Are Consumed
 

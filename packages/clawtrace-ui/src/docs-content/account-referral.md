@@ -2,6 +2,8 @@
 
 Manage your profile, sign out, and invite friends to earn free credits.
 
+
+![Account and Referral](/docs/images/4-account-and-referral.png)
 ## Profile
 
 Your account page shows your name, email, and avatar from your OAuth provider (Google or GitHub). Click **Sign Out** to end your session.
@@ -27,7 +29,6 @@ https://www.clawtrace.ai/login?invitecode=XXXXXXXX
 
 Click the **copy button** next to the link to copy it to your clipboard.
 
-![Account and Referral](/docs/images/4-account-and-referral.png)
 
 ### My Referrals
 

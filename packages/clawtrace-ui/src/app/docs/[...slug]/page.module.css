@@ -4,6 +4,19 @@
   font-size: 15px;
   line-height: 1.75;
   color: #3b3128;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* All images must be responsive */
+.markdown img {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #e8d9c4;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(46, 33, 21, 0.06);
+  display: block;
+  margin: 24px 0;
 }
 
 .markdown h1 {
