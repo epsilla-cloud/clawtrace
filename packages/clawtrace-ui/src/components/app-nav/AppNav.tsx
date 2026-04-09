@@ -61,7 +61,7 @@ export function AppNav() {
   return (
     <aside className={`${styles.nav} ${cls}`}>
       {/* Logo: favicon mark when collapsed, full wordmark when expanded */}
-      <div className={styles.logo}>
+      <a href="https://www.clawtrace.ai" className={styles.logo}>
         {expanded ? (
           <Image
             src="/clawtrace-logo.png"
@@ -81,7 +81,7 @@ export function AppNav() {
             priority
           />
         )}
-      </div>
+      </a>
 
       {/* Main nav */}
       <nav className={styles.items}>

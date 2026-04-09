@@ -56,58 +56,24 @@ export function UserButton() {
     );
   }
 
-  // Logged in
+  // Logged in — avatar + name links to /trace
   return (
-    <div className={styles.root} ref={containerRef}>
-      <button
-        type="button"
-        className={styles.trigger}
-        aria-label="Account menu"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        aria-haspopup="menu"
-      >
-        {session.avatar ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={session.avatar}
-            alt={session.name}
-            width={26}
-            height={26}
-            className={styles.avatar}
-          />
-        ) : (
-          <span className={styles.avatarFallback}>
-            {session.name.charAt(0).toUpperCase()}
-          </span>
-        )}
-        <span className={styles.name}>{session.name}</span>
-        <svg className={styles.chevron} viewBox="0 0 16 16" fill="none" aria-hidden="true">
-          <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </button>
-
-      {open && (
-        <div className={styles.dropdown} role="menu">
-          <div className={styles.userInfo}>
-            <span className={styles.userName}>{session.name}</span>
-            {session.email && <span className={styles.userEmail}>{session.email}</span>}
-          </div>
-          <div className={styles.divider} />
-          <a href="/console" role="menuitem" className={styles.menuItem}>
-            Console
-          </a>
-          <div className={styles.divider} />
-          <button
-            type="button"
-            role="menuitem"
-            className={styles.menuItem}
-            onClick={signOut}
-          >
-            Sign out
-          </button>
-        </div>
+    <a href="/trace" className={styles.trigger}>
+      {session.avatar ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={session.avatar}
+          alt={session.name}
+          width={26}
+          height={26}
+          className={styles.avatar}
+        />
+      ) : (
+        <span className={styles.avatarFallback}>
+          {session.name.charAt(0).toUpperCase()}
+        </span>
       )}
-    </div>
+      <span className={styles.name}>{session.name}</span>
+    </a>
   );
 }

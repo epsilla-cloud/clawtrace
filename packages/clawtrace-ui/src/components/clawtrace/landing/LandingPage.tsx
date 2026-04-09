@@ -145,8 +145,8 @@ export function LandingPage() {
             <a href="#improvement" className={styles.navLink}>
               How It Works
             </a>
-            <a href="#waitlist" className={styles.navLink}>
-              Waitlist
+            <a href="/docs" className={styles.navLink}>
+              Documentation
             </a>
           </nav>
           <UserButton />
@@ -160,8 +160,8 @@ export function LandingPage() {
 
         <p className={styles.subhead}>See what failed, where spend leaked, and how to improve.</p>
 
-        <a className={styles.primaryButton} href="#waitlist">
-          Join Waitlist
+        <a className={styles.primaryButton} href="/login">
+          Get Started Free
         </a>
 
         <div className={styles.heroFrame} aria-label="Product preview carousel">
