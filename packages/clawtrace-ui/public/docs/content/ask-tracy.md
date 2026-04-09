@@ -6,14 +6,15 @@ Tracy is available on every page in ClawTrace — just click the **Ask Tracy** b
 
 ![Ask Tracy button](/docs/images/ask_tracy_1.png)
 
-## How Tracy Works
+## What Tracy Can Do for You
 
-Tracy is powered by a managed Claude agent with direct access to your trajectory data via a graph query engine. When you ask a question, Tracy:
+Instead of digging through dashboards and manually piecing together what went wrong, just ask Tracy:
 
-1. **Understands the context** — Tracy knows which page you're on, which agent or trajectory you're looking at, and scopes all analysis to that context automatically.
-2. **Queries your data** — Tracy writes and executes graph queries against your trajectory database in real time. No pre-computed reports.
-3. **Analyzes and visualizes** — Tracy interprets the results, generates inline charts, and highlights anomalies, cost drivers, and optimization opportunities.
-4. **Links to details** — Agent names and trace IDs in Tracy's responses are clickable links that take you directly to the relevant dashboard or trajectory detail page.
+- **Find the expensive runs** — "Which trajectory burned the most tokens?" Tracy identifies cost drivers and tells you exactly why they're expensive.
+- **Understand what your agent is doing** — "What types of work does this agent do?" Tracy reads the actual execution data and explains the agent's behavior in plain language.
+- **Spot problems before they escalate** — Tracy proactively flags anomalies like runaway context growth, stalled processes, or hardcoded API keys in tool calls.
+- **Get optimization advice** — "How can I make this faster?" Tracy analyzes bottlenecks and recommends specific changes like splitting pipelines, adjusting polling intervals, or bounding context windows.
+- **Navigate faster** — Agent names and trace IDs in Tracy's responses are clickable links that take you directly to the relevant page.
 
 ## Opening Tracy
 
