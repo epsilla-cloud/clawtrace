@@ -98,6 +98,7 @@
 }
 .avatarImage { width: 100%; height: 100%; object-fit: cover; display: block; }
 .name { margin: 0; font-size: 20px; line-height: 1.1; letter-spacing: -0.01em; font-weight: 500; color: #2e2115; }
+.subtitle { margin: 0; font-size: 11px; color: #b89c84; font-weight: 480; line-height: 1.2; margin-top: 1px; }
 .clearButton,
 .closeButton {
   width: 28px; height: 28px; border: none; background: transparent;
@@ -124,7 +125,7 @@
   display: flex; flex-direction: column; align-items: center;
   text-align: center; padding: 32px 16px; gap: 8px;
 }
-.emptyAvatar { border-radius: 999px; opacity: 0.8; }
+.emptyAvatar { border-radius: 999px; opacity: 0.8; width: 48px; height: 48px; object-fit: cover; }
 .emptyTitle { margin: 4px 0 0; font-size: 16px; font-weight: 500; color: #2e2115; }
 .emptyDesc { margin: 0; font-size: 13px; color: #7c6854; line-height: 1.45; max-width: 340px; }
 .emptyActions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 8px; }
