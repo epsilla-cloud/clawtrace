@@ -97,7 +97,7 @@ export function ConnectWizard() {
               id="conn-name"
               type="text"
               className={styles.input}
-              placeholder="e.g. Eliza Claw"
+              placeholder="e.g. OpenClaw on My Mac Mini"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -196,8 +196,7 @@ export function ConnectWizard() {
                 <div>
                   <p className={styles.stepTitle}>Wait for trajectories to appear</p>
                   <p className={styles.stepDesc}>
-                    It usually takes about 5 minutes for trajectories to show up on the dashboard
-                    after completing the setup above.
+                    It usually takes about 5 minutes for trajectories to show up on the dashboard.
                   </p>
                 </div>
               </div>
