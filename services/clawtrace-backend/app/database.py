@@ -57,10 +57,41 @@ CREATE INDEX IF NOT EXISTS api_keys_hash_idx    ON api_keys(key_hash);
 """
 
 
+CREATE_TRACY_TABLES = """
+CREATE TABLE IF NOT EXISTS tracy_sessions (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id             UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    harness_session_id  TEXT        NOT NULL,
+    page_scope          TEXT,            -- 'agent_dashboard', 'trace_detail', 'general'
+    agent_id            TEXT,            -- set when on agent dashboard
+    trace_id            TEXT,            -- set when on trace detail
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS tracy_sessions_user_idx ON tracy_sessions(user_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS tracy_messages (
+    id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id          UUID        NOT NULL REFERENCES tracy_sessions(id) ON DELETE CASCADE,
+    role                TEXT        NOT NULL,    -- 'user' or 'assistant'
+    raw_message         TEXT,                    -- user's original question
+    context_message     TEXT,                    -- forged message with <context> block
+    response_text       TEXT,                    -- assistant's final text response
+    reasoning_steps     JSONB,                   -- [{type, data}] intermediate events
+    input_tokens        INT,
+    output_tokens       INT,
+    metadata            JSONB,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS tracy_messages_session_idx ON tracy_messages(session_id, created_at);
+"""
+
+
 async def run_migrations(settings: Settings) -> None:
     pool = await get_pool(settings)
     async with pool.acquire() as conn:
         await conn.execute(CREATE_KEYS_TABLE)
+        await conn.execute(CREATE_TRACY_TABLES)
 
 
 # ── Key helpers ───────────────────────────────────────────────────────────────
@@ -302,3 +333,134 @@ async def delete_agent(
             UUID(key_id), UUID(user_id),
         )
     return result == "DELETE 1"
+
+
+# ── Tracy conversation operations ────────────────────────────────────────────
+
+async def create_tracy_session(
+    user_id: str,
+    harness_session_id: str,
+    page_scope: str,
+    agent_id: Optional[str],
+    trace_id: Optional[str],
+    settings: Settings,
+) -> str:
+    """Create a tracy_session row and return its UUID."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO tracy_sessions
+                (user_id, harness_session_id, page_scope, agent_id, trace_id)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+            """,
+            UUID(user_id), harness_session_id, page_scope,
+            agent_id, trace_id,
+        )
+    return str(row["id"])
+
+
+async def get_tracy_session_by_harness_id(
+    harness_session_id: str, user_id: str, settings: Settings
+) -> Optional[dict]:
+    """Look up an existing session by harness session ID."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            SELECT id, harness_session_id, page_scope, agent_id, trace_id
+            FROM tracy_sessions
+            WHERE harness_session_id = $1 AND user_id = $2
+            """,
+            harness_session_id, UUID(user_id),
+        )
+    if not row:
+        return None
+    return dict(row)
+
+
+async def save_tracy_message(
+    session_id: str,
+    role: str,
+    raw_message: Optional[str],
+    context_message: Optional[str],
+    response_text: Optional[str],
+    reasoning_steps: Optional[list],
+    input_tokens: Optional[int],
+    output_tokens: Optional[int],
+    metadata: Optional[dict],
+    settings: Settings,
+) -> str:
+    """Insert a tracy_messages row and return its UUID."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            """
+            INSERT INTO tracy_messages
+                (session_id, role, raw_message, context_message,
+                 response_text, reasoning_steps,
+                 input_tokens, output_tokens, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9::jsonb)
+            RETURNING id
+            """,
+            UUID(session_id), role, raw_message, context_message,
+            response_text,
+            json.dumps(reasoning_steps) if reasoning_steps else None,
+            input_tokens, output_tokens,
+            json.dumps(metadata) if metadata else None,
+        )
+        # Update session timestamp
+        await conn.execute(
+            "UPDATE tracy_sessions SET updated_at = now() WHERE id = $1",
+            UUID(session_id),
+        )
+    return str(row["id"])
+
+
+async def list_tracy_sessions(
+    user_id: str, settings: Settings, limit: int = 20
+) -> list[dict]:
+    """List recent Tracy sessions for a user."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(
+            """
+            SELECT s.id, s.harness_session_id, s.page_scope,
+                   s.agent_id, s.trace_id, s.created_at, s.updated_at,
+                   (SELECT count(*) FROM tracy_messages m WHERE m.session_id = s.id) AS message_count
+            FROM tracy_sessions s
+            WHERE s.user_id = $1
+            ORDER BY s.updated_at DESC
+            LIMIT $2
+            """,
+            UUID(user_id), limit,
+        )
+    return [dict(r) for r in rows]
+
+
+async def get_tracy_messages(
+    session_id: str, user_id: str, settings: Settings
+) -> list[dict]:
+    """Get all messages for a Tracy session (with ownership check)."""
+    pool = await get_pool(settings)
+    async with pool.acquire() as conn:
+        # Verify ownership
+        owner = await conn.fetchval(
+            "SELECT user_id FROM tracy_sessions WHERE id = $1",
+            UUID(session_id),
+        )
+        if not owner or str(owner) != user_id:
+            return []
+        rows = await conn.fetch(
+            """
+            SELECT id, role, raw_message, context_message,
+                   response_text, reasoning_steps,
+                   input_tokens, output_tokens, metadata, created_at
+            FROM tracy_messages
+            WHERE session_id = $1
+            ORDER BY created_at
+            """,
+            UUID(session_id),
+        )
+    return [dict(r) for r in rows]

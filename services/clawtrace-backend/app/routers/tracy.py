@@ -6,21 +6,23 @@ The UI sends:
   - agent_id (optional): scopes to a specific agent (dashboard page)
   - trace_id (optional): scopes to a specific trace (trace detail page)
   - local_context (optional): JSON of page-loaded data for extra context
-  - session_id (optional): reuse an existing Tracy session
+  - session_id (optional): reuse an existing Tracy conversation
 
 The backend:
   1. Extracts tenant_id from the JWT
   2. Assembles a prompt combining: user question + tenant/agent/trace scope + page context
   3. Creates or reuses an Anthropic managed agent session
   4. Streams events back as SSE (text, tool calls, reasoning, status)
+  5. Saves both user message and assistant response to Neon DB
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import threading
 import time as _time
-from typing import Optional
+from typing import Any, Optional
 
 import anthropic
 from fastapi import APIRouter, Depends, Query
@@ -29,6 +31,13 @@ from pydantic import BaseModel
 
 from ..auth import get_current_user, get_settings
 from ..config import Settings
+from ..database import (
+    create_tracy_session,
+    get_tracy_messages,
+    get_tracy_session_by_harness_id,
+    list_tracy_sessions,
+    save_tracy_message,
+)
 from ..models import UserSession
 
 logger = logging.getLogger(__name__)
@@ -39,14 +48,14 @@ BETAS = ["managed-agents-2026-04-01"]
 
 
 # ---------------------------------------------------------------------------
-# Request model
+# Request / response models
 # ---------------------------------------------------------------------------
 class ChatRequest(BaseModel):
     message: str
     agent_id: Optional[str] = None
     trace_id: Optional[str] = None
     local_context: Optional[dict] = None
-    session_id: Optional[str] = None
+    session_id: Optional[str] = None          # harness session ID to continue
 
 
 # ---------------------------------------------------------------------------
@@ -59,9 +68,7 @@ def _build_context_prefix(
     trace_id: Optional[str],
     local_context: Optional[dict],
 ) -> str:
-    """Build a context block that precedes the user's question."""
     parts: list[str] = []
-
     parts.append(f"Tenant ID: {tenant_id}")
     parts.append(f"User: {user_name}")
 
@@ -75,7 +82,6 @@ def _build_context_prefix(
         parts.append("Current page: General (no specific agent or trace selected)")
 
     if local_context:
-        # Truncate to avoid blowing up context
         ctx_str = json.dumps(local_context, default=str)
         if len(ctx_str) > 20_000:
             ctx_str = ctx_str[:20_000] + "... [truncated]"
@@ -84,17 +90,26 @@ def _build_context_prefix(
     return "\n".join(parts)
 
 
+def _page_scope(agent_id: Optional[str], trace_id: Optional[str]) -> str:
+    if trace_id:
+        return "trace_detail"
+    if agent_id:
+        return "agent_dashboard"
+    return "general"
+
+
 # ---------------------------------------------------------------------------
-# SSE streaming generator
+# SSE streaming generator — collects events for DB persistence
 # ---------------------------------------------------------------------------
 def _stream_tracy(
     message: str,
     context_prefix: str,
     session_id: Optional[str],
     settings: Settings,
+    collected: dict,
 ):
-    """Create/reuse a managed agent session and yield SSE events.
-    Sync generator — FastAPI runs it in a threadpool so blocking SDK calls work."""
+    """Sync generator — FastAPI runs it in a threadpool.
+    `collected` is mutated in-place to capture data for DB persistence."""
     try:
         client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
 
@@ -110,11 +125,12 @@ def _stream_tracy(
             sid = session.id
             yield _sse_event("session", {"session_id": sid})
 
-        # Compose the full message with context
-        full_message = f"<context>\n{context_prefix}\n</context>\n\n{message}"
+        collected["harness_session_id"] = sid
 
-        # Send the user message in a separate thread because
-        # events.stream() blocks on iteration and events.send() also blocks.
+        full_message = f"<context>\n{context_prefix}\n</context>\n\n{message}"
+        collected["context_message"] = full_message
+
+        # Send the user message in a background thread
         def _send():
             _time.sleep(0.5)
             client.beta.sessions.events.send(
@@ -131,25 +147,31 @@ def _stream_tracy(
         sender = threading.Thread(target=_send, daemon=True)
         sender.start()
 
+        text_parts: list[str] = []
+        reasoning_steps: list[dict] = []
+
         with client.beta.sessions.events.stream(
             session_id=sid,
             betas=BETAS,
         ) as stream:
-
             for event in stream:
                 etype = event.type
                 if etype == "agent.message":
                     for block in event.content:
                         if hasattr(block, "text"):
+                            text_parts.append(block.text)
                             yield _sse_event("text", {"text": block.text})
                 elif etype == "agent.message_delta":
                     if hasattr(event, "delta") and hasattr(event.delta, "text"):
                         yield _sse_event("text_delta", {"text": event.delta.text})
                 elif etype == "agent.tool_use":
-                    yield _sse_event("tool_use", {
+                    step = {
+                        "type": "tool_use",
                         "tool": event.name,
                         "input": event.input if hasattr(event, "input") else {},
-                    })
+                    }
+                    reasoning_steps.append(step)
+                    yield _sse_event("tool_use", step)
                 elif etype == "agent.tool_result":
                     content_text = ""
                     if hasattr(event, "content"):
@@ -158,35 +180,118 @@ def _stream_tracy(
                                 content_text += block.text
                     if len(content_text) > 5000:
                         content_text = content_text[:5000] + "... [truncated]"
-                    yield _sse_event("tool_result", {"text": content_text})
+                    step = {"type": "tool_result", "text": content_text}
+                    reasoning_steps.append(step)
+                    yield _sse_event("tool_result", step)
                 elif etype == "agent.thinking":
-                    if hasattr(event, "text"):
-                        yield _sse_event("thinking", {"text": event.text})
+                    text = event.text if hasattr(event, "text") else ""
+                    step = {"type": "thinking", "text": text}
+                    reasoning_steps.append(step)
+                    yield _sse_event("thinking", step)
+                elif etype == "span.model_request_end":
+                    # Extract token usage from model request metadata
+                    if hasattr(event, "usage"):
+                        u = event.usage
+                        collected["input_tokens"] = (
+                            collected.get("input_tokens", 0)
+                            + getattr(u, "input_tokens", 0)
+                        )
+                        collected["output_tokens"] = (
+                            collected.get("output_tokens", 0)
+                            + getattr(u, "output_tokens", 0)
+                        )
                 elif etype == "session.status_idle":
                     yield _sse_event("done", {"status": "idle"})
                     break
-                elif etype == "error":
-                    msg = str(event.error) if hasattr(event, "error") else "Unknown error"
+                elif etype == "error" or etype == "session.error":
+                    msg = str(event.error) if hasattr(event, "error") else str(event)
+                    reasoning_steps.append({"type": "error", "message": msg})
                     yield _sse_event("error", {"message": msg})
-                    break
                 else:
-                    logger.debug("Tracy SSE unknown event: %s", etype)
+                    logger.debug("Tracy SSE event: %s", etype)
 
+        collected["response_text"] = "\n".join(text_parts)
+        collected["reasoning_steps"] = reasoning_steps
         yield _sse_event("done", {"status": "complete"})
 
     except Exception as exc:
         logger.exception("Tracy chat stream error")
         yield _sse_event("error", {"message": str(exc)})
+        collected["response_text"] = f"Error: {exc}"
 
 
 def _sse_event(event_type: str, data: dict) -> str:
-    """Format a Server-Sent Event."""
-    payload = json.dumps({"type": event_type, **data})
+    payload = json.dumps({"type": event_type, **data}, default=str)
     return f"event: {event_type}\ndata: {payload}\n\n"
 
 
 # ---------------------------------------------------------------------------
-# Endpoint
+# Background task: save conversation to DB after stream completes
+# ---------------------------------------------------------------------------
+async def _persist_conversation(
+    user_id: str,
+    raw_message: str,
+    agent_id: Optional[str],
+    trace_id: Optional[str],
+    collected: dict,
+    settings: Settings,
+):
+    """Save user message + assistant response to the DB."""
+    try:
+        harness_sid = collected.get("harness_session_id", "")
+        if not harness_sid:
+            return
+
+        # Find or create DB session
+        existing = await get_tracy_session_by_harness_id(harness_sid, user_id, settings)
+        if existing:
+            db_session_id = str(existing["id"])
+        else:
+            db_session_id = await create_tracy_session(
+                user_id=user_id,
+                harness_session_id=harness_sid,
+                page_scope=_page_scope(agent_id, trace_id),
+                agent_id=agent_id,
+                trace_id=trace_id,
+                settings=settings,
+            )
+
+        # Save user message
+        await save_tracy_message(
+            session_id=db_session_id,
+            role="user",
+            raw_message=raw_message,
+            context_message=collected.get("context_message"),
+            response_text=None,
+            reasoning_steps=None,
+            input_tokens=None,
+            output_tokens=None,
+            metadata=None,
+            settings=settings,
+        )
+
+        # Save assistant response
+        await save_tracy_message(
+            session_id=db_session_id,
+            role="assistant",
+            raw_message=None,
+            context_message=None,
+            response_text=collected.get("response_text"),
+            reasoning_steps=collected.get("reasoning_steps"),
+            input_tokens=collected.get("input_tokens"),
+            output_tokens=collected.get("output_tokens"),
+            metadata=None,
+            settings=settings,
+        )
+
+        logger.info("Tracy conversation saved: session=%s", db_session_id)
+
+    except Exception:
+        logger.exception("Failed to persist Tracy conversation")
+
+
+# ---------------------------------------------------------------------------
+# Chat endpoint
 # ---------------------------------------------------------------------------
 @router.post("/chat")
 async def tracy_chat(
@@ -208,16 +313,64 @@ async def tracy_chat(
         local_context=body.local_context,
     )
 
-    return StreamingResponse(
-        _stream_tracy(
+    # Shared dict — mutated by the generator, read by persistence task
+    collected: dict[str, Any] = {}
+
+    def streaming_with_persist():
+        """Yield SSE events, then trigger DB persistence."""
+        yield from _stream_tracy(
             message=body.message,
             context_prefix=context_prefix,
             session_id=body.session_id,
             settings=settings,
-        ),
+            collected=collected,
+        )
+        # After stream completes, persist asynchronously
+        # (we're in a threadpool, so we can schedule the coroutine)
+        try:
+            loop = asyncio.new_event_loop()
+            loop.run_until_complete(
+                _persist_conversation(
+                    user_id=session.db_id,
+                    raw_message=body.message,
+                    agent_id=body.agent_id,
+                    trace_id=body.trace_id,
+                    collected=collected,
+                    settings=settings,
+                )
+            )
+            loop.close()
+        except Exception:
+            logger.exception("Failed to run persistence task")
+
+    return StreamingResponse(
+        streaming_with_persist(),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ---------------------------------------------------------------------------
+# History endpoints
+# ---------------------------------------------------------------------------
+@router.get("/sessions")
+async def tracy_sessions(
+    limit: int = Query(20, ge=1, le=100),
+    session: UserSession = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    sessions = await list_tracy_sessions(session.db_id, settings, limit)
+    return {"sessions": sessions}
+
+
+@router.get("/sessions/{session_id}/messages")
+async def tracy_session_messages(
+    session_id: str,
+    session: UserSession = Depends(get_current_user),
+    settings: Settings = Depends(get_settings),
+):
+    messages = await get_tracy_messages(session_id, session.db_id, settings)
+    return {"messages": messages}
