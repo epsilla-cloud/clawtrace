@@ -659,10 +659,6 @@ export function TracyPanel() {
             ))}
           </div>
 
-          {expandedChart && (
-            <ChartOverlay config={expandedChart} onClose={() => setExpandedChart(null)} />
-          )}
-
           <footer className={styles.composer}>
             <div className={styles.composerRow}>
               <div className={styles.inputShell}>
@@ -679,6 +675,10 @@ export function TracyPanel() {
           </footer>
         </div>
       </aside>
+
+      {expandedChart && (
+        <ChartOverlay config={expandedChart} onClose={() => setExpandedChart(null)} />
+      )}
     </>
   );
 }
