@@ -21,8 +21,10 @@ WHERE day_bucket >= CAST((
 
 -- Step 2: Delete stale weekly rows
 DELETE FROM clawtrace.billing.billing_usage_weekly
-WHERE (user_id, week_bucket) IN (
-    SELECT user_id, week_bucket FROM changed_weeks
+WHERE EXISTS (
+    SELECT 1 FROM changed_weeks c
+    WHERE clawtrace.billing.billing_usage_weekly.user_id = c.user_id
+      AND clawtrace.billing.billing_usage_weekly.week_bucket = c.week_bucket
 );
 
 -- Step 3: Insert fresh aggregation
