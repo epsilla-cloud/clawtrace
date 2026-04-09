@@ -191,10 +191,13 @@ export function UsagePage() {
         })),
       }, true);
 
-      const onResize = () => chart?.resize();
-      window.addEventListener('resize', onResize);
+      // Use ResizeObserver to handle container resize (e.g. Tracy panel open/close)
+      const ro = new ResizeObserver(() => chart?.resize());
+      ro.observe(dom);
+      window.addEventListener('resize', () => chart?.resize());
+
       return () => {
-        window.removeEventListener('resize', onResize);
+        ro.disconnect();
       };
     })();
 
