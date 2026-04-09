@@ -2305,6 +2305,8 @@ function ViewInspector({
     badges.push({ label: 'Started At', value: formatDate(selectedSpan.startMs) });
     if (selectedSpan.kind !== 'session') badges.push({ label: 'Duration', value: formatDuration(selectedSpan.resolvedDurationMs) });
     if (selectedSpan.tokensIn > 0) badges.push({ label: 'Input Tokens', value: formatCompactTokens(selectedSpan.tokensIn) });
+    if (selectedSpan.cacheReadTokens > 0) badges.push({ label: 'Cached Input', value: formatCompactTokens(selectedSpan.cacheReadTokens) });
+    if (selectedSpan.cacheWriteTokens > 0) badges.push({ label: 'Cache Write', value: formatCompactTokens(selectedSpan.cacheWriteTokens) });
     if (selectedSpan.tokensOut > 0) badges.push({ label: 'Output Tokens', value: formatCompactTokens(selectedSpan.tokensOut) });
     const cost = formatSpanCostValue(selectedSpan);
     if (cost) badges.push({ label: 'Cost', value: cost });

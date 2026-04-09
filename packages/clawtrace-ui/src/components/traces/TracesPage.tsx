@@ -23,8 +23,10 @@ const PRESETS = [
   { label: '30 days', ms: 30 * MS_PER_DAY },
 ];
 const PAGE_SIZES = [5, 10, 20, 50, 100];
-const FALLBACK_INPUT_RATE = 4.0;
-const FALLBACK_OUTPUT_RATE = 12.0;
+// Fallback blended rates for dashboard aggregates (no per-span model info available).
+// Matches trace-builder.ts FALLBACK_PRICING: $3/1M input, $10/1M output.
+const FALLBACK_INPUT_RATE = 3.0;
+const FALLBACK_OUTPUT_RATE = 10.0;
 
 function estimateCost(inputTokens: number, outputTokens: number): number {
   return (inputTokens * FALLBACK_INPUT_RATE + outputTokens * FALLBACK_OUTPUT_RATE) / 1_000_000;
