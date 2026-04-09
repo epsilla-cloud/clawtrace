@@ -425,20 +425,21 @@ export function TracyPanel() {
     const isHistoryLoad = prevCountRef.current === 0 && messages.length > 1;
     prevCountRef.current = messages.length;
 
-    const raf = requestAnimationFrame(() => {
-      if (isHistoryLoad) {
-        // Find last user message element and scroll it into view
+    if (isHistoryLoad) {
+      // Use setTimeout to ensure DOM has fully rendered the loaded messages
+      const timer = setTimeout(() => {
         const userMsgs = el.querySelectorAll('[data-role="user"]');
         const last = userMsgs[userMsgs.length - 1];
         if (last) {
           last.scrollIntoView({ block: 'start' });
-          return;
+        } else {
+          el.scrollTop = el.scrollHeight;
         }
-      }
-      // Default: scroll to bottom (for new messages during conversation)
-      el.scrollTop = el.scrollHeight;
-    });
-    return () => cancelAnimationFrame(raf);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+    // Live conversation: scroll to bottom immediately
+    el.scrollTop = el.scrollHeight;
   }, [messages]);
 
   // Load previous conversation on mount
