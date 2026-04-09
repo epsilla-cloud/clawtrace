@@ -187,8 +187,6 @@ async def tracy_mcp(
     authorization: Optional[str] = Header(default=None),
     settings: Settings = Depends(get_settings),
 ) -> Response:
-    _verify_bearer(authorization, settings)
-
     body = await request.json()
     method = body.get("method")
     req_id = body.get("id")
@@ -197,15 +195,18 @@ async def tracy_mcp(
     if req_id is None:
         return Response(status_code=202)
 
-    # initialize
+    # initialize — no auth required (allows platform discovery)
     if method == "initialize":
         return _jsonrpc_ok(req_id, SERVER_INFO)
 
-    # tools/list
+    # tools/list — no auth required (tool definitions are not secret)
     if method == "tools/list":
         return _jsonrpc_ok(req_id, {"tools": [MCP_TOOL]})
 
-    # tools/call
+    # All other methods require auth
+    _verify_bearer(authorization, settings)
+
+    # tools/call — auth required (executes real queries)
     if method == "tools/call":
         params = body.get("params", {})
         tool_name = params.get("name", "")
