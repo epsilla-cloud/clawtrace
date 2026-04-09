@@ -47,4 +47,4 @@ ClawTrace supports sign-in with:
 - **Google** — OAuth 2.0 with email and profile access
 - **GitHub** — OAuth with user and email access
 
-Both providers create the same ClawTrace account if the email matches.
+Each provider creates a separate ClawTrace account tied to that provider's identity.
