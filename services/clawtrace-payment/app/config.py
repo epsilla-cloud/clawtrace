@@ -70,7 +70,7 @@ class Settings(BaseSettings):
     )
 
     # Scheduler intervals (seconds)
-    harvest_interval_seconds: int = 1800
+    harvest_interval_seconds: int = 600
     notification_interval_seconds: int = 3600
     usage_poll_interval_seconds: int = 900
 
