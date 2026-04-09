@@ -55,7 +55,7 @@ class Settings(BaseSettings):
 
     # Payment service — deficit guard
     payment_url: str = ""  # e.g. http://clawtrace-payment:80
-    deficit_check_interval_seconds: int = 900  # 15 minutes
+    deficit_check_interval_seconds: int = 60  # 1 minute
 
     schema_version: int = Field(default=1)
 
