@@ -179,14 +179,16 @@ def _stream_tracy(
                             text_parts.append(block.text)
                             yield _sse_event("text", {"text": block.text})
                 elif etype == "agent.mcp_tool_use":
-                    # Managed agent MCP tool call
+                    tool_name = getattr(event, "name", "")
                     step = {
                         "type": "tool_use",
-                        "tool": getattr(event, "name", ""),
+                        "tool": tool_name,
                         "server": getattr(event, "mcp_server_name", ""),
                     }
                     reasoning_steps.append(step)
                     yield _sse_event("tool_use", step)
+                    # Send a descriptive thinking label so UI shows what's happening
+                    yield _sse_event("thinking", {"text": f"Querying trajectory data..."})
                 elif etype == "agent.mcp_tool_result":
                     content_text = ""
                     is_error = getattr(event, "is_error", False)
@@ -199,11 +201,11 @@ def _stream_tracy(
                     step = {"type": "tool_result", "text": content_text, "is_error": is_error}
                     reasoning_steps.append(step)
                     yield _sse_event("tool_result", step)
+                    yield _sse_event("thinking", {"text": "Interpreting results..."})
                 elif etype == "agent.thinking":
-                    yield _sse_event("thinking", {"text": ""})
                     reasoning_steps.append({"type": "thinking", "text": ""})
                 elif etype == "span.model_request_start":
-                    yield _sse_event("thinking", {"text": "Analyzing..."})
+                    yield _sse_event("thinking", {"text": "Reasoning about your question..."})
                 elif etype == "span.model_request_end":
                     # Extract token usage
                     if hasattr(event, "model_usage"):

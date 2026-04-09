@@ -28,6 +28,7 @@ type TracyMessage = {
   text: string;
   reasoning?: ReasoningStep[];
   streaming?: boolean;
+  thinkingLabel?: string;
 };
 
 type EChartsLike = {
@@ -209,22 +210,19 @@ function splitChartBlocks(text: string): Array<{ type: 'text' | 'chart'; content
 }
 
 /* ── Reasoning steps — collapsible bar ──────────────────────────────────── */
-function ReasoningBar({ steps, active }: { steps: ReasoningStep[]; active: boolean }) {
+function ReasoningBar({ steps, active, thinkingLabel }: { steps: ReasoningStep[]; active: boolean; thinkingLabel?: string }) {
   const [expanded, setExpanded] = useState(false);
-  // Filter out empty thinking steps
   const meaningful = steps.filter(
     (s) => !(s.type === 'thinking' && !s.text),
   );
   if (!meaningful.length && !active) return null;
 
-  const lastStep = meaningful.length ? meaningful[meaningful.length - 1] : steps[steps.length - 1];
-  const label = active
-    ? lastStep?.type === 'tool_use'
-      ? `Querying: ${lastStep.tool ?? 'tool'}...`
-      : lastStep?.type === 'tool_result'
-        ? 'Processing results...'
-        : 'Thinking...'
-    : `${meaningful.length} step${meaningful.length !== 1 ? 's' : ''}`;
+  let label: string;
+  if (active) {
+    label = thinkingLabel || 'Thinking...';
+  } else {
+    label = `${meaningful.length} step${meaningful.length !== 1 ? 's' : ''}`;
+  }
 
   return (
     <div className={styles.reasoningBar}>
@@ -522,7 +520,7 @@ export function TracyPanel() {
                 m.id === assistantId ? { ...m, text: m.text + (data.text as string) } : m,
               ),
             );
-          } else if (type === 'tool_use' || type === 'tool_result' || type === 'thinking') {
+          } else if (type === 'tool_use' || type === 'tool_result') {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -530,6 +528,15 @@ export function TracyPanel() {
                   : m,
               ),
             );
+          } else if (type === 'thinking') {
+            const label = (data.text as string) || '';
+            if (label) {
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId ? { ...m, thinkingLabel: label } : m,
+                ),
+              );
+            }
           } else if (type === 'error') {
             setMessages((prev) =>
               prev.map((m) =>
@@ -646,7 +653,7 @@ export function TracyPanel() {
                   ) : (
                     <>
                       {(msg.reasoning?.length ?? 0) > 0 && (
-                        <ReasoningBar steps={msg.reasoning!} active={msg.streaming ?? false} />
+                        <ReasoningBar steps={msg.reasoning!} active={msg.streaming ?? false} thinkingLabel={msg.thinkingLabel} />
                       )}
                       {msg.text ? (
                         <MessageContent text={msg.text} streaming={msg.streaming}
