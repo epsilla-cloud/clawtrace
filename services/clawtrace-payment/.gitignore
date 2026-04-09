@@ -1,0 +1,5 @@
+services/clawtrace-payment/.venv/
+services/clawtrace-payment/__pycache__/
+services/clawtrace-payment/.pytest_cache/
+__pycache__/
+.pytest_cache/

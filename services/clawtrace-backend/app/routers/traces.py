@@ -21,11 +21,12 @@ import time
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel
 
 from ..auth import get_current_user, get_settings
 from ..config import Settings
+from ..consumption import report_consumption
 from ..database import get_pool
 from ..models import UserSession
 from ..puppygraph import run_cypher
@@ -109,9 +110,10 @@ def _safe_float(v: object) -> float:
 def _classify_category(payloads: list) -> str:
     """Classify trace category from collected span input_payload snippets."""
     combined = " ".join(str(p) for p in payloads if p)
-    if "HEARTBEAT" in combined or "heartbeat.md" in combined.lower():
+    lower = combined.lower()
+    if "heartbeat" in lower or "heartbeat_ok" in lower or "heartbeat.md" in lower:
         return "Heartbeat"
-    if "Pre-compaction memory flush" in combined or "pre-compaction" in combined.lower():
+    if "pre-compaction" in lower or "memory flush" in lower:
         return "Compact Memory"
     return "Work"
 
@@ -120,6 +122,7 @@ def _classify_category(payloads: list) -> str:
 
 @router.get("", response_model=TracesResponse)
 async def get_traces(
+    request: Request,
     agent_id: str = Query(...),
     from_ms: Optional[int] = Query(None),
     to_ms: Optional[int] = Query(None),
@@ -128,11 +131,33 @@ async def get_traces(
     settings: Settings = Depends(get_settings),
 ) -> TracesResponse:
     tid = session.db_id
+    await request.app.state.deficit_guard.check(tid)
     await _verify_agent_ownership(agent_id, tid, settings)
 
     _from, _to = _default_range()
     from_ms = from_ms or _from
     to_ms   = to_ms   or _to
+
+    # ── 0. Quick count — skip PuppyGraph entirely if zero traces ─────────────
+    count_q = f"""
+MATCH (t:Trace)
+WHERE t.agent_id  = '{agent_id}'
+  AND t.tenant_id = '{tid}'
+  AND t.trace_start_ts_ms >= {from_ms}
+  AND t.trace_start_ts_ms <= {to_ms}
+RETURN count(t) AS cnt
+"""
+    count_rows = await run_cypher(count_q, settings)
+    if not count_rows or _safe_int(count_rows[0].get("cnt", 0)) == 0:
+        return TracesResponse(
+            metrics=TraceMetrics(
+                total_traces=0, total_tokens=0,
+                total_input_tokens=0, total_output_tokens=0,
+                success_rate=1.0,
+            ),
+            trends=[],
+            traces=[],
+        )
 
     # ── 1. Metrics ────────────────────────────────────────────────────────────
     metrics_q = f"""
@@ -208,7 +233,7 @@ RETURN
   coalesce(sum(s.output_tokens), 0)         AS output_tokens,
   coalesce(sum(s.total_tokens),  0)         AS total_tokens,
   max(coalesce(s.has_error,      0))        AS has_error,
-  collect(substring(coalesce(s.input_payload, ''), 0, 300)) AS payload_snippets
+  collect(substring(coalesce(s.input_payload, ''), 0, 600)) AS payload_snippets
 ORDER BY started_at_ms DESC
 LIMIT {limit + 50}
 """
@@ -229,6 +254,9 @@ LIMIT {limit + 50}
         )
         for r in tr_rows
     ]
+
+    # Report query consumption (fire-and-forget)
+    await report_consumption(tid, {"trace_list_query": 1.0}, settings)
 
     return TracesResponse(metrics=metrics, trends=trends, traces=traces)
 
@@ -269,6 +297,7 @@ class TraceDetailResponse(BaseModel):
 
 @router.get("/{trace_id}", response_model=TraceDetailResponse)
 async def get_trace_detail(
+    request: Request,
     trace_id: str,
     session: UserSession = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
@@ -281,6 +310,7 @@ async def get_trace_detail(
     Tenant ownership verified by including tenant_id in the WHERE clause.
     """
     tid  = session.db_id
+    await request.app.state.deficit_guard.check(tid)
     eid  = f"Trace[{trace_id}]"
 
     # 1. Trace metadata — single vertex lookup by elementId
@@ -352,5 +382,8 @@ ORDER BY s.span_start_ts_ms
         )
         for r in span_rows
     ]
+
+    # Report query consumption (fire-and-forget)
+    await report_consumption(tid, {"trace_detail_query": 1.0}, settings)
 
     return TraceDetailResponse(meta=meta, spans=spans)

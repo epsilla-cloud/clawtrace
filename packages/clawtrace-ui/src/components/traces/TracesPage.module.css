@@ -84,9 +84,11 @@
 .table tr:last-child td { border-bottom: none; }
 .table tr:hover td { background: #fdf6ee; }
 .traceRow { cursor: pointer; }
-.traceLink { text-decoration: none; }
+.traceLink { text-decoration: none; display: block; }
 .traceLink:hover code { color: #a4532b; text-decoration: underline; }
+.traceId { max-width: 180px; }
 .traceId code { font-size: 12px; color: #7c6854; font-family: var(--font-mono, monospace); }
+.traceUuid { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty { text-align: center; color: #b89c84; padding: 32px !important; white-space: normal !important; }
 
 /* Category badges */

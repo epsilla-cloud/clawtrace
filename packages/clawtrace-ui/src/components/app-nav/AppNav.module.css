@@ -89,8 +89,8 @@
 }
 
 .itemIcon {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -140,18 +140,22 @@
 }
 
 .coinIcon {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   flex-shrink: 0;
   object-fit: contain;
   border-radius: 50%;
 }
 
 .coinCount {
-  font-size: 10px;
-  font-weight: 500;
+  font-size: 9px;
+  font-weight: 600;
   color: #7c6854;
   line-height: 1;
+  max-width: 100%;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ── Handle ──────────────────────────────────────────────────────────────── */
@@ -181,8 +185,8 @@
 
 /* ── User avatar ─────────────────────────────────────────────────────────── */
 .avatarImg {
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   object-fit: cover;
 }

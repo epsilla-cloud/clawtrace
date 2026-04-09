@@ -15,10 +15,11 @@ const MAIN_NAV = [
     match: (p: string) => p === '/trace' || p.startsWith('/trace/'),
     icon: (
       <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
-        {/* Three horizontal bars — timeline trace */}
-        <rect x="2" y="4" width="14" height="3" rx="1.5" fill="currentColor" opacity="0.85"/>
-        <rect x="5" y="9.5" width="10" height="3" rx="1.5" fill="currentColor" opacity="0.6"/>
-        <rect x="3" y="15" width="12" height="3" rx="1.5" fill="currentColor" opacity="0.4"/>
+        {/* 4 squares — app grid icon */}
+        <rect x="2" y="2" width="8" height="8" rx="2" fill="currentColor" opacity="0.85"/>
+        <rect x="12" y="2" width="8" height="8" rx="2" fill="currentColor" opacity="0.65"/>
+        <rect x="2" y="12" width="8" height="8" rx="2" fill="currentColor" opacity="0.65"/>
+        <rect x="12" y="12" width="8" height="8" rx="2" fill="currentColor" opacity="0.45"/>
       </svg>
     ),
   },
@@ -41,10 +42,10 @@ export function AppNav() {
       .then((r) => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
       .then((d) => { if (d) setUser(d); })
       .catch(() => {});
-    // Fetch credits
-    fetch('/api/referral/info', { cache: 'no-store' })
-      .then((r) => { if (r.status === 401) { window.location.href = '/login'; return null; } return r.ok ? r.json() : null; })
-      .then((d) => { if (d?.points_balance != null) setCredits(d.points_balance); })
+    // Fetch credits from payment service
+    fetch('/api/billing/credits', { cache: 'no-store' })
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (d?.total_remaining != null) setCredits(Math.round(d.total_remaining)); })
       .catch(() => {});
   }, []);
 
@@ -101,12 +102,16 @@ export function AppNav() {
       <div className={styles.divider} />
       <nav className={styles.bottomItems}>
         <Link
-          href="/overview/billing"
-          className={`${styles.coinItem} ${pathname?.startsWith('/overview/billing') ? styles.itemActive : ''}`}
-          title={!expanded ? `${credits} credits` : undefined}
+          href="/billing"
+          className={`${styles.coinItem} ${pathname === '/billing' ? styles.itemActive : ''}`}
+          title={!expanded ? `${credits.toLocaleString()} credits` : undefined}
         >
-          <Image src="/icons/coin.png" alt="" width={20} height={20} className={styles.coinIcon} unoptimized />
-          <span className={expanded ? styles.itemLabel : styles.coinCount}>{credits}</span>
+          <Image src="/icons/coin.png" alt="" width={28} height={28} className={styles.coinIcon} unoptimized />
+          {expanded ? (
+            <span className={styles.itemLabel}>{credits.toLocaleString()} Credits</span>
+          ) : (
+            <span className={styles.coinCount}>{credits.toLocaleString()}</span>
+          )}
         </Link>
         <Link
           href="/account"
@@ -115,7 +120,7 @@ export function AppNav() {
         >
           <span className={styles.itemIcon}>
             {user?.avatar ? (
-              <Image src={user.avatar} alt="" width={20} height={20} className={styles.avatarImg} unoptimized />
+              <Image src={user.avatar} alt="" width={28} height={28} className={styles.avatarImg} unoptimized />
             ) : (
               <svg viewBox="0 0 22 22" fill="none" aria-hidden="true">
                 <circle cx="11" cy="8" r="3.5" stroke="currentColor" strokeWidth="1.6"/>

@@ -7,7 +7,8 @@ import {
   parseRedirectFromState,
   parseInviteCodeFromState,
 } from '@/lib/auth';
-import { awardSignupBonus, applyReferral } from '@/lib/referral';
+import { applyReferral } from '@/lib/referral';
+import { grantInitialCredits, grantReferralCredits } from '@/lib/billing';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -110,10 +111,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (isNew) {
-      try { await awardSignupBonus(user.id); } catch (e) { console.error('awardSignupBonus error:', e); }
+      try { await grantInitialCredits(user.id); } catch (e) { console.error('grantInitialCredits error:', e); }
       const inviteCode = parseInviteCodeFromState(state);
       if (inviteCode) {
-        try { await applyReferral(user.id, inviteCode); } catch (e) { console.error('applyReferral error:', e); }
+        try {
+          const referrerId = await applyReferral(user.id, inviteCode);
+          if (referrerId) {
+            await grantReferralCredits(user.id, referrerId);
+          }
+        } catch (e) { console.error('applyReferral error:', e); }
       }
     }
 
@@ -130,6 +136,11 @@ export async function GET(request: NextRequest) {
     const redirectTo = parseRedirectFromState(state);
     const response = NextResponse.redirect(redirectTo);
     response.cookies.set(COOKIE_NAME, token, authCookieOptions());
+    // Store GitHub access token for revocation on sign-out
+    response.cookies.set('github_access_token', access_token, {
+      ...authCookieOptions(),
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
     return response;
   } catch (err) {
     console.error('GitHub OAuth callback error:', err);

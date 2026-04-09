@@ -23,6 +23,8 @@ class StorageProvider(str, Enum):
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_prefix="CLAWTRACE_INGEST_",
+        env_file=".env",
+        env_file_encoding="utf-8",
         extra="ignore",
     )
 
@@ -50,6 +52,10 @@ class Settings(BaseSettings):
     aws_endpoint_url: str = ""
 
     pubsub_topic: str = ""
+
+    # Payment service — deficit guard
+    payment_url: str = ""  # e.g. http://clawtrace-payment:80
+    deficit_check_interval_seconds: int = 900  # 15 minutes
 
     schema_version: int = Field(default=1)
 

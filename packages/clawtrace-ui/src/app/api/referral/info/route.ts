@@ -34,7 +34,7 @@ export async function GET() {
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? '';
-  const shareLink = `${siteUrl}/?invitecode=${inviteCode}`;
+  const shareLink = `${siteUrl}/login?invitecode=${inviteCode}`;
 
   const [countResult] = await db
     .select({ count: sql<number>`count(*)::int` })

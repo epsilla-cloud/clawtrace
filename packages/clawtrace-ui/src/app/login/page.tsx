@@ -4,7 +4,7 @@ import { LoginButtons } from '@/components/auth/login-buttons';
 import styles from './login.module.css';
 
 export const metadata: Metadata = {
-  title: 'Sign in — ClawTrace',
+  title: 'Sign in',
   robots: { index: false, follow: false },
 };
 
@@ -79,7 +79,7 @@ export default async function LoginPage({
           )}
 
           <div className={styles.buttons}>
-            <LoginButtons redirect={redirect ?? '/overview'} inviteCode={invitecode} />
+            <LoginButtons redirect={redirect ?? '/trace'} inviteCode={invitecode} />
           </div>
 
           <p className={styles.terms}>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { AppNav } from '../app-nav/AppNav';
 import styles from './TracesPage.module.css';
 
@@ -183,7 +183,9 @@ function bucketTrends(trends: TrendPoint[], rangeDays: number, traces: TraceRow[
   for (const t of trends) {
     let key: string;
     if (rangeDays <= 90) {
-      const d = new Date(t.date);
+      // Extract YYYY-MM-DD from ISO string and parse as local date
+      const dm = t.date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      const d = dm ? new Date(+dm[1], +dm[2] - 1, +dm[3]) : new Date(t.date);
       d.setDate(d.getDate() - d.getDay());
       key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     } else {
@@ -205,6 +207,7 @@ const DEBOUNCE_MS = 400;
 
 /* ── Main component ──────────────────────────────────────────────────────── */
 export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
+  const router = useRouter();
   const searchParams   = useSearchParams();
   const initialAgentId = initialAgent || searchParams.get('agentId') || '';
 
@@ -280,7 +283,24 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
   // Compute chart data
   const rangeDays = presetIdx !== null ? PRESETS[presetIdx].ms / MS_PER_DAY : Math.max(1, (dateToMs(customTo, true) - dateToMs(customFrom)) / MS_PER_DAY);
   const bucketed = bucketTrends(data?.trends ?? [], rangeDays, data?.traces ?? []);
-  const chartLabels = bucketed.map(t => t.date);
+  const chartLabels = bucketed.map(t => {
+    const raw = t.date;
+    // Hourly (HH:00) — already local, use as-is
+    if (/^\d{2}:\d{2}$/.test(raw)) return raw;
+    // Extract YYYY-MM-DD from any format (ISO with T, date-only, etc.)
+    const dateMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [, y, m, d] = dateMatch.map(Number);
+      return new Date(y, m - 1, d).toLocaleDateString([], { month: 'short', day: 'numeric' });
+    }
+    // Month key (YYYY-MM)
+    const monthMatch = raw.match(/^(\d{4})-(\d{2})$/);
+    if (monthMatch) {
+      const [, y, m] = monthMatch.map(Number);
+      return new Date(y, m - 1, 1).toLocaleDateString([], { month: 'short', year: 'numeric' });
+    }
+    return raw;
+  });
   const trajValues = bucketed.map(t => t.run_count);
   const inputValues = bucketed.map(t => t.input_tokens);
   const outputValues = bucketed.map(t => t.output_tokens);
@@ -343,8 +363,11 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
           )}
 
           <button type="button" className={styles.refreshBtn} onClick={loadTraces} title="Refresh">
-            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M14 8A6 6 0 1 1 8.5 2.1M14 2v4h-4" strokeLinecap="round" strokeLinejoin="round"/>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+              <path d="M3 3v5h5" />
+              <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+              <path d="M21 21v-5h-5" />
             </svg>
           </button>
         </div>
@@ -418,12 +441,12 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
                     )}
                     {pagedTraces.map(t => (
                       <tr key={t.trace_id} className={styles.traceRow}
-                        onClick={() => { window.location.href = `/trace/${agentId}/${traceUuid(t.trace_id)}`; }}
+                        onClick={() => router.push(`/trace/${agentId}/${traceUuid(t.trace_id)}`)}
                         title="Click to drill into trace">
                         <td className={styles.traceId}>
                           <a href={`/trace/${agentId}/${traceUuid(t.trace_id)}`} className={styles.traceLink}
                             onClick={e => e.stopPropagation()}>
-                            <code>{traceUuid(t.trace_id).slice(0, 8)}…</code>
+                            <code className={styles.traceUuid}>{traceUuid(t.trace_id)}</code>
                           </a>
                         </td>
                         <td><span className={`${styles.catBadge} ${catClass(t.category)}`}>{t.category}</span></td>

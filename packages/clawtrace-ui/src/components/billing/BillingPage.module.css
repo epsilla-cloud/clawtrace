@@ -1,0 +1,366 @@
+/* ── Shell ──────────────────────────────────────────────────────────────── */
+.shell {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  background: #faf4ec;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.shell::-webkit-scrollbar { width: 6px; }
+.shell::-webkit-scrollbar-track { background: transparent; }
+.shell::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
+
+.content {
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px 24px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Header — matches trace page breadcrumb ────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  color: #7c6854;
+}
+.breadcrumbCurrent {
+  color: #2e2115;
+  font-weight: 560;
+}
+
+/* ── Balance card ──────────────────────────────────────────────────────── */
+.balanceCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  background: #fffdf8;
+}
+.viewUsageBtn {
+  height: 36px;
+  padding: 0 16px;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #5a4534;
+  font-size: 13px;
+  font-weight: 560;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  transition: background 100ms;
+  white-space: nowrap;
+}
+.viewUsageBtn:hover { background: #f5e2d0; color: #2e2115; }
+.balanceLabel {
+  font-size: 13px;
+  color: #7c6854;
+  font-weight: 500;
+  margin-bottom: 6px;
+  display: block;
+}
+.balanceValue {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 36px;
+  font-weight: 680;
+  color: #2e2115;
+  line-height: 1;
+}
+.balanceCoin {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+/* ── Package cards ─────────────────────────────────────────────────────── */
+.packagesGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+@media (max-width: 860px) {
+  .packagesGrid { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 520px) {
+  .packagesGrid { grid-template-columns: 1fr; }
+  .content { padding: 20px 14px 32px; }
+  .balanceValue { font-size: 28px; }
+}
+
+.packageCard {
+  position: relative;
+  width: 100%;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fffdf8 0%, #faf0e4 50%, #fffdf8 100%);
+  background-size: 200% 200%;
+  padding: 20px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  cursor: pointer;
+  transition: border-color 200ms, box-shadow 200ms, transform 140ms;
+  text-align: left;
+  font-family: inherit;
+  overflow: hidden;
+}
+/* Shimmer sweep — left to right only */
+.packageCard::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.35) 45%,
+    rgba(255, 255, 255, 0.55) 50%,
+    rgba(255, 255, 255, 0.35) 55%,
+    transparent 70%
+  );
+  animation: shimmer 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes shimmer {
+  0% { left: -100%; }
+  60%, 100% { left: 200%; }
+}
+.packageCard:hover {
+  border-color: #c9a882;
+  box-shadow: 0 6px 24px rgba(164, 83, 43, 0.15);
+  transform: translateY(-3px);
+  background-position: 100% 100%;
+}
+.packageCard:active { transform: translateY(0); }
+.packageCard:disabled { opacity: 0.7; cursor: wait; }
+
+/* Stagger the shimmer per card */
+.packageCard:nth-child(2)::before { animation-delay: 1s; }
+.packageCard:nth-child(3)::before { animation-delay: 2s; }
+.packageCard:nth-child(4)::before { animation-delay: 3s; }
+
+/* Wrapper: badge floats above the card */
+.packageWrap {
+  position: relative;
+  padding-top: 6px; /* small space for badge overflow */
+}
+
+.packageBadge {
+  position: absolute;
+  top: 0;
+  right: 10px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: #f5e2a0;
+  color: #7a5a10;
+  font-size: 10px;
+  font-weight: 650;
+  transform: rotate(5deg);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  white-space: nowrap;
+  z-index: 3;
+}
+
+.packageIcon {
+  width: 32px;
+  height: 32px;
+  color: #a4532b;
+  margin-bottom: 4px;
+}
+
+.packageBuy {
+  font-size: 13px;
+  color: #7c6854;
+  font-weight: 500;
+}
+.packageCredits {
+  font-size: 20px;
+  font-weight: 660;
+  color: #2e2115;
+  line-height: 1.1;
+}
+
+.packagePrice {
+  font-size: 13px;
+  color: #5a4534;
+  font-weight: 520;
+  margin-top: auto; /* push price + expiry to bottom */
+}
+.packageExpiry {
+  font-size: 11px;
+  color: #b89c84;
+  align-self: flex-end;
+}
+
+.packageLoading {
+  font-size: 11px;
+  color: #a4532b;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+/* ── Credit history table ──────────────────────────────────────────────── */
+.tableCard {
+  border: 1px solid #dacbb4;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fffdf8;
+}
+.tableScroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #c9b8a4 transparent;
+}
+.tableScroll::-webkit-scrollbar { height: 6px; }
+.tableScroll::-webkit-scrollbar-track { background: transparent; }
+.tableScroll::-webkit-scrollbar-thumb { background: #c9b8a4; border-radius: 3px; }
+.table {
+  width: 100%;
+  min-width: 700px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 620;
+  color: #7c6854;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #fdf6ee;
+  border-bottom: 1px solid #e8d9c4;
+  white-space: nowrap;
+}
+.table td {
+  padding: 10px 14px;
+  color: #5a4534;
+  border-bottom: 1px solid #f0e4d4;
+  white-space: nowrap;
+}
+.table tbody tr:last-child td { border-bottom: 0; }
+.table tbody tr:hover td { background: #fdf6ee; }
+
+.empty {
+  text-align: center;
+  color: #b89c84;
+  padding: 32px 14px;
+  font-size: 13px;
+}
+
+/* Status badges */
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.status_active {
+  background: #eef7ea;
+  color: #2f6b3b;
+  border-color: #c8e6c0;
+}
+.status_expired {
+  background: #f8f0e4;
+  color: #7c6854;
+  border-color: #e0d4c4;
+}
+.status_exhausted {
+  background: #fff1f3;
+  color: #b42318;
+  border-color: #fca5a5;
+}
+
+.invoiceLink {
+  color: #a4532b;
+  font-size: 12px;
+  font-weight: 520;
+  cursor: pointer;
+  text-decoration: none;
+}
+.invoiceLink:hover { text-decoration: underline; }
+
+/* ── Pagination ────────────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 0;
+}
+.pageBtn, .pageArrow {
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
+  background: #fffdf8;
+  color: #5a4534;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 100ms;
+}
+.pageBtn:hover, .pageArrow:hover { background: #f5e2d0; }
+.pageBtnActive {
+  background: #f5e2d0;
+  border-color: #c9a882;
+  font-weight: 700;
+  color: #2e2115;
+}
+.pageArrow:disabled { opacity: 0.4; cursor: default; }
+.pageArrow { padding: 0 10px; }
+
+/* ── Skeleton loading ──────────────────────────────────────────────────── */
+.skeleton {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f0e4d4 25%, #f8f0e4 50%, #f0e4d4 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+@keyframes skeletonPulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+.skeletonBalance {
+  composes: skeleton;
+  width: 140px;
+  height: 36px;
+}
+.skeletonCard {
+  composes: skeleton;
+  border-radius: 14px;
+  height: 160px;
+}
+.skeletonTableRow {
+  composes: skeleton;
+  height: 20px;
+  width: 100%;
+}

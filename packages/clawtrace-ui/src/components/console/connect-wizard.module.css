@@ -2,11 +2,12 @@
 .root {
   flex: 1;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: 24px;
   min-height: 100%;
   background: #faf4ec;
+  overflow-y: auto;
 }
 
 .footer {
@@ -15,49 +16,51 @@
   padding-top: 20px;
 }
 
-.continueBtn {
-  height: 48px;
-  padding: 0 28px;
-  background: #7c3a0f;
+.primaryBtn {
+  height: 40px;
+  padding: 0 24px;
+  background: #a4532b;
   color: #fff;
   border: none;
   border-radius: 10px;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background 120ms;
+  font-family: inherit;
 }
-.continueBtn:hover:not(:disabled) { background: #6b3009; }
-.continueBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.primaryBtn:hover:not(:disabled) { background: #8e4524; }
+.primaryBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* ── Step 1 ──────────────────────────────────────────────────────────────── */
 .card {
-  background: #fff;
-  border-radius: 16px;
-  padding: 40px 40px 32px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 32px 28px 24px;
   width: 100%;
-  max-width: 620px;
-  box-shadow: 0 2px 16px rgba(60,30,10,0.08);
+  max-width: 440px;
 }
 
 .label {
   display: block;
-  font-size: 16px;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 560;
   color: #2e2115;
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 
 .input {
   width: 100%;
-  height: 56px;
-  padding: 0 16px;
-  font-size: 15px;
-  background: #fdf6ee;
-  border: 1px solid #e8d9c4;
-  border-radius: 10px;
+  height: 42px;
+  padding: 0 14px;
+  font-size: 14px;
+  background: #faf4ec;
+  border: 1px solid #dacbb4;
+  border-radius: 8px;
   color: #2e2115;
   outline: none;
+  font-family: inherit;
   box-sizing: border-box;
 }
 .input:focus { border-color: #a4532b; }
@@ -90,7 +93,8 @@
   max-width: 620px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
+  align-self: flex-start;
 }
 
 .stepLabel {
@@ -103,26 +107,24 @@
 }
 
 .heading {
-  font-size: 28px;
-  font-weight: 700;
+  font-size: 20px;
+  font-weight: 640;
   color: #2e2115;
-  text-align: center;
   margin: 0;
 }
 
 .subheading {
-  font-size: 14px;
+  font-size: 13px;
   color: #7c6854;
-  text-align: center;
   line-height: 1.6;
   margin: 0;
 }
 
 /* Key panel */
 .keyPanel {
-  background: #fff;
-  border: 1px solid #e8d9c4;
-  border-radius: 12px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
@@ -176,18 +178,21 @@
 }
 
 .copyBtn {
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 12px;
+  width: 28px;
+  height: 28px;
   border: 1px solid #dacbb4;
   border-radius: 6px;
-  background: #fff;
-  color: #5a4534;
+  background: #fffdf8;
   cursor: pointer;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  color: #b89c84;
+  transition: background 80ms, color 80ms;
+  padding: 0;
 }
-.copyBtn:hover { background: #fdf6ee; }
+.copyBtn:hover { background: #f0e4d0; color: #5a4534; }
 
 .keyWarning {
   font-size: 12px;
@@ -198,10 +203,10 @@
 
 /* Briefing */
 .briefing {
-  background: #fff;
-  border: 1px solid #e8d9c4;
-  border-radius: 12px;
-  padding: 20px 20px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -216,7 +221,13 @@
 
 .step {
   display: flex;
-  gap: 14px;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stepHeader {
+  display: flex;
+  gap: 12px;
   align-items: flex-start;
 }
 
@@ -251,42 +262,22 @@
 }
 
 .codeBlock {
-  background: #1e1610;
-  border-radius: 8px;
-  padding: 12px 14px;
   position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  border: 1px solid #dacbb4;
+  border-radius: 10px;
+  background: #faf4ec;
+  padding: 10px 44px 10px 14px;
 }
 
-.codeBlock code {
-  font-family: var(--font-mono, monospace);
-  font-size: 12px;
-  color: #e8d4b8;
-  white-space: pre-wrap;
-  word-break: break-all;
-  flex: 1;
-  line-height: 1.6;
+.codeBlock > div:first-child {
+  min-width: 0;
 }
 
 .codeBlock .copyBtn {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.15);
-  color: #b89c84;
-  margin-top: 1px;
-}
-.codeBlock .copyBtn:hover { background: rgba(255,255,255,0.14); }
-
-.codeLang {
   position: absolute;
-  top: 6px;
   right: 10px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  color: rgba(255,255,255,0.2);
-  text-transform: uppercase;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 /* Listener */
