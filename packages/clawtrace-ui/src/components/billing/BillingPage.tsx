@@ -136,19 +136,27 @@ export function BillingPage() {
               : ''
         }`}>
           <div>
-            <span className={styles.balanceLabel}>
-              Credit Balance
-              {!loading && status && (status.is_deficit || status.total_remaining <= 0) && (
-                <span className={styles.statusBadgeError}>Deficit</span>
-              )}
-              {!loading && status && !status.is_deficit && status.total_remaining > 0 && status.total_remaining < 50 && (
-                <span className={styles.statusBadgeWarning}>Low</span>
-              )}
-            </span>
+            <span className={styles.balanceLabel}>Credit Balance</span>
             <div className={styles.balanceValue}>
               <Image src="/icons/coin.png" alt="" width={36} height={36} className={styles.balanceCoin} unoptimized />
               {loading ? <div className={styles.skeletonBalance} /> : <span>{formatCredits(status?.total_remaining ?? 0)}</span>}
             </div>
+            {!loading && status && (status.is_deficit || status.total_remaining <= 0) && (
+              <div className={styles.alertBanner + ' ' + styles.alertError}>
+                <span className={styles.alertIcon}>
+                  <svg viewBox="0 0 16 16" width="16" height="16" fill="none"><circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/><path d="M8 4.5v4M8 10.5v1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                </span>
+                <span>Your credits are exhausted. Top up now to continue using ClawTrace.</span>
+              </div>
+            )}
+            {!loading && status && !status.is_deficit && status.total_remaining > 0 && status.total_remaining < 50 && (
+              <div className={styles.alertBanner + ' ' + styles.alertWarning}>
+                <span className={styles.alertIcon}>
+                  <svg viewBox="0 0 16 16" width="16" height="16" fill="none"><path d="M8 1.5l6.5 12H1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M8 6.5v3M8 11.5v.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                </span>
+                <span>Credits running low. Top up now to avoid interruptions.</span>
+              </div>
+            )}
           </div>
           <a href="/billing/usage" className={styles.viewUsageBtn}>View Usage</a>
         </div>

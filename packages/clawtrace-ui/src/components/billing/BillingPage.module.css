@@ -60,24 +60,30 @@
   border-color: #c0392b;
   background: #fdf4f3;
 }
-.statusBadgeWarning,
-.statusBadgeError {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 520;
-  letter-spacing: 0.02em;
+.alertBanner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  font-weight: 480;
 }
-.statusBadgeWarning {
-  background: #fef3cd;
-  color: #856404;
+.alertWarning {
+  background: #fef8e8;
+  border: 1px solid #e8d090;
+  color: #6b5212;
 }
-.statusBadgeError {
-  background: #f8d7da;
-  color: #721c24;
+.alertError {
+  background: #fdf0ef;
+  border: 1px solid #e8a8a0;
+  color: #7a1f1f;
+}
+.alertIcon {
+  flex-shrink: 0;
+  margin-top: 1px;
 }
 .viewUsageBtn {
   height: 36px;
