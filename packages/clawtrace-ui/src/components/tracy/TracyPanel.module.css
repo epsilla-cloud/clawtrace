@@ -300,32 +300,32 @@
 }
 .echartWrap:hover .echartExpand { opacity: 1; }
 
-/* Fullscreen chart overlay */
+/* Expanded chart overlay — contained within the Tracy panel */
 .chartOverlay {
-  position: fixed; inset: 0; z-index: 9999;
-  background: rgba(24, 12, 4, 0.55);
+  position: absolute; inset: 0; z-index: 10;
+  background: rgba(24, 12, 4, 0.35);
   display: flex; align-items: center; justify-content: center;
-  padding: 32px;
-  backdrop-filter: blur(4px);
+  padding: 16px;
+  backdrop-filter: blur(2px);
 }
 .chartOverlayInner {
   position: relative;
-  width: 100%; max-width: 800px;
+  width: 100%;
   background: #fffdf8;
-  border-radius: 16px;
+  border-radius: 12px;
   border: 1px solid #dacbb4;
-  padding: 24px;
-  box-shadow: 0 12px 40px rgba(24, 12, 4, 0.25);
+  padding: 16px;
+  box-shadow: 0 8px 24px rgba(24, 12, 4, 0.2);
 }
 .chartOverlayClose {
-  position: absolute; top: 10px; right: 12px;
-  width: 28px; height: 28px; border: none; background: transparent;
-  cursor: pointer; color: #7c6854; font-size: 16px;
+  position: absolute; top: 8px; right: 10px;
+  width: 24px; height: 24px; border: none; background: transparent;
+  cursor: pointer; color: #7c6854; font-size: 14px;
   display: flex; align-items: center; justify-content: center;
   border-radius: 6px;
 }
 .chartOverlayClose:hover { background: #f5e2d0; color: #2e2115; }
-.chartOverlayCanvas { width: 100%; height: 420px; }
+.chartOverlayCanvas { width: 100%; height: 320px; }
 
 /* Composer */
 .composer {
