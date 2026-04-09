@@ -164,12 +164,79 @@ async def _handle_tool_call(
 
 
 # ---------------------------------------------------------------------------
+# OAuth 2.0 Protected Resource Metadata (RFC 9728 / MCP Authorization spec)
+# Anthropic's platform probes these endpoints during MCP server setup.
+# We advertise that the server accepts Bearer tokens directly.
+# ---------------------------------------------------------------------------
+_OAUTH_RESOURCE_META = {
+    "resource": "https://api.clawtrace.ai/tracy/mcp",
+    "bearer_methods_supported": ["header"],
+    "resource_documentation": "https://clawtrace.ai/docs",
+}
+
+_OAUTH_AUTHZ_META = {
+    "issuer": "https://api.clawtrace.ai",
+    "token_endpoint": "https://api.clawtrace.ai/token",
+    "response_types_supported": ["token"],
+    "grant_types_supported": ["client_credentials"],
+    "token_endpoint_auth_methods_supported": ["none"],
+}
+
+
+@router.get("/.well-known/oauth-protected-resource/tracy/mcp")
+@router.get("/.well-known/oauth-protected-resource")
+async def oauth_protected_resource() -> Response:
+    return Response(
+        content=json.dumps(_OAUTH_RESOURCE_META),
+        media_type="application/json",
+    )
+
+
+@router.get("/.well-known/oauth-authorization-server")
+async def oauth_authorization_server() -> Response:
+    return Response(
+        content=json.dumps(_OAUTH_AUTHZ_META),
+        media_type="application/json",
+    )
+
+
+@router.post("/register")
+async def oauth_register(request: Request) -> Response:
+    """Dynamic client registration (RFC 7591).
+    Returns a dummy client_id — the actual auth uses static Bearer tokens."""
+    body = await request.json()
+    return Response(
+        content=json.dumps({
+            "client_id": "clawtrace-tracy-mcp",
+            "client_name": body.get("client_name", "ClawTrace MCP Client"),
+            "grant_types": ["client_credentials"],
+            "token_endpoint_auth_method": "none",
+            "redirect_uris": body.get("redirect_uris", []),
+        }),
+        media_type="application/json",
+        status_code=201,
+    )
+
+
+@router.post("/token")
+async def oauth_token() -> Response:
+    """Token endpoint — not actually used; static Bearer tokens are configured in vault."""
+    return Response(
+        content=json.dumps({
+            "error": "unsupported_grant_type",
+            "error_description": "This server uses static Bearer tokens configured in the vault, not OAuth token exchange.",
+        }),
+        media_type="application/json",
+        status_code=400,
+    )
+
+
+# ---------------------------------------------------------------------------
 # MCP endpoint — Streamable HTTP
 # ---------------------------------------------------------------------------
 @router.get("/tracy/mcp")
 async def tracy_mcp_get() -> Response:
-    """GET handler for MCP discovery / SSE probe.
-    Returns server info so platforms can verify the server exists."""
+    """GET handler for MCP discovery / SSE probe."""
     return Response(
         content=json.dumps({
             "name": "ClawTrace Tracy MCP",
