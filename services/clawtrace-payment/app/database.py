@@ -190,13 +190,16 @@ async def get_credit_status(
             """,
             user_id,
         )
+        # Include negative deficit rows in total for accurate balance
         total = sum(
             r["credits"] for r in rows
-            if r["credits"] > 0 and r["expires_at"] > now_ts
+            if r["expires_at"] > now_ts
         )
         purchases = []
         for r in rows:
-            if r["expires_at"] <= now_ts:
+            if r["source"] == "deficit":
+                status = "deficit"
+            elif r["expires_at"] <= now_ts:
                 status = "expired"
             elif r["credits"] <= 0:
                 status = "exhausted"
@@ -225,7 +228,8 @@ async def get_credit_status(
 async def deduct_credits(
     tenant_id: str, amount: float, settings: Settings
 ) -> float:
-    """Deduct credits FIFO by expiration. Returns effective balance."""
+    """Deduct credits FIFO by expiration. Supports negative balance (deficit).
+    Returns effective balance (can be negative)."""
     pool = await get_pool(settings)
     async with pool.acquire() as conn:
         async with conn.transaction():
@@ -246,7 +250,6 @@ async def deduct_credits(
                 take = min(purchase["credits"], remaining)
                 new_credits = purchase["credits"] - take
                 if new_credits <= 0:
-                    # Set to 0 instead of deleting — keep for history
                     await conn.execute(
                         "UPDATE credit_purchases SET credits = 0 WHERE id = $1",
                         purchase["id"],
@@ -259,17 +262,42 @@ async def deduct_credits(
                     )
                 remaining -= take
 
-            total_remaining = await conn.fetchval(
+            # If there's still remaining to deduct, record as deficit (negative credits)
+            if remaining > 0:
+                await conn.execute(
+                    """
+                    INSERT INTO credit_purchases
+                        (user_id, credits, credits_initial, source, expires_at)
+                    VALUES ($1, $2, 0, 'deficit', now() + interval '100 years')
+                    """,
+                    tenant_id,
+                    -remaining,
+                )
+
+            # Total balance includes negative deficit rows
+            effective_balance = await conn.fetchval(
                 """
                 SELECT COALESCE(SUM(credits), 0) FROM credit_purchases
-                WHERE user_id = $1 AND credits > 0 AND expires_at > now()
+                WHERE user_id = $1 AND expires_at > now()
                 """,
                 tenant_id,
             )
-            effective_balance = total_remaining - remaining
 
-            # Queue low-credit notification
-            if effective_balance < settings.low_credit_threshold:
+            # Queue notifications based on balance
+            if effective_balance <= 0:
+                # Deficit: queue exhaustion notification
+                await conn.execute(
+                    """
+                    INSERT INTO pending_notifications
+                        (user_id, notification_type, first_detected_at)
+                    VALUES ($1, 'credit_exhausted', now())
+                    ON CONFLICT (user_id, notification_type, sent_at)
+                        WHERE sent_at IS NULL
+                    DO NOTHING
+                    """,
+                    tenant_id,
+                )
+            elif effective_balance < settings.low_credit_threshold:
                 await conn.execute(
                     """
                     INSERT INTO pending_notifications
@@ -289,12 +317,13 @@ async def deduct_credits(
 
 
 async def check_deficit(tenant_id: str, settings: Settings) -> bool:
-    """Lightweight check: is the tenant in deficit (total credits <= 0)?"""
+    """Lightweight check: is the tenant in deficit (total credits <= 0)?
+    Includes negative deficit rows in the sum."""
     pool = await get_pool(settings)
     total = await pool.fetchval(
         """
         SELECT COALESCE(SUM(credits), 0) FROM credit_purchases
-        WHERE user_id = $1 AND credits > 0 AND expires_at > now()
+        WHERE user_id = $1 AND expires_at > now()
         """,
         tenant_id,
     )
@@ -311,28 +340,61 @@ async def insert_credit_purchase(
     invoice_url: str | None = None,
     amount_paid_cents: int | None = None,
 ) -> str:
-    """Insert a new credit purchase. Returns the purchase ID."""
+    """Insert a new credit purchase. Absorbs any outstanding deficit first.
+    Returns the purchase ID."""
     pool = await get_pool(settings)
     expiry = timedelta(days=settings.credit_expiration_days)
-    row = await pool.fetchrow(
-        """
-        INSERT INTO credit_purchases
-            (user_id, credits, credits_initial, source,
-             stripe_payment_intent_id, receipt_url, invoice_url,
-             amount_paid_cents, expires_at)
-        VALUES ($1, $2, $2, $3, $4, $5, $6, $7, now() + $8)
-        RETURNING id
-        """,
-        user_id,
-        credits,
-        source,
-        stripe_payment_intent_id,
-        receipt_url,
-        invoice_url,
-        amount_paid_cents,
-        expiry,
-    )
-    return str(row["id"])  # type: ignore[index]
+
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            # Insert the new purchase
+            row = await conn.fetchrow(
+                """
+                INSERT INTO credit_purchases
+                    (user_id, credits, credits_initial, source,
+                     stripe_payment_intent_id, receipt_url, invoice_url,
+                     amount_paid_cents, expires_at)
+                VALUES ($1, $2, $2, $3, $4, $5, $6, $7, now() + $8)
+                RETURNING id
+                """,
+                user_id,
+                credits,
+                source,
+                stripe_payment_intent_id,
+                receipt_url,
+                invoice_url,
+                amount_paid_cents,
+                expiry,
+            )
+            purchase_id = str(row["id"])
+
+            # Absorb any outstanding deficit rows
+            deficit_total = await conn.fetchval(
+                """
+                SELECT COALESCE(SUM(credits), 0) FROM credit_purchases
+                WHERE user_id = $1 AND source = 'deficit' AND credits < 0
+                """,
+                user_id,
+            )
+            if deficit_total < 0:
+                absorb = min(credits, abs(deficit_total))
+                # Reduce the new purchase by the absorbed amount
+                await conn.execute(
+                    "UPDATE credit_purchases SET credits = credits - $1 WHERE id = $2",
+                    absorb,
+                    row["id"],
+                )
+                # Delete deficit rows (they've been absorbed)
+                await conn.execute(
+                    "DELETE FROM credit_purchases WHERE user_id = $1 AND source = 'deficit' AND credits < 0",
+                    user_id,
+                )
+                logger.info(
+                    "Absorbed %.2f deficit credits for user %s from new purchase",
+                    absorb, user_id,
+                )
+
+    return purchase_id
 
 
 async def get_pending_notifications(

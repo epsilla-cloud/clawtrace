@@ -33,6 +33,31 @@ def _render_low_credit_email(name: str, email: str) -> str:
 </div>"""
 
 
+def _render_exhausted_email(name: str, email: str) -> str:
+    return f"""\
+<div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 20px;">
+  <h2 style="color: #7a1f1f; font-size: 20px;">Your ClawTrace credits are exhausted</h2>
+  <p style="color: #5a4534; font-size: 14px; line-height: 1.6;">
+    Hi {name},<br><br>
+    Your ClawTrace credit balance has reached zero. All services including
+    Tracy conversations, trajectory queries, and data ingestion are now paused.
+  </p>
+  <p style="color: #5a4534; font-size: 14px; line-height: 1.6;">
+    <strong>Your data will be retained for 7 days.</strong> If credits are not
+    replenished within this period, your stored trajectories and trace data
+    may be permanently removed.
+  </p>
+  <a href="https://clawtrace.ai/billing"
+     style="display: inline-block; padding: 10px 24px; background: #c0392b; color: #fff;
+            border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">
+    Top Up Now
+  </a>
+  <p style="color: #8c7a66; font-size: 12px; margin-top: 24px;">
+    &mdash; The ClawTrace Team
+  </p>
+</div>"""
+
+
 async def _send_email_azure(
     to_email: str,
     to_name: str,
@@ -102,6 +127,20 @@ async def send_pending_notifications(settings: Settings) -> None:
             await _send_slack(
                 f":warning: *Low credit alert* — user {user_name} ({user_email}) "
                 f"has fallen below the credit threshold.",
+                settings,
+            )
+        elif notif_type == "credit_exhausted" and user_email:
+            html = _render_exhausted_email(user_name, user_email)
+            await _send_email_azure(
+                to_email=user_email,
+                to_name=user_name,
+                subject="ClawTrace: Your credits are exhausted",
+                html_body=html,
+                settings=settings,
+            )
+            await _send_slack(
+                f":red_circle: *Credit exhausted* — user {user_name} ({user_email}) "
+                f"has run out of credits. Resources will be held for 7 days.",
                 settings,
             )
 
