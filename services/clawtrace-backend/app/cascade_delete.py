@@ -14,17 +14,25 @@ logger = logging.getLogger(__name__)
 async def delete_raw_blobs(tenant_id: str, agent_id: str, settings: Settings) -> int:
     """Delete raw JSON event files from Azure Blob Storage for a specific agent.
     Returns the number of blobs deleted."""
-    if not settings.azure_storage_connection_string:
+    if not settings.azure_storage_account_url and not settings.azure_storage_connection_string:
         logger.warning("Azure storage not configured, skipping raw blob deletion")
         return 0
 
     try:
         from azure.storage.blob import ContainerClient
 
-        container = ContainerClient.from_connection_string(
-            settings.azure_storage_connection_string,
-            container_name=settings.azure_storage_container,
-        )
+        if settings.azure_storage_connection_string:
+            container = ContainerClient.from_connection_string(
+                settings.azure_storage_connection_string,
+                container_name=settings.azure_storage_container,
+            )
+        else:
+            from azure.identity import DefaultAzureCredential
+            container = ContainerClient(
+                account_url=settings.azure_storage_account_url,
+                container_name=settings.azure_storage_container,
+                credential=DefaultAzureCredential(),
+            )
         prefix = f"raw/v1/tenant={tenant_id}/agent={agent_id}/"
         count = 0
         for blob in container.list_blobs(name_starts_with=prefix):
