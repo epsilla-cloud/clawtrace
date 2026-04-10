@@ -52,6 +52,25 @@
 .brand { text-decoration: none; display: inline-flex; align-items: center; height: 36px; max-width: 220px; }
 .brandImage { width: auto; height: 100%; object-fit: contain; display: block; }
 .headerRight { display: flex; align-items: center; gap: 8px; }
+.hamburger {
+  display: none; width: 36px; height: 36px; border: none; background: transparent;
+  color: var(--ct-soft-text); cursor: pointer; border-radius: 8px;
+  align-items: center; justify-content: center;
+}
+.hamburger:hover { background: color-mix(in srgb, var(--ct-panel-subtle) 60%, white); }
+.mobileMenu {
+  display: none; position: absolute; top: calc(100% + 6px); left: 12px; right: 12px;
+  background: #fffdf8; border: 1px solid var(--ct-border);
+  border-radius: 12px; padding: 8px; box-shadow: 0 8px 24px rgba(24, 12, 4, 0.15);
+  flex-direction: column; gap: 2px; z-index: 40;
+}
+.mobileLink {
+  display: flex; align-items: center; height: 40px; padding: 0 12px;
+  border-radius: 8px; font-size: 14px; color: var(--ct-soft-text);
+  text-decoration: none; font-weight: 480;
+}
+.mobileLink:hover { background: #f5e2d0; color: var(--ct-text); }
+.mobileDivider { height: 1px; background: var(--ct-border); margin: 4px 0; }
 .nav { display: flex; align-items: center; gap: 8px; }
 .navLink {
   height: 34px; border-radius: 9px; border: 1px solid transparent;
@@ -387,16 +406,18 @@
 
 @media (max-width: 760px) {
   .header {
-    flex-direction: column; justify-content: center;
-    gap: 6px; height: auto; padding: 8px;
+    position: sticky; top: 12px;
+    flex-direction: row; justify-content: space-between;
+    height: 50px; padding: 0 12px;
   }
-  .nav { width: 100%; justify-content: space-between; }
-  .navLink { flex: 1; justify-content: center; }
+  .headerRight { display: none; }
+  .hamburger { display: flex; }
+  .mobileMenu { display: flex; }
   .hero { margin-top: 40px; }
   .heroControl { width: 34px; height: 34px; font-size: 24px; }
   .footerInner { flex-direction: column; text-align: center; }
   .footerLinks { flex-wrap: wrap; justify-content: center; }
-  .backers { flex-direction: column; }
+  .backersList { flex-direction: column; align-items: center; }
 }
 
 /* ── Utilities ───────────────────────────────────────────────────────── */
