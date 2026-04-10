@@ -155,44 +155,85 @@ function msToDateInput(ms: number): string {
 }
 
 /** Bucket trends by adaptive time range */
+const EMPTY_TREND: Omit<TrendPoint, 'date'> = { run_count: 0, input_tokens: 0, output_tokens: 0 };
+
 function bucketTrends(trends: TrendPoint[], rangeDays: number, traces: TraceRow[]): TrendPoint[] {
-  // 1 day: bucket by hour from the traces list (backend only has daily granularity)
+  // 1 day: bucket by hour (24 data points, fill gaps with 0)
   if (rangeDays <= 1) {
     const hourBuckets = new Map<string, TrendPoint>();
+    // Pre-fill all 24 hours
+    for (let h = 0; h < 24; h++) {
+      const key = `${String(h).padStart(2, '0')}:00`;
+      hourBuckets.set(key, { date: key, ...EMPTY_TREND });
+    }
     for (const t of traces) {
       if (!t.started_at_ms) continue;
       const d = new Date(t.started_at_ms);
       const key = `${String(d.getHours()).padStart(2, '0')}:00`;
-      const existing = hourBuckets.get(key);
-      if (existing) {
-        existing.run_count += 1;
-        existing.input_tokens += t.input_tokens;
-        existing.output_tokens += t.output_tokens;
-      } else {
-        hourBuckets.set(key, { date: key, run_count: 1, input_tokens: t.input_tokens, output_tokens: t.output_tokens });
-      }
+      const existing = hourBuckets.get(key)!;
+      existing.run_count += 1;
+      existing.input_tokens += t.input_tokens;
+      existing.output_tokens += t.output_tokens;
     }
     return [...hourBuckets.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([, v]) => v);
   }
 
-  // 2-15 days: daily (already bucketed by backend)
-  if (rangeDays <= 15) return trends;
+  // 2-15 days: daily, fill gaps with 0
+  if (rangeDays <= 15) {
+    const dataMap = new Map<string, TrendPoint>();
+    for (const t of trends) {
+      const dm = t.date.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      const key = dm ? `${dm[1]}-${dm[2]}-${dm[3]}` : t.date;
+      dataMap.set(key, t);
+    }
+    const result: TrendPoint[] = [];
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(start.getDate() - Math.ceil(rangeDays) + 1);
+    start.setHours(0, 0, 0, 0);
+    for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 1)) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      result.push(dataMap.get(key) ?? { date: key, ...EMPTY_TREND });
+    }
+    return result;
+  }
 
-  // 16+ days: group by week or month
-  const buckets = new Map<string, TrendPoint>();
-  for (const t of trends) {
-    let key: string;
-    if (rangeDays <= 90) {
-      // Extract YYYY-MM-DD from ISO string and parse as local date
+  // 16-90 days: weekly, fill gaps with 0
+  if (rangeDays <= 90) {
+    const buckets = new Map<string, TrendPoint>();
+    for (const t of trends) {
       const dm = t.date.match(/^(\d{4})-(\d{2})-(\d{2})/);
       const d = dm ? new Date(+dm[1], +dm[2] - 1, +dm[3]) : new Date(t.date);
-      d.setDate(d.getDate() - d.getDay());
-      key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    } else {
-      key = t.date.slice(0, 7);
+      d.setDate(d.getDate() - d.getDay()); // start of week (Sunday)
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const existing = buckets.get(key);
+      if (existing) {
+        existing.run_count += t.run_count;
+        existing.input_tokens += t.input_tokens;
+        existing.output_tokens += t.output_tokens;
+      } else {
+        buckets.set(key, { date: key, run_count: t.run_count, input_tokens: t.input_tokens, output_tokens: t.output_tokens });
+      }
     }
+    // Fill missing weeks
+    const now = new Date();
+    const start = new Date(now);
+    start.setDate(start.getDate() - Math.ceil(rangeDays));
+    start.setDate(start.getDate() - start.getDay()); // align to Sunday
+    const result: TrendPoint[] = [];
+    for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 7)) {
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      result.push(buckets.get(key) ?? { date: key, ...EMPTY_TREND });
+    }
+    return result;
+  }
+
+  // 90+ days: monthly, fill gaps with 0
+  const buckets = new Map<string, TrendPoint>();
+  for (const t of trends) {
+    const key = t.date.slice(0, 7); // YYYY-MM
     const existing = buckets.get(key);
     if (existing) {
       existing.run_count += t.run_count;
@@ -202,7 +243,16 @@ function bucketTrends(trends: TrendPoint[], rangeDays: number, traces: TraceRow[
       buckets.set(key, { date: key, run_count: t.run_count, input_tokens: t.input_tokens, output_tokens: t.output_tokens });
     }
   }
-  return [...buckets.values()].sort((a, b) => a.date.localeCompare(b.date));
+  // Fill missing months
+  const now = new Date();
+  const start = new Date(now);
+  start.setMonth(start.getMonth() - Math.ceil(rangeDays / 30));
+  const result: TrendPoint[] = [];
+  for (let d = new Date(start); d <= now; d.setMonth(d.getMonth() + 1)) {
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    result.push(buckets.get(key) ?? { date: key, ...EMPTY_TREND });
+  }
+  return result;
 }
 
 const DEBOUNCE_MS = 400;

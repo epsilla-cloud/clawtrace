@@ -132,8 +132,42 @@ export function UsagePage() {
       if (disposed) return;
 
       chart = echarts.init(dom);
+
+      // Fill missing time buckets with zeros for continuous chart
+      const filledSeries = (() => {
+        if (!data.series.length) return data.series;
+        const dataMap = new Map<string, Record<string, unknown>>();
+        for (const row of data.series) dataMap.set(String(row.date), row);
+
+        const isHourly = rangeMs <= 2 * 86_400_000;
+        const result: Record<string, unknown>[] = [];
+        const now = new Date();
+
+        if (isHourly) {
+          // Fill 24 hours for 1-day view
+          const start = new Date(now);
+          start.setDate(start.getDate() - 1);
+          start.setMinutes(0, 0, 0);
+          for (let d = new Date(start); d <= now; d.setHours(d.getHours() + 1)) {
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:00`;
+            result.push(dataMap.get(key) ?? { date: key });
+          }
+        } else {
+          // Fill days for multi-day views
+          const days = Math.ceil(rangeMs / 86_400_000);
+          const start = new Date(now);
+          start.setDate(start.getDate() - days);
+          start.setHours(0, 0, 0, 0);
+          for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 1)) {
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00`;
+            result.push(dataMap.get(key) ?? { date: key });
+          }
+        }
+        return result;
+      })();
+
       // Parse dates as local date labels (not UTC timestamps)
-      const dates = data.series.map((r) => {
+      const dates = filledSeries.map((r) => {
         const raw = String(r.date);
         // For daily data: "2026-04-09T00:00" — treat as a date label, not a UTC instant
         // Extract YYYY-MM-DD and create local date to avoid timezone shift
@@ -185,7 +219,7 @@ export function UsagePage() {
           name: CATEGORY_LABELS[cat] ?? cat,
           type: 'bar',
           stack: 'usage',
-          data: data.series.map((r) => (r[cat] as number) ?? 0),
+          data: filledSeries.map((r) => (r[cat] as number) ?? 0),
           itemStyle: { color: CATEGORY_COLORS[cat] ?? '#b89c84' },
           barWidth: '60%',
         })),
