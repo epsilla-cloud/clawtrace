@@ -33,7 +33,7 @@ export async function GET() {
     }
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? '';
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').trim();
   const shareLink = `${siteUrl}/login?invitecode=${inviteCode}`;
 
   const [countResult] = await db
