@@ -52,6 +52,7 @@
 .brand { text-decoration: none; display: inline-flex; align-items: center; height: 36px; max-width: 220px; }
 .brandImage { width: auto; height: 100%; object-fit: contain; display: block; }
 .headerRight { display: flex; align-items: center; gap: 8px; }
+.desktopOnly { display: contents; }
 .hamburger {
   display: none; width: 36px; height: 36px; border: none; background: transparent;
   color: var(--ct-soft-text); cursor: pointer; border-radius: 8px;
@@ -430,7 +431,8 @@
     flex-direction: row; justify-content: space-between;
     height: 50px; padding: 0 12px;
   }
-  .headerRight { display: none; }
+  .nav { display: none; }
+  .desktopOnly { display: none; }
   .hamburger { display: flex; }
   .mobileMenu { display: flex; }
   .hero { margin-top: 40px; }
