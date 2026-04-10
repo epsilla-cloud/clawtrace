@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation';
 import { promises as fs } from 'fs';
 import path from 'path';
+import Link from 'next/link';
 import type { Metadata } from 'next';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
@@ -8,7 +9,7 @@ import remarkGfm from 'remark-gfm';
 import remarkRehype from 'remark-rehype';
 import rehypeSlug from 'rehype-slug';
 import rehypeStringify from 'rehype-stringify';
-import { findDocBySlug, getAllDocSlugs } from '@/lib/docs-nav';
+import { findDocBySlug, getAllDocSlugs, getPrevNextDocs } from '@/lib/docs-nav';
 import styles from './page.module.css';
 
 type Props = {
@@ -50,7 +51,8 @@ async function renderMarkdown(md: string): Promise<string> {
 
 export default async function DocPage({ params }: Props) {
   const { slug } = await params;
-  const page = findDocBySlug(slug.join('/'));
+  const slugStr = slug.join('/');
+  const page = findDocBySlug(slugStr);
   if (!page) notFound();
 
   const filePath = path.join(process.cwd(), 'src', 'docs-content', page.file);
@@ -62,10 +64,28 @@ export default async function DocPage({ params }: Props) {
     notFound();
   }
 
+  const { prev, next } = getPrevNextDocs(slugStr);
+
   return (
-    <article
-      className={styles.markdown}
-      dangerouslySetInnerHTML={{ __html: content }}
-    />
+    <div className={styles.wrapper}>
+      <article
+        className={styles.markdown}
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+      <nav className={styles.prevNext}>
+        {prev ? (
+          <Link href={`/docs/${prev.slug}`} className={styles.prevLink}>
+            <span className={styles.prevNextLabel}>Previous</span>
+            <span className={styles.prevNextTitle}>{prev.title}</span>
+          </Link>
+        ) : <span />}
+        {next ? (
+          <Link href={`/docs/${next.slug}`} className={styles.nextLink}>
+            <span className={styles.prevNextLabel}>Next</span>
+            <span className={styles.prevNextTitle}>{next.title}</span>
+          </Link>
+        ) : <span />}
+      </nav>
+    </div>
   );
 }

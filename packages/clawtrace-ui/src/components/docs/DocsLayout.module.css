@@ -57,12 +57,15 @@
   font-weight: 560;
 }
 
-/* Main content — scrolls independently */
+/* Main content — scrolls independently, centered */
 .content {
   flex: 1;
   min-width: 0;
   overflow-y: auto;
   padding: 32px 48px 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   scrollbar-width: thin;
   scrollbar-color: #c9b8a4 transparent;
 }

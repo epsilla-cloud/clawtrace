@@ -19,10 +19,10 @@ const ERROR_MESSAGES: Record<string, string> = {
 };
 
 const FEATURES = [
-  { icon: '⚡', text: 'See every agent run, tool call, and LLM cost in real time' },
-  { icon: '🔍', text: 'Diagnose failures with full trace context — no guessing' },
-  { icon: '💰', text: 'Track spend leaks and cut wasted LLM tokens automatically' },
-  { icon: '🛡️', text: 'Graph-native analytics across your entire agent fleet' },
+  { text: 'See every agent run, tool call, and LLM cost in real time' },
+  { text: 'Ask Tracy why something failed and get tailored recommendations' },
+  { text: 'Cut wasted tokens with per-span cost breakdowns across 80+ models' },
+  { text: 'Understand agent behavior with execution path, call graph, and timeline views' },
 ];
 
 export default async function LoginPage({
@@ -39,8 +39,7 @@ export default async function LoginPage({
       <div className={styles.left}>
         <div className={styles.leftInner}>
           <div className={styles.brand}>
-            <Image src="/favicon.png" alt="ClawTrace" width={36} height={36} className={styles.brandIcon} />
-            <span className={styles.brandName}>ClawTrace</span>
+            <Image src="/clawtrace-logo.png" alt="ClawTrace" width={140} height={32} className={styles.brandLogo} />
           </div>
 
           <div className={styles.hero}>
@@ -48,21 +47,21 @@ export default async function LoginPage({
               Make your OpenClaw agents better, cheaper, and faster.
             </h1>
             <p className={styles.heroSub}>
-              The workflow reliability control room for OpenClaw — built so you
-              can see what failed, where spend leaked, and what to fix first.
+              See what failed, where spend leaked, and how to improve.
+              Ask Tracy for tailored recommendations.
             </p>
           </div>
 
           <ul className={styles.features}>
             {FEATURES.map((f) => (
               <li key={f.text} className={styles.featureItem}>
-                <span className={styles.featureIcon}>{f.icon}</span>
+                <span className={styles.featureDot} />
                 <span>{f.text}</span>
               </li>
             ))}
           </ul>
 
-          <p className={styles.leftFooter}>Trusted by teams running OpenClaw in production.</p>
+          <p className={styles.leftFooter}>100 free credits on signup. No credit card required.</p>
         </div>
       </div>
 
@@ -70,7 +69,7 @@ export default async function LoginPage({
       <div className={styles.right}>
         <div className={styles.card}>
           <h2 className={styles.cardTitle}>Sign in</h2>
-          <p className={styles.cardSub}>Connect your OpenClaw workspace to ClawTrace.</p>
+          <p className={styles.cardSub}>Start analyzing your OpenClaw agent trajectories.</p>
 
           {errorMessage && (
             <div className={styles.errorBanner} role="alert">
@@ -84,7 +83,7 @@ export default async function LoginPage({
 
           <p className={styles.terms}>
             By signing in you agree to our{' '}
-            <a href="/privacy" className={styles.link}>Privacy Policy</a>.
+            <a href="https://www.epsilla.com/privacy" target="_blank" rel="noopener" className={styles.link}>Privacy Policy</a>.
           </p>
         </div>
       </div>

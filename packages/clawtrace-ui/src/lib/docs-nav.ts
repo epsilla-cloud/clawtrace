@@ -125,3 +125,12 @@ export function findDocBySlug(slug: string): DocPage | null {
 export function getAllDocSlugs(): string[] {
   return DOC_SECTIONS.flatMap((s) => s.pages.map((p) => p.slug));
 }
+
+export function getPrevNextDocs(slug: string): { prev: DocPage | null; next: DocPage | null } {
+  const allPages = DOC_SECTIONS.flatMap((s) => s.pages);
+  const idx = allPages.findIndex((p) => p.slug === slug);
+  return {
+    prev: idx > 0 ? allPages[idx - 1] : null,
+    next: idx >= 0 && idx < allPages.length - 1 ? allPages[idx + 1] : null,
+  };
+}

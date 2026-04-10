@@ -382,6 +382,13 @@
   font-size: 13px; color: var(--ct-soft-text); text-decoration: none; font-weight: 480;
 }
 .footerLink:hover { color: var(--ct-text); }
+.footerSocials { display: flex; gap: 8px; align-items: center; }
+.socialIcon {
+  color: #b89c84; display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  transition: color 120ms, background 120ms;
+}
+.socialIcon:hover { color: #5a4534; background: #f5e2d0; }
 .footerCopy {
   font-size: 12px; color: var(--ct-muted); margin: 0;
   display: inline-flex; align-items: center; gap: 4px;
