@@ -1,4 +1,3 @@
-/* Exact match of landing page header */
 .header {
   position: sticky;
   top: 0;
@@ -39,7 +38,7 @@
   color: #5a4534;
   text-decoration: none;
   font-size: 13px;
-  font-weight: 530;
+  font-weight: 480;
   display: inline-flex;
   align-items: center;
   padding: 0 11px;
@@ -51,5 +50,59 @@
 }
 .navLinkActive {
   color: #a4532b;
-  font-weight: 600;
+  font-weight: 520;
+}
+
+/* Hamburger — hidden on desktop */
+.hamburger {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: transparent;
+  color: #5a4534;
+  cursor: pointer;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+}
+.hamburger:hover { background: #f5e2d0; }
+
+.mobileMenu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 12px;
+  right: 12px;
+  background: #fffdf8;
+  border: 1px solid #dacbb4;
+  border-radius: 12px;
+  padding: 8px;
+  box-shadow: 0 8px 24px rgba(24, 12, 4, 0.15);
+  flex-direction: column;
+  gap: 2px;
+  z-index: 40;
+}
+.mobileLink {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #5a4534;
+  text-decoration: none;
+  font-weight: 480;
+}
+.mobileLink:hover { background: #f5e2d0; color: #2e2115; }
+.mobileDivider { height: 1px; background: #dacbb4; margin: 4px 0; }
+
+@media (max-width: 760px) {
+  .header {
+    height: 50px;
+    padding: 0 12px;
+  }
+  .headerRight { display: none; }
+  .hamburger { display: flex; }
+  .mobileMenu { display: flex; }
 }

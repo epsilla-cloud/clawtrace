@@ -160,6 +160,7 @@ function useScrollReveal() {
 /* ── Component ─────────────────────────────────────────────────────────── */
 export function LandingPage() {
   const [activeSlide, setActiveSlide] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
   const tracyRef = useScrollReveal();
   const featuresRef = useScrollReveal();
   const stepsRef = useScrollReveal();
@@ -194,6 +195,25 @@ export function LandingPage() {
           </nav>
           <UserButton />
         </div>
+        <button type="button" className={styles.hamburger} onClick={() => setMenuOpen((v) => !v)}
+          aria-label="Toggle menu">
+          <svg viewBox="0 0 20 14" width="20" height="14" fill="none" stroke="currentColor"
+            strokeWidth="1.8" strokeLinecap="round">
+            {menuOpen
+              ? <><line x1="2" y1="2" x2="18" y2="12" /><line x1="2" y1="12" x2="18" y2="2" /></>
+              : <><line x1="2" y1="2" x2="18" y2="2" /><line x1="2" y1="7" x2="18" y2="7" /><line x1="2" y1="12" x2="18" y2="12" /></>
+            }
+          </svg>
+        </button>
+        {menuOpen && (
+          <div className={styles.mobileMenu}>
+            <a href="#features" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Product</a>
+            <a href="#how-it-works" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>How It Works</a>
+            <a href="/docs" className={styles.mobileLink} onClick={() => setMenuOpen(false)}>Documentation</a>
+            <div className={styles.mobileDivider} />
+            <UserButton />
+          </div>
+        )}
       </header>
 
       {/* ── S1: Hero ───────────────────────────────────────────────── */}
