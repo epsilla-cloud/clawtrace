@@ -229,10 +229,45 @@ async def deduct_credits(
     tenant_id: str, amount: float, settings: Settings
 ) -> float:
     """Deduct credits FIFO by expiration. Supports negative balance (deficit).
+    Consolidates existing deficit with available credits before new deduction.
     Returns effective balance (can be negative)."""
     pool = await get_pool(settings)
     async with pool.acquire() as conn:
         async with conn.transaction():
+            # First: absorb any existing deficit from available credits
+            existing_deficit = await conn.fetchval(
+                "SELECT COALESCE(SUM(credits), 0) FROM credit_purchases WHERE user_id = $1 AND source = 'deficit' AND credits < 0",
+                tenant_id,
+            )
+            if existing_deficit < 0:
+                available = await conn.fetch(
+                    "SELECT id, credits FROM credit_purchases WHERE user_id = $1 AND credits > 0 AND expires_at > now() ORDER BY expires_at ASC FOR UPDATE",
+                    tenant_id,
+                )
+                deficit_remaining = abs(existing_deficit)
+                for row in available:
+                    if deficit_remaining <= 0:
+                        break
+                    take = min(row["credits"], deficit_remaining)
+                    await conn.execute(
+                        "UPDATE credit_purchases SET credits = credits - $1 WHERE id = $2",
+                        take, row["id"],
+                    )
+                    deficit_remaining -= take
+                # Delete or reduce deficit rows
+                if deficit_remaining <= 0:
+                    await conn.execute(
+                        "DELETE FROM credit_purchases WHERE user_id = $1 AND source = 'deficit' AND credits < 0",
+                        tenant_id,
+                    )
+                else:
+                    # Partial absorption: update deficit to remaining amount
+                    await conn.execute(
+                        "UPDATE credit_purchases SET credits = $1 WHERE user_id = $2 AND source = 'deficit' AND credits < 0",
+                        -deficit_remaining, tenant_id,
+                    )
+
+            # Now: FIFO deduction of the new amount
             purchases = await conn.fetch(
                 """
                 SELECT id, credits FROM credit_purchases
