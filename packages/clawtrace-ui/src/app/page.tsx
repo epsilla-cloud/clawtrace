@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { LandingPage } from '../components/clawtrace/landing/LandingPage';
+import { EpsillaChatWidget } from '../components/EpsillaChatWidget';
 import { siteConfig } from '../lib/site';
 
 export const metadata: Metadata = {
@@ -25,6 +26,7 @@ export default async function HomePage() {
     <div className="operator clawtrace">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <LandingPage />
+      <EpsillaChatWidget />
     </div>
   );
 }
