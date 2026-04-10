@@ -207,18 +207,22 @@ def _stream_tracy(
                 elif etype == "span.model_request_start":
                     yield _sse_event("thinking", {"text": "Reasoning about your question..."})
                 elif etype == "span.model_request_end":
-                    # Extract token usage
+                    # Extract token usage — track fresh input, cache, and output separately
                     if hasattr(event, "model_usage"):
                         u = event.model_usage
                         inp = getattr(u, "input_tokens", 0) or 0
                         out = getattr(u, "output_tokens", 0) or 0
                         cache_create = getattr(u, "cache_creation_input_tokens", 0) or 0
                         cache_read = getattr(u, "cache_read_input_tokens", 0) or 0
-                        collected["input_tokens"] = collected.get("input_tokens", 0) + inp + cache_create + cache_read
+                        # Fresh input = direct input + cache creation (both charged at full rate)
+                        collected["fresh_input_tokens"] = collected.get("fresh_input_tokens", 0) + inp + cache_create
+                        collected["cache_read_tokens"] = collected.get("cache_read_tokens", 0) + cache_read
                         collected["output_tokens"] = collected.get("output_tokens", 0) + out
+                        # Total for display (all input combined)
+                        collected["input_tokens"] = collected.get("input_tokens", 0) + inp + cache_create + cache_read
                         logger.info(
-                            "Tracy tokens: input=%d (cache_create=%d, cache_read=%d, direct=%d), output=%d",
-                            inp + cache_create + cache_read, cache_create, cache_read, inp, out,
+                            "Tracy tokens: fresh_input=%d, cache_read=%d, output=%d",
+                            inp + cache_create, cache_read, out,
                         )
                 elif etype == "session.status_idle":
                     yield _sse_event("done", {
@@ -310,17 +314,26 @@ async def _persist_conversation(
             settings=settings,
         )
 
-        # Report token consumption to payment service
-        inp = collected.get("input_tokens", 0) or 0
+        # Report token consumption to payment service.
+        # Cache reads charged at 1/10 of input rate (Sonnet 4.6: $3 input, $0.30 cache read).
+        # We report cache reads as 1/10 of tracy_input_token_1k so the pricing table
+        # applies the correct cost without needing a separate line item.
+        fresh_inp = collected.get("fresh_input_tokens", 0) or 0
+        cache_read = collected.get("cache_read_tokens", 0) or 0
         out = collected.get("output_tokens", 0) or 0
-        if inp > 0 or out > 0:
+        # Effective input = fresh tokens + cache reads at 1/10 rate
+        effective_input = fresh_inp + (cache_read / 10.0)
+        if effective_input > 0 or out > 0:
             items: dict[str, float] = {}
-            if inp > 0:
-                items["tracy_input_token_1k"] = inp / 1000.0
+            if effective_input > 0:
+                items["tracy_input_token_1k"] = effective_input / 1000.0
             if out > 0:
                 items["tracy_output_token_1k"] = out / 1000.0
             await report_consumption(user_id, items, settings)
-            logger.info("Tracy consumption reported: tenant=%s input=%d output=%d", user_id, inp, out)
+            logger.info(
+                "Tracy consumption: tenant=%s fresh_input=%d cache_read=%d (effective_input=%.0f) output=%d",
+                user_id, fresh_inp, cache_read, effective_input, out,
+            )
 
         logger.info("Tracy conversation saved: session=%s", db_session_id)
 
