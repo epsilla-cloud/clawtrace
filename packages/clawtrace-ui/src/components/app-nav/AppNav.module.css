@@ -122,7 +122,7 @@
   color: #7c6854;
   border: 1px solid transparent;
   transition: background 100ms, color 100ms;
-  overflow: hidden;
+  overflow: visible;
   white-space: nowrap;
   min-width: 0;
 }
