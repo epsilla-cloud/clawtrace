@@ -38,9 +38,9 @@ export default async function LoginPage({
       {/* Left — introduction */}
       <div className={styles.left}>
         <div className={styles.leftInner}>
-          <div className={styles.brand}>
+          <a href="/" className={styles.brand}>
             <Image src="/clawtrace-logo.png" alt="ClawTrace" width={140} height={32} className={styles.brandLogo} />
-          </div>
+          </a>
 
           <div className={styles.hero}>
             <h1 className={styles.heroTitle}>
@@ -68,6 +68,9 @@ export default async function LoginPage({
       {/* Right — login panel */}
       <div className={styles.right}>
         <div className={styles.card}>
+          <a href="/" className={styles.mobileBrand}>
+            <Image src="/clawtrace-logo.png" alt="ClawTrace" width={120} height={28} className={styles.brandLogo} />
+          </a>
           <h2 className={styles.cardTitle}>Sign in</h2>
           <p className={styles.cardSub}>Start analyzing your OpenClaw agent trajectories.</p>
 

@@ -82,11 +82,11 @@
 
 .terms { margin: 18px 0 0; font-size: 11px; color: #7c6854; text-align: center; line-height: 1.5; }
 .link { color: #a4532b; text-decoration: none; }
-.link:hover { text-decoration: underline; }
+.link:hover { color: #853f1d; }
+
+.mobileBrand { display: none; text-decoration: none; margin-bottom: 8px; }
 
 @media (max-width: 768px) {
-  .page { flex-direction: column; }
-  .left { padding: 36px 28px 32px; flex: none; }
-  .heroTitle { font-size: 24px; }
-  .right { width: 100%; padding: 32px 20px 40px; }
-}
+  .left { display: none; }
+  .right { width: 100%; min-height: 100dvh; padding: 32px 20px 40px; }
+  .mobileBrand { display: block; }
