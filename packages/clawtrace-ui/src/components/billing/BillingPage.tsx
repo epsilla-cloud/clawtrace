@@ -77,6 +77,8 @@ function GiftIcon({ className }: { className?: string }) {
 /* ── Main component ────────────────────────────────────────────────────── */
 export function BillingPage() {
   const [status, setStatus] = useState<CreditStatus | null>(null);
+  const [shareLink, setShareLink] = useState('');
+  const [copied, setCopied] = useState(false);
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState<string | null>(null);
@@ -84,12 +86,17 @@ export function BillingPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [creditsRes, pkgRes] = await Promise.all([
+      const [creditsRes, pkgRes, refRes] = await Promise.all([
         fetch('/api/billing/credits', { cache: 'no-store' }),
         fetch('/api/billing/credits/packages', { cache: 'no-store' }),
+        fetch('/api/referral/info', { cache: 'no-store' }),
       ]);
       if (creditsRes.ok) setStatus(await creditsRes.json());
       if (pkgRes.ok) setPackages(await pkgRes.json());
+      if (refRes.ok) {
+        const refData = await refRes.json();
+        if (refData.shareLink) setShareLink(refData.shareLink);
+      }
     } catch { /* ignore */ }
     setLoading(false);
   }, []);
@@ -185,6 +192,30 @@ export function BillingPage() {
             </button>
             </div>
           ))}
+        </div>
+
+        {/* Referral invite card */}
+        <div className={styles.inviteCard}>
+          <p className={styles.inviteTitle}>
+            Invite a friend and you both get 200 FREE credits!
+          </p>
+          <div className={styles.inviteLinkRow}>
+            <input
+              readOnly
+              className={styles.inviteInput}
+              value={shareLink || '...'}
+              onClick={(e) => (e.target as HTMLInputElement).select()}
+            />
+            <button className={styles.copyBtn} onClick={() => {
+              if (shareLink) { navigator.clipboard.writeText(shareLink); setCopied(true); setTimeout(() => setCopied(false), 2000); }
+            }} title="Copy link">
+              {copied ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></svg>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Credit History Table */}

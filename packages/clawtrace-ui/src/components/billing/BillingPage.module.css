@@ -254,6 +254,43 @@
   margin-top: 4px;
 }
 
+/* ── Referral invite card ─────────────────────────────────────────────── */
+.inviteCard {
+  position: relative;
+  border: 1px solid #dacbb4;
+  border-radius: 14px;
+  padding: 18px 20px;
+  background: linear-gradient(135deg, #fffdf8 0%, #faf0e4 50%, #fffdf8 100%);
+  background-size: 200% 200%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+.inviteCard::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%; width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(164,83,43,.06), transparent);
+  animation: inviteShimmer 4s ease-in-out infinite;
+}
+@keyframes inviteShimmer { 0% { left: -100%; } 100% { left: 200%; } }
+.inviteTitle { margin: 0; font-size: 15px; font-weight: 520; color: #2e2115; }
+.inviteLinkRow { display: flex; align-items: center; gap: 8px; }
+.inviteInput {
+  flex: 1; height: 38px; border: 1px solid #dacbb4; border-radius: 8px;
+  background: #faf4ec; padding: 0 12px; font-size: 13px; color: #5a4534;
+  font-family: inherit; outline: none;
+}
+.inviteInput:focus { border-color: #c9a882; }
+.copyBtn {
+  width: 28px; height: 28px; border: 1px solid #dacbb4; border-radius: 6px;
+  background: #fffdf8; color: #7c6854; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 100ms;
+}
+.copyBtn:hover { background: #f5e2d0; }
+
 /* ── Credit history table ──────────────────────────────────────────────── */
 .tableCard {
   border: 1px solid #dacbb4;
