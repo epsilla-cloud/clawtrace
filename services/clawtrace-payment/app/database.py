@@ -318,35 +318,27 @@ async def deduct_credits(
                 tenant_id,
             )
 
-            # Queue notifications based on balance
+            # Queue notifications based on balance (skip if already pending)
             if effective_balance <= 0:
-                # Deficit: queue exhaustion notification
-                await conn.execute(
-                    """
-                    INSERT INTO pending_notifications
-                        (user_id, notification_type, first_detected_at)
-                    VALUES ($1, 'credit_exhausted', now())
-                    ON CONFLICT (user_id, notification_type, sent_at)
-                        WHERE sent_at IS NULL
-                    DO NOTHING
-                    """,
+                existing = await conn.fetchval(
+                    "SELECT 1 FROM pending_notifications WHERE user_id = $1 AND notification_type = 'credit_exhausted' AND sent_at IS NULL",
                     tenant_id,
                 )
-            elif effective_balance < settings.low_credit_threshold:
-                await conn.execute(
-                    """
-                    INSERT INTO pending_notifications
-                        (user_id, notification_type, first_detected_at)
-                    VALUES ($1, 'low_credit', now())
-                    ON CONFLICT (user_id, notification_type, sent_at)
-                        WHERE sent_at IS NULL
-                    DO UPDATE SET first_detected_at = LEAST(
-                        pending_notifications.first_detected_at,
-                        EXCLUDED.first_detected_at
+                if not existing:
+                    await conn.execute(
+                        "INSERT INTO pending_notifications (user_id, notification_type, first_detected_at) VALUES ($1, 'credit_exhausted', now())",
+                        tenant_id,
                     )
-                    """,
+            elif effective_balance < settings.low_credit_threshold:
+                existing = await conn.fetchval(
+                    "SELECT 1 FROM pending_notifications WHERE user_id = $1 AND notification_type = 'low_credit' AND sent_at IS NULL",
                     tenant_id,
                 )
+                if not existing:
+                    await conn.execute(
+                        "INSERT INTO pending_notifications (user_id, notification_type, first_detected_at) VALUES ($1, 'low_credit', now())",
+                        tenant_id,
+                    )
 
             return effective_balance
 
