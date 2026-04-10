@@ -413,18 +413,19 @@ export function LandingPage() {
           <Link href="/docs/billing/credits" className={styles.billingLink}>Learn more</Link>
         </p>
 
-        <div className={styles.pricingGrid}>
+        <div className={styles.pricingTable}>
           {[
-            { name: 'Starter', price: 10, credits: '1,000', badge: null },
-            { name: 'Growth', price: 50, credits: '5,000', badge: null },
-            { name: 'Pro', price: 90, credits: '10,000', badge: '10% Off' },
-            { name: 'Scale', price: 400, credits: '50,000', badge: 'Best Value' },
-          ].map((pkg) => (
-            <div key={pkg.name} className={styles.pricingCard}>
-              {pkg.badge && <span className={styles.pricingBadge}>{pkg.badge}</span>}
-              <p className={styles.pricingName}>{pkg.name}</p>
-              <p className={styles.pricingPrice}>${pkg.price}</p>
-              <p className={styles.pricingCredits}>{pkg.credits} credits</p>
+            { label: 'Storage', rate: '1.35', unit: 'credits / MB / day', color: '#d4a030' },
+            { label: 'List Trajectories', rate: '0.50', unit: 'credits / query', color: '#4d9f6e' },
+            { label: 'Trajectory Detail', rate: '0.20', unit: 'credits / query', color: '#3a918e' },
+            { label: 'Tracy Agent Input', rate: '0.50', unit: 'credits / 1k tokens', color: '#7663ad' },
+            { label: 'Tracy Agent Output', rate: '2.50', unit: 'credits / 1k tokens', color: '#a4532b' },
+          ].map((item) => (
+            <div key={item.label} className={styles.pricingRow}>
+              <span className={styles.pricingDot} style={{ background: item.color }} />
+              <span className={styles.pricingLabel}>{item.label}</span>
+              <span className={styles.pricingRate}>{item.rate}</span>
+              <span className={styles.pricingUnit}>{item.unit}</span>
             </div>
           ))}
         </div>
