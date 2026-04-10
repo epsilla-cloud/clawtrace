@@ -51,6 +51,34 @@ ClawTrace is the observability platform for OpenClaw agents. It captures every t
 | **Ask Tracy** | Conversational AI analyst that queries your trajectory graph, generates ECharts visualizations, and provides actionable recommendations |
 | **Consumption Billing** | Pay for what you use with credits. No seat-based subscriptions |
 
+### Three Views for Every Trajectory
+
+Every trajectory can be inspected through three complementary views. Click any step in any view to open the Step Detail panel with full input/output payloads, token counts, duration, cost estimate, and error details.
+
+#### Execution Path
+
+<p align="center">
+  <img src="packages/clawtrace-ui/public/docs/images/2.2.1-see-detail-trajectory---tracing-view.png" alt="Execution Path View" width="720" />
+</p>
+
+The execution path renders the complete agent run as a collapsible tree. Each node represents one step the agent took: a session start, an LLM inference, a tool execution, or a sub-agent delegation. Hierarchy lines show parent-child relationships. Metadata badges on each node display the model name, duration, token counts, and estimated cost. Nodes with errors are highlighted with a red border. You can expand and collapse subtrees to focus on the part of the execution that matters.
+
+#### Call Graph
+
+<p align="center">
+  <img src="packages/clawtrace-ui/public/docs/images/2.2.1-see-detail-trajectory---graph-view.png" alt="Call Graph View" width="720" />
+</p>
+
+The call graph shows the trajectory as an interactive force-directed node-link diagram. Each unique actor (agent session, LLM model, tool) appears as a node. Edges represent calls between them. Node size reflects how many times that actor was invoked. This view is ideal for understanding the shape of a complex multi-agent run at a glance: which models were used, which tools were called, and how they connect.
+
+#### Timeline
+
+<p align="center">
+  <img src="packages/clawtrace-ui/public/docs/images/2.2.3-see-detail-trajectory---timeline-view.png" alt="Timeline View" width="720" />
+</p>
+
+The timeline presents a horizontal Gantt chart of every span in the trajectory. Each bar represents one step, positioned by its start time and sized by its duration. Bars are color-coded by step type (LLM call, tool call, sub-agent, session). This view makes it easy to spot bottlenecks (the longest bars), parallelism (overlapping bars), and idle gaps (empty space between bars) that reveal optimization opportunities.
+
 ## Getting Started
 
 ### 1. Install the ClawTrace plugin on your OpenClaw agent
