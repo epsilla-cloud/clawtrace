@@ -24,16 +24,20 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const page = findDocBySlug(slug.join('/'));
-  if (!page) return { title: 'Documentation' };
+  const slugStr = slug.join('/');
+  const page = findDocBySlug(slugStr);
+  if (!page) return { title: 'Documentation', robots: { index: false } };
   return {
     title: page.title,
     description: page.description,
     keywords: page.keywords,
+    robots: { index: true, follow: true },
+    alternates: { canonical: `/docs/${slugStr}` },
     openGraph: {
       title: `${page.title} — ClawTrace Docs`,
       description: page.description,
       type: 'article',
+      url: `/docs/${slugStr}`,
     },
   };
 }
@@ -66,8 +70,22 @@ export default async function DocPage({ params }: Props) {
 
   const { prev, next } = getPrevNextDocs(slugStr);
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: page.title,
+    description: page.description,
+    url: `https://clawtrace.ai/docs/${slugStr}`,
+    publisher: {
+      '@type': 'Organization',
+      name: 'ClawTrace',
+      url: 'https://clawtrace.ai',
+    },
+  };
+
   return (
     <div className={styles.wrapper}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <article
         className={styles.markdown}
         dangerouslySetInnerHTML={{ __html: content }}

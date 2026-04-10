@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { AgentDashboardPage } from '@/components/traces/AgentDashboardPage';
 
-export const metadata = { title: 'Agent Dashboard' };
+export const metadata = { title: 'Agent Dashboard', robots: { index: false, follow: false } };
 
 function DashboardSkeleton() {
   const bar = { borderRadius: 6, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite' } as const;

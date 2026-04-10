@@ -8,7 +8,7 @@ export const metadata: Metadata = {
     absolute: 'Make your OpenClaw agents better, cheaper, and faster | ClawTrace',
   },
   description: 'See what failed, where spend leaked, and what to fix first with ClawTrace observability.',
-  alternates: { canonical: '/' },
+  alternates: { canonical: 'https://clawtrace.ai' },
 };
 
 export default async function HomePage() {

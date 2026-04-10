@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { UsagePage } from '@/components/billing/UsagePage';
 
-export const metadata = { title: 'Usage' };
+export const metadata = { title: 'Usage', robots: { index: false, follow: false } };
 
 export default function Page() {
   return (

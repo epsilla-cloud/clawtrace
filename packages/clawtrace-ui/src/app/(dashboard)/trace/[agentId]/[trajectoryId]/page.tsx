@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { TrajectoryPage } from '@/components/traces/TrajectoryPage';
 
-export const metadata = { title: 'Trajectory' };
+export const metadata = { title: 'Trajectory', robots: { index: false, follow: false } };
 
 function TrajectorySkeleton() {
   const bar = { borderRadius: 8, background: '#f0e4d4', animation: 'ct-pulse 1.4s ease-in-out infinite' } as const;
