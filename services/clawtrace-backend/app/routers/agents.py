@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import asyncio
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import get_current_user, get_settings
+from ..cascade_delete import cascade_delete_agent_data
 from ..config import Settings
 from ..database import delete_agent, list_agents, rename_agent
 from ..models import AgentItem, AgentListResponse, RenameAgentRequest, UserSession
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/v1/agents", tags=["agents"])
 
@@ -52,8 +58,8 @@ async def delete_agent_endpoint(
     session: UserSession = Depends(get_current_user),
     settings: Settings = Depends(get_settings),
 ) -> None:
-    """Permanently delete an agent and its observe key.
-    Unlike revoke, this hard-deletes the row from the database.
+    """Permanently delete an agent, its observe key, and all associated trace data.
+    Cascade deletes raw blobs from Azure Storage and rows from Databricks silver tables.
     """
     deleted = await delete_agent(agent_id, session.db_id, settings)
     if not deleted:
@@ -61,3 +67,7 @@ async def delete_agent_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="agent not found",
         )
+    # Cascade delete trace data in the background (don't block the API response)
+    asyncio.create_task(
+        cascade_delete_agent_data(session.db_id, agent_id, settings)
+    )

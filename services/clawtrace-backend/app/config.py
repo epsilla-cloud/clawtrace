@@ -38,6 +38,16 @@ class Settings(BaseSettings):
     payment_url: str = ""  # e.g. http://localhost:8083
     deficit_check_interval_seconds: int = 60  # 1 minute
 
+    # Azure Blob Storage — for cascade deletion of raw trace data
+    azure_storage_account_url: str = ""   # e.g. https://clawtracelake01.blob.core.windows.net
+    azure_storage_container: str = ""     # e.g. clawtrace-raw
+    azure_storage_connection_string: str = ""
+
+    # Databricks — for cascade deletion of silver table data
+    databricks_host: str = ""
+    databricks_token: str = ""
+    databricks_warehouse_id: str = ""
+
     # Tracy — Anthropic managed agent
     anthropic_api_key: str = ""
     tracy_agent_id: str = ""       # e.g. agent_011CZsfawVXEZxjin1V4sQx3
