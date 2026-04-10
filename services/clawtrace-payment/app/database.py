@@ -318,27 +318,36 @@ async def deduct_credits(
                 tenant_id,
             )
 
-            # Queue notifications based on balance (skip if already pending)
+            # Queue notifications based on balance.
+            # Skip if already notified (pending or sent). Once credits recover
+            # above threshold, sent flags are cleared so notifications can re-fire.
             if effective_balance <= 0:
-                existing = await conn.fetchval(
-                    "SELECT 1 FROM pending_notifications WHERE user_id = $1 AND notification_type = 'credit_exhausted' AND sent_at IS NULL",
+                already = await conn.fetchval(
+                    "SELECT 1 FROM pending_notifications WHERE user_id = $1 AND notification_type = 'credit_exhausted'",
                     tenant_id,
                 )
-                if not existing:
+                if not already:
                     await conn.execute(
                         "INSERT INTO pending_notifications (user_id, notification_type, first_detected_at) VALUES ($1, 'credit_exhausted', now())",
                         tenant_id,
                     )
             elif effective_balance < settings.low_credit_threshold:
-                existing = await conn.fetchval(
-                    "SELECT 1 FROM pending_notifications WHERE user_id = $1 AND notification_type = 'low_credit' AND sent_at IS NULL",
+                already = await conn.fetchval(
+                    "SELECT 1 FROM pending_notifications WHERE user_id = $1 AND notification_type = 'low_credit'",
                     tenant_id,
                 )
-                if not existing:
+                if not already:
                     await conn.execute(
                         "INSERT INTO pending_notifications (user_id, notification_type, first_detected_at) VALUES ($1, 'low_credit', now())",
                         tenant_id,
                     )
+            else:
+                # Credits recovered above threshold: clear sent flags so
+                # notifications can re-fire if credits drop again
+                await conn.execute(
+                    "DELETE FROM pending_notifications WHERE user_id = $1 AND sent_at IS NOT NULL",
+                    tenant_id,
+                )
 
             return effective_balance
 

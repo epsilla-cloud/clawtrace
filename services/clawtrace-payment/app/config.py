@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
     # Scheduler intervals (seconds)
     harvest_interval_seconds: int = 600
-    notification_interval_seconds: int = 3600
+    notification_interval_seconds: int = 900
     usage_poll_interval_seconds: int = 900
 
     # Audit log — blob storage
