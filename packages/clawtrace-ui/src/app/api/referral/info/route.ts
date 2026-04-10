@@ -33,8 +33,8 @@ export async function GET() {
     }
   }
 
-  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').trim();
-  const shareLink = `${siteUrl}/login?invitecode=${inviteCode}`;
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/[\s\r\n]+/g, '').replace(/\/+$/, '');
+  const shareLink = `${siteUrl}/login?invitecode=${(inviteCode ?? '').trim()}`;
 
   const [countResult] = await db
     .select({ count: sql<number>`count(*)::int` })
