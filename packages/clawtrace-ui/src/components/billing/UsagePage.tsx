@@ -133,7 +133,8 @@ export function UsagePage() {
 
       chart = echarts.init(dom);
 
-      // Fill missing time buckets with zeros for continuous chart
+      // Fill missing time buckets with zeros for continuous chart.
+      // API returns UTC keys like "2026-04-09T19:00". Use UTC for gap-fill to match.
       const filledSeries = (() => {
         if (!data.series.length) return data.series;
         const dataMap = new Map<string, Record<string, unknown>>();
@@ -143,23 +144,27 @@ export function UsagePage() {
         const result: Record<string, unknown>[] = [];
         const now = new Date();
 
+        const utcKey = (d: Date, hourly: boolean) => {
+          const y = d.getUTCFullYear();
+          const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+          const day = String(d.getUTCDate()).padStart(2, '0');
+          const h = String(d.getUTCHours()).padStart(2, '0');
+          return `${y}-${m}-${day}T${hourly ? h : '00'}:00`;
+        };
+
         if (isHourly) {
-          // Fill 24 hours for 1-day view
-          const start = new Date(now);
-          start.setDate(start.getDate() - 1);
-          start.setMinutes(0, 0, 0);
-          for (let d = new Date(start); d <= now; d.setHours(d.getHours() + 1)) {
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T${String(d.getHours()).padStart(2, '0')}:00`;
+          const start = new Date(now.getTime() - 24 * 3600_000);
+          start.setUTCMinutes(0, 0, 0);
+          for (let d = new Date(start); d <= now; d.setUTCHours(d.getUTCHours() + 1)) {
+            const key = utcKey(d, true);
             result.push(dataMap.get(key) ?? { date: key });
           }
         } else {
-          // Fill days for multi-day views
           const days = Math.ceil(rangeMs / 86_400_000);
-          const start = new Date(now);
-          start.setDate(start.getDate() - days);
-          start.setHours(0, 0, 0, 0);
-          for (let d = new Date(start); d <= now; d.setDate(d.getDate() + 1)) {
-            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}T00:00`;
+          const start = new Date(now.getTime() - days * 86_400_000);
+          start.setUTCHours(0, 0, 0, 0);
+          for (let d = new Date(start); d <= now; d.setUTCDate(d.getUTCDate() + 1)) {
+            const key = utcKey(d, false);
             result.push(dataMap.get(key) ?? { date: key });
           }
         }
