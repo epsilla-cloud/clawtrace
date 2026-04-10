@@ -234,11 +234,21 @@ async def deduct_credits(
     pool = await get_pool(settings)
     async with pool.acquire() as conn:
         async with conn.transaction():
-            # First: absorb any existing deficit from available credits
-            existing_deficit = await conn.fetchval(
-                "SELECT COALESCE(SUM(credits), 0) FROM credit_purchases WHERE user_id = $1 AND source = 'deficit' AND credits < 0",
+            # First: consolidate any existing deficit rows into a single row
+            deficit_rows = await conn.fetch(
+                "SELECT id, credits FROM credit_purchases WHERE user_id = $1 AND source = 'deficit' AND credits < 0 FOR UPDATE",
                 tenant_id,
             )
+            existing_deficit = sum(r["credits"] for r in deficit_rows)
+
+            if deficit_rows:
+                # Delete all deficit rows — we'll re-create a single one at the end if needed
+                await conn.execute(
+                    "DELETE FROM credit_purchases WHERE user_id = $1 AND source = 'deficit' AND credits < 0",
+                    tenant_id,
+                )
+
+            # Try to absorb deficit from available credits
             if existing_deficit < 0:
                 available = await conn.fetch(
                     "SELECT id, credits FROM credit_purchases WHERE user_id = $1 AND credits > 0 AND expires_at > now() ORDER BY expires_at ASC FOR UPDATE",
@@ -254,18 +264,8 @@ async def deduct_credits(
                         take, row["id"],
                     )
                     deficit_remaining -= take
-                # Delete or reduce deficit rows
-                if deficit_remaining <= 0:
-                    await conn.execute(
-                        "DELETE FROM credit_purchases WHERE user_id = $1 AND source = 'deficit' AND credits < 0",
-                        tenant_id,
-                    )
-                else:
-                    # Partial absorption: update deficit to remaining amount
-                    await conn.execute(
-                        "UPDATE credit_purchases SET credits = $1 WHERE user_id = $2 AND source = 'deficit' AND credits < 0",
-                        -deficit_remaining, tenant_id,
-                    )
+                # If deficit remains after absorption, track it for the final deficit row
+                existing_deficit = -deficit_remaining if deficit_remaining > 0 else 0
 
             # Now: FIFO deduction of the new amount
             purchases = await conn.fetch(
@@ -297,8 +297,10 @@ async def deduct_credits(
                     )
                 remaining -= take
 
-            # If there's still remaining to deduct, record as deficit (negative credits)
-            if remaining > 0:
+            # Combine any unabsorbed existing deficit with new remaining
+            total_deficit = abs(existing_deficit) + remaining
+            if total_deficit > 0:
+                # Single deficit row — replaces all previous deficit rows
                 await conn.execute(
                     """
                     INSERT INTO credit_purchases
@@ -306,7 +308,7 @@ async def deduct_credits(
                     VALUES ($1, $2, 0, 'deficit', now() + interval '100 years')
                     """,
                     tenant_id,
-                    -remaining,
+                    -total_deficit,
                 )
 
             # Total balance includes negative deficit rows
