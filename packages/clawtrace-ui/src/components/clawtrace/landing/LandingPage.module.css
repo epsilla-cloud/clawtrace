@@ -86,17 +86,8 @@
   background: color-mix(in srgb, var(--ct-panel-subtle) 60%, white);
 }
 .githubBadge {
-  height: 32px; border-radius: 8px;
-  border: 1px solid color-mix(in srgb, var(--ct-border) 80%, white);
-  background: var(--ct-panel-bg, #fffdf8);
-  color: var(--ct-text, #2e2115);
-  text-decoration: none; font-size: 13px; font-weight: 500;
-  display: inline-flex; align-items: center; gap: 5px; padding: 0 10px;
-  transition: background 120ms, border-color 120ms;
-}
-.githubBadge:hover {
-  background: color-mix(in srgb, var(--ct-panel-subtle) 60%, white);
-  border-color: var(--ct-border);
+  display: inline-flex; align-items: center;
+  text-decoration: none; flex-shrink: 0;
 }
 
 /* ── S1: Hero ────────────────────────────────────────────────────────── */
@@ -433,6 +424,7 @@
   }
   .nav { display: none; }
   .desktopOnly { display: none; }
+  .headerRight { margin-left: auto; }
   .hamburger { display: flex; }
   .mobileMenu { display: flex; }
   .hero { margin-top: 40px; }
