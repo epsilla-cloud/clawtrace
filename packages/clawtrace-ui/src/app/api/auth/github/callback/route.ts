@@ -121,6 +121,8 @@ export async function GET(request: NextRequest) {
           }
         } catch (e) { console.error('applyReferral error:', e); }
       }
+      const { notifySlack } = await import('@/lib/slack');
+      void notifySlack(`:tada: *New user signed up* via GitHub\nName: ${githubUser.name ?? githubUser.login}\nEmail: ${email ?? 'N/A'}`);
     }
 
     const token = signToken({
