@@ -412,6 +412,22 @@ export function LandingPage() {
           No minimum commitment, no surprise invoices.{' '}
           <Link href="/docs/billing/credits" className={styles.billingLink}>Learn more</Link>
         </p>
+
+        <div className={styles.pricingGrid}>
+          {[
+            { name: 'Starter', price: 10, credits: '1,000', badge: null },
+            { name: 'Growth', price: 50, credits: '5,000', badge: null },
+            { name: 'Pro', price: 90, credits: '10,000', badge: '10% Off' },
+            { name: 'Scale', price: 400, credits: '50,000', badge: 'Best Value' },
+          ].map((pkg) => (
+            <div key={pkg.name} className={styles.pricingCard}>
+              {pkg.badge && <span className={styles.pricingBadge}>{pkg.badge}</span>}
+              <p className={styles.pricingName}>{pkg.name}</p>
+              <p className={styles.pricingPrice}>${pkg.price}</p>
+              <p className={styles.pricingCredits}>{pkg.credits} credits</p>
+            </div>
+          ))}
+        </div>
       </section>
 
       {/* ── S9: CTA ────────────────────────────────────────────────── */}

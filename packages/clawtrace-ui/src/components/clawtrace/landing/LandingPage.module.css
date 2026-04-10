@@ -337,6 +337,29 @@
 }
 .billingLink { color: var(--ct-primary); text-decoration: none; font-weight: 500; }
 .billingLink:hover { color: var(--ct-primary-strong); }
+.pricingGrid {
+  margin-top: 28px; display: grid;
+  grid-template-columns: repeat(4, 1fr); gap: 12px;
+}
+.pricingCard {
+  position: relative; border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--ct-border) 74%, white);
+  background: #fffdf8; padding: 20px 16px; text-align: center;
+  transition: border-color 140ms, transform 140ms, box-shadow 140ms;
+}
+.pricingCard:hover {
+  border-color: #c9a882; transform: translateY(-3px);
+  box-shadow: 0 6px 24px rgba(164, 83, 43, 0.12);
+}
+.pricingBadge {
+  position: absolute; top: -10px; right: 10px;
+  padding: 2px 10px; border-radius: 999px;
+  background: #a4532b; color: #fff; font-size: 10px;
+  font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase;
+}
+.pricingName { margin: 0; font-size: 13px; color: var(--ct-muted); font-weight: 520; text-transform: uppercase; letter-spacing: 0.05em; }
+.pricingPrice { margin: 8px 0 4px; font-size: clamp(28px, 3.5vw, 36px); font-weight: 540; color: var(--ct-text); letter-spacing: -0.02em; }
+.pricingCredits { margin: 0; font-size: 14px; color: var(--ct-soft-text); }
 
 /* ── S9: CTA ─────────────────────────────────────────────────────────── */
 .cta {
@@ -414,6 +437,11 @@
   .billingHighlights { grid-template-columns: 1fr; }
   .roadmapGrid { grid-template-columns: 1fr; }
   .tracyFeatures { grid-template-columns: 1fr; }
+  .pricingGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 520px) {
+  .pricingGrid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
