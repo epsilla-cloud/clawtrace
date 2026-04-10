@@ -307,7 +307,10 @@ export function TracesPage({ initialAgent }: { initialAgent?: string } = {}) {
       if (res.status >= 500) { window.location.href = '/trace'; return; }
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
-        throw new Error(e.detail ?? `HTTP ${res.status}`);
+        const detail = e.detail;
+        const msg = typeof detail === 'string' ? detail
+          : detail?.message ?? `HTTP ${res.status}`;
+        throw new Error(msg);
       }
       setData(await res.json());
       setPage(0);

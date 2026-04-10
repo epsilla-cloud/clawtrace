@@ -45,8 +45,10 @@ export function TrajectoryPage({
       if (res.status === 404) throw new Error('Trajectory not found. It may have expired or the ID may be incorrect.');
       if (res.status >= 500) { window.location.href = `/trace/${agentId}`; return; }
       if (!res.ok) {
-        const e = (await res.json().catch(() => ({}))) as { detail?: string };
-        throw new Error(e.detail ?? `HTTP ${res.status}`);
+        const e = (await res.json().catch(() => ({}))) as { detail?: string | { message?: string } };
+        const detail = e.detail;
+        const msg = typeof detail === 'string' ? detail : (detail as { message?: string })?.message ?? `HTTP ${res.status}`;
+        throw new Error(msg);
       }
       setResponse((await res.json()) as TraceDetailResponse);
     } catch (e: unknown) {
