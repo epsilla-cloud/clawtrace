@@ -177,6 +177,31 @@ graph TB
 5. **Serve**: The backend API runs Cypher queries, the payment service tracks credit consumption, and Tracy's MCP server provides graph access to the AI agent
 6. **Display**: Next.js UI renders trace trees, call graphs, timelines, and Tracy's streamed responses with inline ECharts
 
+### Graph Schema
+
+<p align="center">
+  <img src="packages/clawtrace-ui/public/docs/images/graph_schema.png" alt="PuppyGraph Schema: Tenant → Agent → Trace → Span" width="720" />
+</p>
+
+Agent observability data is naturally a graph: tenants own agents, agents produce traces, traces contain spans, and spans form parent-child hierarchies. ClawTrace models this explicitly with 4 vertex types (Tenant, Agent, Trace, Span) and 4 edge types (HAS_AGENT, OWNS, HAS_SPAN, CHILD_OF), queryable via Cypher.
+
+### Why This Architecture Scales
+
+Most observability tools store traces in relational databases or document stores. That works for thousands of traces. It breaks at billions.
+
+**Separation of storage and compute.** Raw events land in cloud object storage (Azure Blob, GCS, or S3) as partitioned JSON. Databricks materializes them into Delta Lake Iceberg tables with data skipping statistics and Z-order clustering. PuppyGraph reads these tables directly without copying data. Storage scales infinitely at object storage prices. Compute scales independently.
+
+**Graph queries over a data lake.** PuppyGraph virtualizes Delta Lake tables as a Cypher-queryable graph. This means you get the expressiveness of graph traversal (find all spans that are children of a specific span, trace the full call chain across sub-agents) with the storage economics of a data lake. No separate graph database to maintain, no ETL to a graph store, no data duplication.
+
+**Clustered for the access patterns that matter.** Each table is clustered by the keys that the UI actually queries:
+- `pg_traces`: clustered by `(tenant_id, agent_id, trace_id)` for fast agent dashboard loads
+- `pg_spans`: clustered by `(trace_id, span_id)` for fast trace detail queries
+- `pg_child_of_edges`: clustered by `(trace_id, parent_span_id)` for hierarchy traversal
+
+Delta Lake's data skipping statistics prune irrelevant Parquet files before any data is read. A query for one agent's traces in a platform with a billion spans touches only the relevant files.
+
+**Tracy queries the graph directly.** Because PuppyGraph exposes the data lake as a Cypher endpoint, Tracy (the AI analyst) writes and executes graph queries in real time against the same data that powers the UI. No pre-computed aggregations, no stale materialized views. Tracy's answers are always up to date.
+
 ### Monorepo Structure
 
 ```
