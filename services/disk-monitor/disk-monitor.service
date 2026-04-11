@@ -1,0 +1,18 @@
+[Unit]
+Description=Disk I/O Monitor — PuppyGraph VM
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=azureuser
+Restart=always
+RestartSec=10
+WorkingDirectory=/opt/clawtrace/disk-monitor
+ExecStart=/usr/bin/python3 /opt/clawtrace/disk-monitor/disk_monitor.py
+EnvironmentFile=/opt/clawtrace/disk-monitor/.env
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

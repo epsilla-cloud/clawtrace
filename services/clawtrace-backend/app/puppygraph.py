@@ -10,7 +10,10 @@ Response: [{"Keys": [...], "Values": [...]}]  — one dict per row
 """
 from __future__ import annotations
 
+import logging
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 import httpx
 
@@ -19,6 +22,9 @@ from .config import Settings
 
 async def run_cypher(query: str, settings: Settings) -> list[dict[str, Any]]:
     """Execute a Cypher query via POST /submitCypher and return rows as plain dicts."""
+    # Log every Cypher query for disk I/O incident tracing
+    logger.info("Cypher query: %s", " ".join(query.split()))
+
     base = settings.puppygraph_url.rstrip("/")
     auth = (settings.puppygraph_user, settings.puppygraph_password)
 
