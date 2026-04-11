@@ -210,7 +210,7 @@ export function ConnectWizard() {
                 <div>
                   <p className={styles.stepTitle}>Wait for trajectories to appear</p>
                   <p className={styles.stepDesc}>
-                    It usually takes about 5 minutes for trajectories to show up on the dashboard.
+                    It usually takes about 8 minutes for trajectories to show up on the dashboard.
                   </p>
                 </div>
               </div>

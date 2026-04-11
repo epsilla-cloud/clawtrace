@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import styles from './waiting.module.css';
 
-const COUNTDOWN_SECONDS = 5 * 60;
+const COUNTDOWN_SECONDS = 8 * 60;
 
 export function WaitingContent() {
   const router = useRouter();
