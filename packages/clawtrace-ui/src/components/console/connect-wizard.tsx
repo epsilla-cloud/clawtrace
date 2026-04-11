@@ -194,6 +194,20 @@ export function ConnectWizard() {
               <div className={styles.stepHeader}>
                 <span className={styles.stepNum}>4</span>
                 <div>
+                  <p className={styles.stepTitle}>Send your OpenClaw a message</p>
+                  <p className={styles.stepDesc}>
+                    Try sending a message like{' '}
+                    <span style={{ fontStyle: 'italic', color: '#5a4534' }}>&ldquo;How are you today?&rdquo;</span>
+                    {' '}to trigger your first trajectory.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.step}>
+              <div className={styles.stepHeader}>
+                <span className={styles.stepNum}>5</span>
+                <div>
                   <p className={styles.stepTitle}>Wait for trajectories to appear</p>
                   <p className={styles.stepDesc}>
                     It usually takes about 5 minutes for trajectories to show up on the dashboard.
