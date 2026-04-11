@@ -1,0 +1,89 @@
+.page {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  background: #faf4ec;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 36px;
+  padding: 48px 32px;
+  text-align: center;
+  max-width: 520px;
+}
+
+.label {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 420;
+  color: #2e2115;
+  line-height: 1.5;
+}
+
+/* Timer with circular progress ring */
+.timerWrap {
+  position: relative;
+  width: 260px;
+  height: 260px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.ringTrack {
+  fill: none;
+  stroke: #e8d9c4;
+  stroke-width: 6;
+}
+
+.ringProgress {
+  fill: none;
+  stroke: #a4532b;
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.countdown {
+  font-size: 72px;
+  font-weight: 540;
+  color: #2e2115;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+}
+
+.skipBtn {
+  height: 44px;
+  padding: 0 28px;
+  border-radius: 10px;
+  border: 1.5px dashed #c9a882;
+  background: #fdf5ed;
+  color: #7c6854;
+  font-size: 15px;
+  font-weight: 480;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 120ms, border-color 120ms, color 120ms;
+}
+
+.skipBtn:hover {
+  background: #f5e2d0;
+  border-color: #a4532b;
+  color: #2e2115;
+}

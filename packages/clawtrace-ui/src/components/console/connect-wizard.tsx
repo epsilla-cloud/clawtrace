@@ -207,7 +207,7 @@ export function ConnectWizard() {
             <button
               type="button"
               className={styles.primaryBtn}
-              onClick={() => router.push(`/trace/${createdKey.id}`)}
+              onClick={() => router.push(`/waiting?agentId=${createdKey.id}`)}
             >
               Go to Dashboard
             </button>
