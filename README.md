@@ -2,8 +2,6 @@
   <img src="packages/clawtrace-ui/public/clawtrace-logo.png" alt="ClawTrace" width="280" />
 </p>
 
-<h3 align="center">Make your OpenClaw agents better, cheaper, and faster.</h3>
-
 <p align="center">
   <a href="https://clawtrace.ai">Website</a> &nbsp;&middot;&nbsp;
   <a href="https://clawtrace.ai/docs">Documentation</a> &nbsp;&middot;&nbsp;
