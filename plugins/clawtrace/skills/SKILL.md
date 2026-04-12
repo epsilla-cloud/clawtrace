@@ -2,7 +2,7 @@
 name: ClawTrace Self-Evolve
 description: Ask Tracy to analyze your recent trajectories and improve your agent behavior based on data-driven recommendations.
 version: 1.0.0
-metadata: {"clawdbot":{"emoji":"🔬","os":["linux","darwin","win32"],"homepage":"https://clawtrace.ai","requires":{"env":["CLAWTRACE_OBSERVE_KEY"]}}}
+metadata: {"openclaw":{"emoji":"🔬","os":["linux","darwin","win32"],"homepage":"https://clawtrace.ai","requires":{"env":["CLAWTRACE_OBSERVE_KEY"]}}}
 ---
 
 # ClawTrace Self-Evolve Skill
