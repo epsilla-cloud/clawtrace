@@ -304,8 +304,3 @@ Inspired by and builds on [openclaw-tracing](https://github.com/fengsxy/openclaw
 
 Apache 2.0. See [LICENSE](LICENSE) for details.
 
----
-
-<p align="center">
-  Built by <a href="https://epsilla.com">Epsilla</a>
-</p>
