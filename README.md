@@ -3,8 +3,8 @@
 </p>
 
 <p align="center">
-  <a href="https://clawtrace.ai">Website</a> &nbsp;&middot;&nbsp;
-  <a href="https://clawtrace.ai/docs">Documentation</a> &nbsp;&middot;&nbsp;
+  <a href="https://clawtrace.ai">clawtrace.ai</a> &nbsp;&middot;&nbsp;
+  <a href="https://clawtrace.ai/docs">Docs</a> &nbsp;&middot;&nbsp;
   <a href="https://clawtrace.ai/docs/ask-tracy">Ask Tracy</a>
 </p>
 
@@ -15,81 +15,94 @@
 
 ---
 
-## The Problem
+My OpenClaw agent burned ~40× its normal token budget in under an hour.
 
-AI agents are opaque. You deploy an OpenClaw agent, it runs autonomously, and you hope it works. When something goes wrong, you have no idea:
+Root cause: it was appending ~1,500 messages of history to every LLM call. By the time I noticed, it had already spent a few dollars on what should have been a 3-cent task.
 
-- **Why did this run cost $4.70 when it usually costs $0.30?** Was it a runaway context window? A retry loop? A wrong model?
-- **Why did the agent fail silently?** Which step broke? What was the input that caused it?
-- **Is the agent drifting?** Is it doing the same work as last week, or has behavior changed?
-- **Where is the bottleneck?** Which step takes 80% of the wall clock time?
+I couldn't see it from logs. OpenClaw logs flatten everything into a wall of JSON. The loop was invisible.
 
-You end up reading raw logs, guessing at token counts, and manually tracing execution paths. This doesn't scale.
+Built after that incident.
 
-## The Solution
+---
 
-ClawTrace is the observability platform for OpenClaw agents. It captures every trajectory (a complete agent execution from start to finish), breaks it down into spans (individual LLM calls, tool executions, sub-agent delegations), and gives you the tools to understand what happened, why, and what to fix.
+**ClawTrace records every agent run as a tree of spans and lets you inspect it.**
 
-### What makes ClawTrace different
+```bash
+openclaw plugins install @epsilla/clawtrace
+openclaw clawtrace setup
+openclaw gateway restart
+```
 
-**Tracy, your OpenClaw Doctor Agent.** Every other observability tool gives you dashboards and expects you to interpret the data yourself. ClawTrace includes Tracy, an AI analyst that lives inside the platform. Ask Tracy a question in natural language, and she queries your trajectory data in real time, generates charts, spots anomalies, and delivers specific optimization recommendations.
+Then open [clawtrace.ai](https://clawtrace.ai). Your next run appears automatically.
 
-<p align="center">
-  <img src="packages/clawtrace-ui/public/docs/images/ask_tracy_4_result.png" alt="Tracy analyzing trajectory costs" width="480" />
-</p>
+---
 
-### Core Features
+## What it shows
 
-| Feature | Description |
-|---------|-------------|
-| **Execution Path** | Interactive trace tree showing every LLM call, tool use, and sub-agent delegation with full input/output payloads |
-| **Call Graph** | Node-link diagram visualizing relationships between agents, tools, and models |
-| **Timeline** | Gantt chart revealing parallelism, bottlenecks, and idle gaps |
-| **Cost Estimation** | Per-span cost calculation with 80+ model pricing entries covering OpenAI, Anthropic, Google, DeepSeek, Mistral, Qwen, GLM, Kimi, and more. Cache-aware pricing (fresh input vs cached input vs output) |
-| **Ask Tracy** | Conversational AI analyst that queries your trajectory graph, generates ECharts visualizations, and provides actionable recommendations |
-| **Consumption Billing** | Pay for what you use with credits. No seat-based subscriptions |
-
-### Three Views for Every Trajectory
-
-Every trajectory can be inspected through three complementary views. Click any step in any view to open the Step Detail panel with full input/output payloads, token counts, duration, cost estimate, and error details.
-
-#### Execution Path
+- **Token usage per step** — see exactly which LLM call ate your budget
+- **Tool calls and retries** — spot loops before they compound
+- **Execution timeline** — Gantt chart of every span, parallel and sequential
+- **Full input/output** — click any step to see what went in and what came back
 
 <p align="center">
-  <img src="packages/clawtrace-ui/public/docs/images/2.2.1-see-detail-trajectory---tracing-view.png" alt="Execution Path View" width="720" />
+  <img src="packages/clawtrace-ui/public/docs/images/2.2.1-see-detail-trajectory---tracing-view.png" alt="Trace tree view" width="720" />
 </p>
 
-The execution path renders the complete agent run as a collapsible tree. Each node represents one step the agent took: a session start, an LLM inference, a tool execution, or a sub-agent delegation. Hierarchy lines show parent-child relationships. Metadata badges on each node display the model name, duration, token counts, and estimated cost. Nodes with errors are highlighted with a red border. You can expand and collapse subtrees to focus on the part of the execution that matters.
+---
 
-#### Call Graph
+## Ask Tracy
+
+You can also ask questions in plain English. Tracy is an AI analyst wired directly to your trajectory graph. She runs live Cypher queries against your data, generates charts, and tells you specifically what to fix.
+
+> "Why did my last run cost so much?"
+> "Which tool is failing most often?"
+> "Is my context window growing across sessions?"
 
 <p align="center">
-  <img src="packages/clawtrace-ui/public/docs/images/2.2.1-see-detail-trajectory---graph-view.png" alt="Call Graph View" width="720" />
+  <img src="packages/clawtrace-ui/public/docs/images/ask_tracy_4_result.png" alt="Tracy analyzing trajectory costs" width="600" />
 </p>
 
-The call graph shows the trajectory as an interactive force-directed node-link diagram. Each unique actor (agent session, LLM model, tool) appears as a node. Edges represent calls between them. Node size reflects how many times that actor was invoked. This view is ideal for understanding the shape of a complex multi-agent run at a glance: which models were used, which tools were called, and how they connect.
+---
 
-#### Timeline
+## Three views per trace
+
+Every trajectory has three views — click any node/span/bar to open step detail with full payloads, token counts, duration, cost, and errors.
+
+**Execution path** — collapsible tree, parent-child relationships, per-node cost badges
 
 <p align="center">
-  <img src="packages/clawtrace-ui/public/docs/images/2.2.3-see-detail-trajectory---timeline-view.png" alt="Timeline View" width="720" />
+  <img src="packages/clawtrace-ui/public/docs/images/2.2.1-see-detail-trajectory---tracing-view.png" alt="Execution Path" width="720" />
 </p>
 
-The timeline presents a horizontal Gantt chart of every span in the trajectory. Each bar represents one step, positioned by its start time and sized by its duration. Bars are color-coded by step type (LLM call, tool call, sub-agent, session). This view makes it easy to spot bottlenecks (the longest bars), parallelism (overlapping bars), and idle gaps (empty space between bars) that reveal optimization opportunities.
+**Call graph** — force-directed diagram of every agent, model, and tool in the run
 
-## Getting Started
+<p align="center">
+  <img src="packages/clawtrace-ui/public/docs/images/2.2.1-see-detail-trajectory---graph-view.png" alt="Call Graph" width="720" />
+</p>
 
-### 1. Install the ClawTrace plugin on your OpenClaw agent
+**Timeline** — Gantt chart showing where time actually went
+
+<p align="center">
+  <img src="packages/clawtrace-ui/public/docs/images/2.2.3-see-detail-trajectory---timeline-view.png" alt="Timeline" width="720" />
+</p>
+
+---
+
+## Getting started
+
+### 1. Install the plugin on your OpenClaw agent
 
 ```bash
 openclaw plugins install @epsilla/clawtrace
 ```
 
-### 2. Authenticate with your observe key
+### 2. Authenticate
 
 ```bash
 openclaw clawtrace setup
 ```
+
+Paste your observe key from [clawtrace.ai](https://clawtrace.ai) when prompted. 200 free credits, no credit card.
 
 ### 3. Restart the gateway
 
@@ -97,9 +110,19 @@ openclaw clawtrace setup
 openclaw gateway restart
 ```
 
-That's it. Every trajectory now streams to ClawTrace automatically.
+Done. Every run now streams to ClawTrace automatically.
 
-Visit [clawtrace.ai](https://clawtrace.ai) to sign up and get 100 free credits. Refer a friend and you both get 200 bonus credits.
+---
+
+## Self-evolving agents
+
+The plugin also exposes a `/v1/evolve/ask` endpoint so your agent can query Tracy about its own trajectories. Install the ClawTrace Self-Evolve skill and your agent will periodically check its own cost and failure patterns, apply fixes, and log what it changed.
+
+```bash
+openclaw skills install clawtrace-self-evolve
+```
+
+---
 
 ## Architecture
 
@@ -166,41 +189,24 @@ graph TB
     API -->|deficit check| PAY
 ```
 
-### Data Flow
+### Data flow
 
-1. **Capture**: The `@epsilla/clawtrace` plugin intercepts 8 OpenClaw hook types: `session_start`, `session_end`, `llm_input`, `llm_output`, `before_tool_call`, `after_tool_call`, `subagent_spawning`, `subagent_ended`
-2. **Ingest**: Events are batched and POSTed to the ingest service, which writes partitioned JSON to cloud storage (`tenant={id}/agent={id}/dt=YYYY-MM-DD/hr=HH/`)
-3. **Transform**: Databricks Lakeflow SQL pipeline materializes raw events into 8 Iceberg silver tables every 3 minutes
-4. **Query**: PuppyGraph virtualizes the Delta Lake tables as a Cypher-queryable graph (Tenant → Agent → Trace → Span with CHILD_OF edges)
-5. **Serve**: The backend API runs Cypher queries, the payment service tracks credit consumption, and Tracy's MCP server provides graph access to the AI agent
-6. **Display**: Next.js UI renders trace trees, call graphs, timelines, and Tracy's streamed responses with inline ECharts
+1. **Capture** — The plugin intercepts 8 OpenClaw hook types: `session_start`, `session_end`, `llm_input`, `llm_output`, `before_tool_call`, `after_tool_call`, `subagent_spawning`, `subagent_ended`
+2. **Ingest** — Events are batched and POSTed to the ingest service, which writes partitioned JSON to cloud storage (`tenant={id}/agent={id}/dt=YYYY-MM-DD/hr=HH/`)
+3. **Transform** — Databricks Lakeflow SQL pipeline materializes raw events into 8 Iceberg silver tables every 3 minutes
+4. **Query** — PuppyGraph virtualizes the Delta Lake tables as a Cypher-queryable graph (Tenant → Agent → Trace → Span with CHILD_OF edges)
+5. **Serve** — Backend API runs Cypher queries; Tracy's MCP server gives the AI analyst direct graph access
+6. **Display** — Next.js UI renders trace trees, call graphs, timelines, and Tracy's streamed responses with inline ECharts
 
-### Graph Schema
+### Graph schema
 
 <p align="center">
   <img src="packages/clawtrace-ui/public/docs/images/graph_schema.png" alt="PuppyGraph Schema: Tenant → Agent → Trace → Span" width="720" />
 </p>
 
-Agent observability data is naturally a graph: tenants own agents, agents produce traces, traces contain spans, and spans form parent-child hierarchies. ClawTrace models this explicitly with 4 vertex types (Tenant, Agent, Trace, Span) and 4 edge types (HAS_AGENT, OWNS, HAS_SPAN, CHILD_OF), queryable via Cypher.
+4 vertex types (Tenant, Agent, Trace, Span), 4 edge types (HAS_AGENT, OWNS, HAS_SPAN, CHILD_OF). Agent execution data is naturally a graph; ClawTrace models it that way so Tracy can traverse it with Cypher instead of joining flat tables.
 
-### Why This Architecture Scales
-
-Most observability tools store traces in relational databases or document stores. That works for thousands of traces. It breaks at billions.
-
-**Separation of storage and compute.** Raw events land in cloud object storage (Azure Blob, GCS, or S3) as partitioned JSON. Databricks materializes them into Delta Lake Iceberg tables with data skipping statistics and Z-order clustering. PuppyGraph reads these tables directly without copying data. Storage scales infinitely at object storage prices. Compute scales independently.
-
-**Graph queries over a data lake.** PuppyGraph virtualizes Delta Lake tables as a Cypher-queryable graph. This means you get the expressiveness of graph traversal (find all spans that are children of a specific span, trace the full call chain across sub-agents) with the storage economics of a data lake. No separate graph database to maintain, no ETL to a graph store, no data duplication.
-
-**Clustered for the access patterns that matter.** Each table is clustered by the keys that the UI actually queries:
-- `pg_traces`: clustered by `(tenant_id, agent_id, trace_id)` for fast agent dashboard loads
-- `pg_spans`: clustered by `(trace_id, span_id)` for fast trace detail queries
-- `pg_child_of_edges`: clustered by `(trace_id, parent_span_id)` for hierarchy traversal
-
-Delta Lake's data skipping statistics prune irrelevant Parquet files before any data is read. A query for one agent's traces in a platform with a billion spans touches only the relevant files.
-
-**Tracy queries the graph directly.** Because PuppyGraph exposes the data lake as a Cypher endpoint, Tracy (the AI analyst) writes and executes graph queries in real time against the same data that powers the UI. No pre-computed aggregations, no stale materialized views. Tracy's answers are always up to date.
-
-### Monorepo Structure
+### Monorepo structure
 
 ```
 clawtrace/
@@ -213,7 +219,7 @@ clawtrace/
 └── puppygraph/                   PuppyGraph schema configuration
 ```
 
-### Tech Stack
+### Tech stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -226,24 +232,28 @@ clawtrace/
 | Billing | Stripe, consumption-based credits |
 | Deployment | Vercel (UI), Docker + Kubernetes (services) |
 
-## Model Pricing
+---
 
-ClawTrace estimates per-span cost using a comprehensive pricing table covering 80+ models across all major vendors:
+## Model pricing
 
-**Western vendors**: OpenAI (GPT-5.x, GPT-4.x, o-series), Anthropic (Claude Opus/Sonnet/Haiku), Google (Gemini 3.x/2.x/1.5), DeepSeek (V3, R1), Mistral (Large/Small/Codestral)
+Cost estimates cover 80+ models with cache-aware pricing (fresh input, cached input, cache write, output calculated separately):
 
-**Chinese vendors**: Alibaba Qwen (3.x Max/Plus/Flash), Zhipu GLM (5.x/4.x), Moonshot Kimi (K2.5), Baidu ERNIE (5.0/4.5), MiniMax (M2.x)
+**Western:** OpenAI (GPT-5.x, GPT-4.x, o-series), Anthropic (Claude Opus/Sonnet/Haiku), Google (Gemini 3.x/2.x/1.5), DeepSeek (V3, R1), Mistral
 
-**Open source**: Llama 4/3.x, Mixtral, Stepfun
+**Chinese:** Alibaba Qwen (3.x Max/Plus/Flash), Zhipu GLM, Moonshot Kimi, Baidu ERNIE, MiniMax
 
-Cache-aware pricing: fresh input tokens, cached input tokens (~10% rate), cache write tokens, and output tokens are calculated separately for accurate cost estimation.
+**Open source:** Llama 4/3.x, Mixtral, Stepfun
+
+---
 
 ## Roadmap
 
-- **Rubric-Based Evaluation** — Define quality rubrics, auto-score agent trajectories, catch regressions before deployment
-- **A/B Testing** — Run agent variants side by side, compare cost, quality, and speed, promote winners with confidence
-- **Version Control** — Track agent config changes over time, roll back to known good versions, audit who changed what
-- **Self-Evolving Agents** — The long vision: agents that learn from their own trajectory data to continuously improve reliability, reduce costs, and adapt to new patterns automatically
+- **Rubric-based evaluation** — define quality rubrics, auto-score trajectories, catch regressions before deployment
+- **A/B testing** — run agent variants side by side, compare cost/quality/speed, promote winners
+- **Version control** — track agent config changes, roll back, audit
+- **Self-evolving agents** — agents that learn from their own trajectory data to cut costs and fix failure patterns automatically
+
+---
 
 ## Development
 
@@ -253,7 +263,7 @@ Cache-aware pricing: fresh input tokens, cached input tokens (~10% rate), cache 
 cd packages/clawtrace-ui
 npm install
 npm run dev          # localhost:3000
-npm run typecheck    # TypeScript validation
+npm run typecheck
 ```
 
 ### Backend
@@ -262,7 +272,7 @@ npm run typecheck    # TypeScript validation
 cd services/clawtrace-backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env  # Edit with your credentials
+cp .env.example .env
 uvicorn app.main:app --reload --port 8082
 ```
 
@@ -276,16 +286,6 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8080
 ```
 
-### Payment
-
-```bash
-cd services/clawtrace-payment
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app.main:app --reload --port 8083
-```
-
 ### Plugin
 
 ```bash
@@ -294,9 +294,11 @@ npm install
 npm test
 ```
 
+---
+
 ## Inspirations
 
-This project was inspired by and builds upon the work in [openclaw-tracing](https://github.com/fengsxy/openclaw-tracing), a reference implementation for tracing OpenClaw agent executions. ClawTrace extends this foundation with production-grade observability, a graph-based query engine, consumption-based billing, and Tracy, the AI observability analyst.
+Inspired by and builds on [openclaw-tracing](https://github.com/fengsxy/openclaw-tracing), a reference implementation for tracing OpenClaw executions.
 
 ## License
 
@@ -305,5 +307,5 @@ Apache 2.0. See [LICENSE](LICENSE) for details.
 ---
 
 <p align="center">
-  Built with ❤️ by <a href="https://epsilla.com">Epsilla</a>
+  Built by <a href="https://epsilla.com">Epsilla</a>
 </p>
