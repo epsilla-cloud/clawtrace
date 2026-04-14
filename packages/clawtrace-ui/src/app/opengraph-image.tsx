@@ -18,8 +18,11 @@ export default function OpenGraphImage() {
   const screenshotData = readFileSync(join(process.cwd(), '..', '..', 'screenshots', 'Landing.png'));
   const screenshotSrc = `data:image/png;base64,${screenshotData.toString('base64')}`;
 
+  const BG = 'rgb(245, 240, 232)';
   const BANNER_H = 110;
-  const SCREENSHOT_H = size.height - BANNER_H;
+  // Push the screenshot down by a few extra pixels so the top edge of the
+  // landing page content isn't clipped by the logo banner.
+  const SCREENSHOT_OFFSET = 12;
 
   return new ImageResponse(
     (
@@ -29,7 +32,7 @@ export default function OpenGraphImage() {
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          background: '#f9f1ea',
+          background: BG,
           overflow: 'hidden',
         }}
       >
@@ -40,15 +43,14 @@ export default function OpenGraphImage() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'linear-gradient(180deg, #f9f1ea 0%, #f0e4d7 100%)',
-            borderBottom: '1px solid #dac9b8',
+            background: BG,
           }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={logoSrc} alt="ClawTrace" height={56} style={{ objectFit: 'contain' }} />
         </div>
 
-        {/* Screenshot */}
+        {/* Screenshot — shifted down slightly so landing page content isn't clipped */}
         <div
           style={{
             flex: 1,
@@ -62,9 +64,9 @@ export default function OpenGraphImage() {
             alt="ClawTrace landing page"
             style={{
               width: size.width,
-              height: SCREENSHOT_H,
+              height: size.height - BANNER_H + SCREENSHOT_OFFSET,
               objectFit: 'cover',
-              objectPosition: 'top center',
+              objectPosition: `top ${SCREENSHOT_OFFSET}px`,
             }}
           />
         </div>
