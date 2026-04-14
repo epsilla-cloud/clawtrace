@@ -227,6 +227,12 @@ export function LandingPage() {
         <p className={styles.subhead}>See what failed, where spend leaked, and how to improve.</p>
         <a className={styles.primaryButton} href="/login">Get Started Free</a>
 
+        <div className={styles.phBadge}>
+          <a href="https://www.producthunt.com/products/clawtrace-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-clawtrace-2" target="_blank" rel="noopener noreferrer">
+            <img alt="ClawTrace - Make your OpenClaw better, cheaper, and faster | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1123178&theme=light&t=1776140611496" />
+          </a>
+        </div>
+
         <div className={styles.heroFrame} aria-label="Product preview carousel">
           <div
             className={styles.heroTrack}

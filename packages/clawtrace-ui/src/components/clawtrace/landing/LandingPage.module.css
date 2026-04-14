@@ -120,6 +120,11 @@
   display: inline-flex; align-items: center;
 }
 
+/* Product Hunt badge */
+.phBadge {
+  margin-top: 20px; display: flex; justify-content: center;
+}
+
 /* Hero carousel */
 .heroFrame {
   margin-top: 58px; position: relative; border-radius: 24px;
