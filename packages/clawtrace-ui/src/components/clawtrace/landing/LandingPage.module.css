@@ -120,9 +120,10 @@
   display: inline-flex; align-items: center;
 }
 
-/* Product Hunt badge */
+/* Launch badges (Product Hunt + YC) */
 .phBadge {
   margin-top: 20px; display: flex; justify-content: center;
+  align-items: center; gap: 12px; flex-wrap: wrap;
 }
 
 /* Hero carousel */
