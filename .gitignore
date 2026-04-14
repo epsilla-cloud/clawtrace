@@ -18,3 +18,4 @@ __pycache__/
 !*.example
 
 *.env.production.local
+services/puppygraph-monitor/.env

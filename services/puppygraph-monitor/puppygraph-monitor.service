@@ -1,0 +1,18 @@
+[Unit]
+Description=PuppyGraph Health Monitor
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=azureuser
+Restart=always
+RestartSec=30
+WorkingDirectory=/opt/clawtrace/puppygraph-monitor
+ExecStart=/usr/bin/python3 /opt/clawtrace/puppygraph-monitor/puppygraph_monitor.py
+EnvironmentFile=/opt/clawtrace/puppygraph-monitor/.env
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
