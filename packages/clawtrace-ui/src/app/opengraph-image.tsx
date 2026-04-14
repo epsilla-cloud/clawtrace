@@ -20,11 +20,7 @@ export default function OpenGraphImage() {
 
   const BG = 'rgb(245, 240, 232)';
   const BANNER_H = 110;
-  // Skip ~80px of the original Landing.png (nav bar) so the "Make your"
-  // headline appears clearly below the logo, not right at the boundary.
-  // At scale 0.498, 80px original → ~40px scaled.
-  // Overflow (708-520) = 188px → 40/188 ≈ 21% vertical position.
-  const SCREENSHOT_POSITION = '50% 21%';
+  const PUSH_DOWN = 80; // extra space between logo and screenshot top edge
 
   return new ImageResponse(
     (
@@ -52,7 +48,10 @@ export default function OpenGraphImage() {
           <img src={logoSrc} alt="ClawTrace" height={56} style={{ objectFit: 'contain' }} />
         </div>
 
-        {/* Screenshot — shifted down slightly so landing page content isn't clipped */}
+        {/* Gap between logo and screenshot */}
+        <div style={{ height: PUSH_DOWN, background: BG, display: 'flex' }} />
+
+        {/* Screenshot — taller than its container so it overflows and gets clipped */}
         <div
           style={{
             flex: 1,
@@ -66,9 +65,9 @@ export default function OpenGraphImage() {
             alt="ClawTrace landing page"
             style={{
               width: size.width,
-              height: size.height - BANNER_H,
+              height: size.height - BANNER_H + PUSH_DOWN,
               objectFit: 'cover',
-              objectPosition: SCREENSHOT_POSITION,
+              objectPosition: 'top center',
             }}
           />
         </div>
