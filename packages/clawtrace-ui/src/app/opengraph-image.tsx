@@ -20,9 +20,11 @@ export default function OpenGraphImage() {
 
   const BG = 'rgb(245, 240, 232)';
   const BANNER_H = 110;
-  // Push the screenshot down by a few extra pixels so the top edge of the
-  // landing page content isn't clipped by the logo banner.
-  const SCREENSHOT_OFFSET = 12;
+  // Skip ~80px of the original Landing.png (nav bar) so the "Make your"
+  // headline appears clearly below the logo, not right at the boundary.
+  // At scale 0.498, 80px original → ~40px scaled.
+  // Overflow (708-520) = 188px → 40/188 ≈ 21% vertical position.
+  const SCREENSHOT_POSITION = '50% 21%';
 
   return new ImageResponse(
     (
@@ -64,9 +66,9 @@ export default function OpenGraphImage() {
             alt="ClawTrace landing page"
             style={{
               width: size.width,
-              height: size.height - BANNER_H + SCREENSHOT_OFFSET,
+              height: size.height - BANNER_H,
               objectFit: 'cover',
-              objectPosition: `top ${SCREENSHOT_OFFSET}px`,
+              objectPosition: SCREENSHOT_POSITION,
             }}
           />
         </div>
