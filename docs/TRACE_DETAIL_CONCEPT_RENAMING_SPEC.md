@@ -1,15 +1,14 @@
-# ClawTrace Trace Detail Concept Mapping (OpenClaw Tracing -> ICP Language)
+# ClawTrace Trace Detail Concept Mapping (OpenClaw Tracing → ICP Language)
 
-Last updated: 2026-03-24  
-Owner: Product + Design  
-Status: Draft v1 (ready to drive trace-detail implementation)
+Last updated: 2026-04-14 (original: 2026-03-24)
+Owner: Product + Design
+Status: Implemented and live.
+
+---
 
 ## 1) Why This Exists
 
-We are integrating OpenClaw Tracing's Web UI model into ClawTrace, but our ICP is not a tracing engineer.
-
-Primary ICP from product plan:
-- founder/operators and small technical teams running revenue-adjacent OpenClaw agents
+Our ICP is not a tracing engineer. Primary ICP: founder/operators and small technical teams running revenue-adjacent OpenClaw agents.
 
 These users need answers to:
 1. What happened in this run?
@@ -18,37 +17,30 @@ These users need answers to:
 
 So we keep OpenClaw's data model, but we rename user-facing concepts to outcome-first language.
 
-## 2) Source Concepts Reviewed
+---
 
-Reference: OpenClaw Tracing Web UI and related docs.
+## 2) Translation Layer [IMPLEMENTED]
 
-Core source concepts:
-1. Call Tree: nested span hierarchy; collapse repeated same-tool calls.
-2. Entity Graph: force graph of agents, tools, and models with spawn relations.
-3. Waterfall: timeline bars for span start/end + duration.
-4. Work Index: 0-100 productivity score (tool density + token efficiency + subagent bonus).
-5. Auto-refresh: polling + highlight new spans.
+All four views are live in the trace detail page.
 
-## 3) Translation Layer (Required)
-
-| OpenClaw term | ClawTrace internal term | ICP-facing UI label | Why this label works for ICP |
+| OpenClaw term | ClawTrace internal term | ICP-facing UI label | Status |
 |---|---|---|---|
-| Call Tree | `trace_call_tree` | **Execution Path** | "Path" is intuitive for operators and still accurate for hierarchy. |
-| Entity Graph | `trace_entity_graph` | **Actor Map** | Emphasizes "who did what" across main agent, subagents, tools, models. |
-| Waterfall | `trace_waterfall` | **Step Timeline** | Focuses on time + bottlenecks without infra jargon. |
-| Work Index | `trace_work_index` | **Run Efficiency** | Keeps cost+action efficiency meaning without confusing "index" term. |
+| Call Tree | `trace_call_tree` | **Execution Path** | **Shipped** |
+| Entity Graph | `trace_entity_graph` | **Actor Map** | **Shipped** |
+| Waterfall | `trace_waterfall` | **Step Timeline** | **Shipped** |
+| Work Index | `trace_work_index` | **Run Efficiency** | **Shipped** |
 
-### Naming rule
+### Naming rule (active)
 
-1. Internal APIs and data objects may keep source-compatible names (`callTree`, `entityGraph`, etc.).
-2. UI copy shown to users must use translated labels above.
+1. Internal APIs and data objects keep source-compatible names (`callTree`, `entityGraph`, etc.).
+2. UI copy shown to users uses the translated labels above.
 3. Only expert tooltips may mention source terms in secondary text.
 
-## 4) Detail Pane Renaming (Deep Dive)
+---
 
-The right-side/inline item detail should avoid raw tracing jargon as primary headers.
+## 3) Detail Pane Renaming [IMPLEMENTED]
 
-Use this mapping:
+The step detail panel uses operator-friendly labels:
 
 | Raw field | User-facing label |
 |---|---|
@@ -60,86 +52,66 @@ Use this mapping:
 | attributes.error | failure signal |
 | tokensIn / tokensOut | input / output tokens |
 
-### Structured sections per selected item
+### Structured sections per selected item [IMPLEMENTED]
 
-1. **What happened**
-- step type, actor, status, start/end/duration
+1. **What happened** — step type, actor, status, start/end/duration
+2. **Cost and load** — input tokens, output tokens, estimated cost
+3. **Inputs used** — tool params or model request metadata
+4. **Outputs produced** — tool result metadata or model response metadata
+5. **Action to improve** — one recommended change linked to reliability or cost control *(Phase 1 — currently empty; Tracy in the panel serves this role)*
 
-2. **Cost and load**
-- input tokens, output tokens, estimated cost
+If a payload was not collected: shows "Not captured in this run" (not empty block).
 
-3. **Inputs used**
-- tool params or model request metadata
+---
 
-4. **Outputs produced**
-- tool result metadata or model response metadata
+## 4) Run Efficiency (Work Index) Bands [IMPLEMENTED]
 
-5. **Action to improve**
-- one recommended change linked to reliability or cost control
+| Score | Band | User-facing label |
+|---|---|---|
+| 61–100 | High efficiency | **Efficient** |
+| 26–60 | Moderate | **Active but heavy** |
+| 1–25 | Low | **High spend, low progress** |
+| 0 | Idle | **Idle** |
 
-## 5) Run Efficiency (Work Index) Guardrails
+Copy rule: do not say "spinning." Use "high spend, low progress" and show the evidence (tools per model step, tokens per successful action).
 
-We should keep OpenClaw's formula-compatible behavior, but shift user interpretation language.
+---
 
-### Internal computation
-- keep source-compatible score logic so results remain comparable
+## 5) Tracy Conversation Framing for Trace Detail [IMPLEMENTED]
 
-### User-facing bands
-- 61-100: **Efficient**
-- 26-60: **Active but heavy**
-- 1-25: **High spend, low progress**
-- 0: **Idle**
+Tracy is run-quality focused on this page. Default conversation style:
 
-### Copy rule
-Do not say "spinning" in the default UI. Use "high spend, low progress" and show the evidence (tools per model step, tokens per successful action).
-
-## 6) Tracy Conversation Framing for Trace Detail
-
-For this page, Tracy should be run-quality focused (not generic observability assistant framing).
-
-Default seeded conversation style:
-1. user asks quality/cost question about this run
+1. User asks quality/cost question about this run.
 2. Tracy answers with:
-- short verdict
-- top evidence (1-3 data points)
-- one clickable step link early in the answer
-- two concrete actions with expected impact
+   - Short verdict
+   - Top evidence (1–3 data points)
+   - One clickable step link early in the answer
+   - Two concrete actions with expected impact
 
-### Example prompt style
+Example prompts that work well:
 - "What made this run expensive but still unstable?"
 - "Show me the most likely failure step and what to change first."
+- "Why did step 4 fail?"
 
-### Example response shape
-1. Verdict line
-2. Evidence bullets
-3. "Hottest step" inline link
-4. Actions list
+---
 
-## 7) UI/Copy Constraints from Current Product Direction
+## 6) UI/Copy Constraints (Active)
 
-From existing ClawTrace plan and shipped copy direction:
 1. Avoid niche tracing vocabulary in primary labels.
-2. Keep cost and quality together on same page.
+2. Keep cost and quality together on the same page.
 3. Prioritize next actions over pure telemetry.
 4. Keep terms stable with Overview and Control journey docs.
 
-## 8) Implementation Notes (Next Step)
+---
 
-When building trace detail page:
-1. 4-mode switcher labels must be:
-- Execution Path
-- Actor Map
-- Step Timeline
-- Run Efficiency
+## 7) Phase 1 Additions
 
-2. Mode descriptions should stay one line and outcome-oriented.
+- "Action to improve" section in detail pane: one recommended change from Tracy pre-loaded based on the step's pattern.
+- State diff panel: show what changed in config/memory/skills between this run and the last good run.
 
-3. Extensible detail pane must support current fields now and future full request/response payload capture later.
+---
 
-4. If a payload was not collected, show explicit state:
-- "Not captured in this run" (not empty block).
-
-## 9) Non-Goals (for this translation pass)
+## 8) Non-Goals
 
 1. Changing underlying storage schema.
 2. Rewriting OpenClaw scoring formula.

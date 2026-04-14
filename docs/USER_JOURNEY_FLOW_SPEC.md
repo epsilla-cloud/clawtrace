@@ -1,8 +1,18 @@
 # ClawTrace User Journey Flow Spec
 
-Last updated: 2026-03-25
+Last updated: 2026-04-14
 Owner: Product + Design + Engineering
-Status: Draft v1 (implementation-ready journey map)
+Status: Live — Phase 0 flows shipped. Phase 1 flows in progress.
+
+---
+
+## Implementation Status Key
+
+> **[SHIPPED]** — live in production
+> **[PHASE 1]** — next build cycle
+> **[PHASE 2]** — later
+
+---
 
 ## 1) Why This Exists
 
@@ -10,379 +20,389 @@ This document defines the end-to-end user journey across ClawTrace flows, starti
 
 Primary objective: move users from "agent feels like a black box" to "I can diagnose and fix failures quickly, and repeated failures decline over time."
 
+---
+
 ## 2) Journey Principles
 
-1. Onboarding is a guided systems audit, not a generic setup wizard.
-2. Daily home is a control room, not a chat app.
+1. Onboarding is a guided connection, not a generic setup wizard.
+2. Daily home is a cockpit/trace view, not a chat app. Tracy (AI analyst) is a power tool invoked on specific questions.
 3. Every unhealthy state must end in a clear next action.
-4. Known vs unknown evidence must always be explicit.
-5. Incidents should become reusable assets (regression tests, alerts, runbooks), not one-off fire drills.
+4. Known vs. unknown evidence must always be explicit.
+5. Incidents should become reusable assets (regression tests, alerts, runbooks), not one-off fire drills. *(Phase 1)*
 6. Cost must be explainable in the same flow as reliability, not in a separate dashboard context.
-7. The product should progress from observe -> recommend -> safe self-improve, never jumping straight to blind autonomy.
+7. The product should progress from observe → recommend → safe self-improve, never jumping straight to blind autonomy.
 
-## 3) System Flows At A Glance
+---
 
-| Flow | Trigger | Primary Surface | User Question | Exit Condition | Next Flow |
-|---|---|---|---|---|---|
-| F0 Entry + Connect | First install or first login | Onboarding chat | "Can ClawTrace see my workflows?" | OpenClaw connection verified and workflows discovered | F1 |
-| F1 Guided Audit Warmup | Connected, no baseline yet | Onboarding chat + warmup cards | "What did you infer from my existing runs?" | Baseline contract + first trust map confirmed | F2 |
-| F2 First Value Handoff | Onboarding complete | Workflow cockpit | "What should I do first?" | User lands on selected workflow with primary next action | F3 |
-| F3 Daily Overview | Returning user or scheduled run | Portfolio + selected cockpit | "Are we healthy and within budget today?" | User either stays in monitor mode or escalates to investigation | F4/F5 |
-| F4 Live Run Monitoring | Active workflow execution | Run story timeline + trust band | "What is happening right now?" | Run reaches success, partial, defer, or block | F3/F5/F7 |
-| F5 Incident Triage | Trust degradation, alert, or manual open | Investigation drawer + incident memo | "Why did this fail and what changed?" | Root cause hypothesis and next action selected | F6 |
-| F6 Action + Intervention | User accepts recommendation | Primary action card + control hook | "What is the safest next step?" | Action executed or deferred with explicit reason | F7 |
-| F7 Verification + Closure | Action completed or run ended | Verification breakdown | "Did this actually work?" | Marked success/fail/partial with evidence | F3/F8 |
-| F8 Regression + Eval | Repeated failure or major incident | Incident -> Eval promotion flow | "How do we prevent recurrence?" | Incident promoted to test/eval and guardrail attached | F3/F9 |
-| F9 Drift + Time Machine | Behavior regression over time | State diff + version timeline | "What changed in config/memory/skills/plugins?" | Drift source identified, rollback or contract update applied | F3/F5 |
-| F10 Conversational Automation | User asks in chat | Investigation drawer chat | "Create dashboard/alert/report from this" | Saved dashboard/alert/runbook artifact created | F3 |
-| F11 Feedback Capture | User review or override | Inline feedback controls | "Was this useful/correct?" | Feedback persisted and linked to run/action | F8/F3 |
-| F12 Closed-Loop Improvement | Repeated issue or scheduled optimization cycle | ClawTrace recommendation API + OpenClaw skill action path | "Can the agent improve itself safely?" | Change applied with snapshot + verification, or rolled back with evidence | F3/F7/F9 |
+## 3) System Flows — Status Overview
 
-## 3.1) Navigation Information Architecture (Expandable Left Rail)
+| Flow | Status | Primary Surface | User Question |
+|---|---|---|---|
+| F0 Entry + Connect | **Shipped** | Connect wizard | "Can ClawTrace see my agent?" |
+| F1 Guided Audit Warmup | **Shipped** (basic) | Dashboard after connect | "What runs have I had?" |
+| F2 First Value Handoff | **Shipped** | Trace list + cockpit | "What should I look at first?" |
+| F3 Daily Overview | **Shipped** | Trace list + cockpit | "Are we healthy and within budget?" |
+| F4 Live Run Monitoring | **Partial** | Run timeline | "What is happening right now?" |
+| F5 Incident Triage | **Shipped** | Trace detail + Tracy | "Why did this fail?" |
+| F6 Action + Intervention | **Shipped** (self-evolve) | Self-evolve skill | "What is the safest next step?" |
+| F7 Verification + Closure | **Phase 1** | Verification breakdown | "Did this actually work?" |
+| F8 Regression + Eval | **Phase 2** | Incident → Eval promotion | "How do we prevent recurrence?" |
+| F9 Drift + Time Machine | **Phase 1** | State diff + version timeline | "What changed in config/memory/skills?" |
+| F10 Conversational Automation | **Phase 1** | Tracy in investigation drawer | "Create dashboard/alert from this" |
+| F11 Feedback Capture | **Phase 2** | Inline feedback controls | "Was this useful/correct?" |
+| F12 Closed-Loop Improvement | **Shipped** (basic via self-evolve) | Self-evolve API + OpenClaw skill | "Can the agent improve itself safely?" |
 
-Left navigation is a persistent app rail across onboarding and operations pages. It is function-first, not flow-ID-first.
+---
 
-### Left rail structure
-1. Functional steps with icon + label:
-Setup & Baseline, Daily Operations, Diagnose Issues, Resolve & Verify, Prevention & Eval, Automation, Feedback Loop.
-2. Each step maps to one or more internal flows:
-For example Diagnose Issues maps to incident triage and drift/time-machine views.
-3. Active step highlight:
-Current page context highlights one functional step so users keep orientation.
+## 3.1 Navigation Information Architecture
 
-### Left rail behavior
-1. Default collapsed:
-Narrow, full-height vertical bar on the left with icons only.
-2. Click to expand:
-Sidebar widens and shows step labels to the right of each icon.
-3. Icon anchoring:
-Icons stay left-aligned in both states; expanded mode only reveals text.
-4. Journey continuity:
-Same rail is used in onboarding and post-onboarding so the mental model does not reset.
+Left navigation is a persistent app rail across onboarding and operations pages. It is function-first.
+
+### Current shipped structure
+
+The app rail has:
+1. Trace list / portfolio view
+2. Trace detail (4-view cockpit)
+3. Tracy AI chat panel
+4. Account / billing / keys
+
+### Phase 1 additions
+
+Full functional rail:
+1. Setup & Baseline
+2. Daily Operations (trace list + cockpit)
+3. Diagnose Issues (incident triage + drift/time-machine)
+4. Resolve & Verify (action + verification)
+5. Prevention & Eval (regression + eval)
+6. Automation (conversational dashboard/alert creation)
+7. Feedback Loop
+
+---
 
 ## 4) Detailed Flow Specs
 
-## F0 Entry + Connect
+## F0 Entry + Connect [SHIPPED]
 
 ### Goal
 Establish trustworthy data access with minimal friction.
 
-### Core steps
-1. Connect OpenClaw harness (auth + workspace scope).
-2. Discover workflows and recent runs.
-3. Run connectivity and ingestion checks.
+### Current implementation
+1. User creates an account at clawtrace.ai.
+2. Connect wizard generates an observe key.
+3. User installs `@epsilla/clawtrace` plugin and runs `openclaw clawtrace setup`.
+4. User restarts the gateway.
+5. First run streams automatically; trace appears in the dashboard.
 
-### UX output
-- "Connected" status
-- discovered workflow list
-- explicit missing permissions (if any)
+### Time to first trace
+Typical: 8–10 minutes from account creation to first trace visible.
 
 ### Exit criteria
-- At least one workflow discovered
-- run ingestion healthy enough to proceed
+- Plugin installed and observe key configured
+- At least one run has streamed to ClawTrace
 
-## F1 Guided Audit Warmup (Onboarding)
+---
+
+## F1 Guided Audit Warmup [SHIPPED — basic]
 
 ### Goal
-Convert raw history into an initial reliability map users trust.
+Show users their existing run history so they have immediate context.
 
-### Core steps
-1. Backfill recent runs (for example last 7-14 days).
-2. Infer initial workflow contract (critical steps, mutating boundaries, verifier candidates).
-3. Infer trust-state baseline per workflow.
-4. Build initial spend baseline (tokens and estimated/billed cost) by workflow.
-5. Ask user for high-impact confirmations only.
-6. Publish initial control posture.
+### Current implementation
+- Runs appear automatically after plugin install.
+- Tracy can be asked "analyze my recent trajectories" immediately.
+- No interactive warmup chat or guided contract building yet (Phase 1).
 
-### UX output
-- warmup timeline with "known vs unknown"
-- initial trust-state for each discovered workflow
-- one selected workflow recommendation for first deep cockpit
+### Phase 1 additions
+- Backfill analysis of last 7–14 days
+- Inferred workflow baseline (token spend, error rate, cost per run)
+- Initial trust-state per discovered workflow
+- "Known vs. unknown" coverage indicator
 
-### Exit criteria
-- initial workflow contract version confirmed
-- first selected workflow cockpit ready
+---
 
-## F2 First Value Handoff
+## F2 First Value Handoff [SHIPPED]
 
 ### Goal
-Land user directly into "what to do now" for one workflow.
+Land user directly into "what to look at now."
 
-### UX output
-- selected workflow cockpit
-- trust-state band
-- primary next action
-- verification breakdown baseline
+### Current implementation
+- Trace list shows recent runs with status, cost, duration.
+- User clicks a trace to open the 4-view cockpit.
+- Tracy panel is available for immediate questions.
 
-### Exit criteria
-- user can take one meaningful action in under 60 seconds
+### Phase 1 improvement
+- Primary next action card on cockpit landing
+- Spend concentration highlight ("this trace cost 40× your average")
 
-## F3 Daily Overview
+---
+
+## F3 Daily Overview [SHIPPED]
 
 ### Goal
 Support calm daily operations with fast triage.
 
-### Core interaction model
-1. Scan workflow portfolio (health + last outcome).
-2. Keep one workflow deep in cockpit.
-3. Scan spend attribution (`workflow`, `trajectory`, `model/step class`) and budget pressure.
-4. Open drawer only when investigation is needed.
+### Current implementation
+1. Trace list shows all recent runs with status indicators.
+2. User clicks into any run to open trace detail (Execution Path, Actor Map, Step Timeline, Run Efficiency).
+3. Cost visible at trace level (total tokens + estimated cost).
+4. Tracy accessible in any trace for deeper questions.
 
-### Exit conditions
-- no action needed (remain in F3), or
-- run starts (F4), or
-- incident detected (F5)
+### Phase 1 additions
+- Workflow portfolio view (agent-level health summary)
+- Spend attribution by workflow/agent/model
+- Budget pressure indicator
 
-## F4 Live Run Monitoring
+---
+
+## F4 Live Run Monitoring [PARTIAL]
 
 ### Goal
 Make in-flight execution legible without log diving.
 
-### Core steps
-1. Show run story updates at control points.
-2. Show trust-state transitions in real time.
-3. Highlight control-plane interventions (allow/deny/defer/warn).
+### Current implementation
+- Trace detail views populate after run completes.
+- SSE streaming for in-progress updates: partial (backend has SSE; frontend live refresh is limited).
 
-### Exit conditions
-- verified success -> F3
-- uncertain/partial -> F7
-- failure/defer/block -> F5
+### Phase 1 completion
+- Real-time trust-state updates during active run
+- Control-plane intervention signals (allow/deny/defer/warn)
+- Live span streaming as hooks fire
 
-## F5 Incident Triage
+---
+
+## F5 Incident Triage [SHIPPED]
 
 ### Goal
 Reach an evidence-backed diagnosis quickly.
 
-### Core steps
-1. Auto-generate incident memo draft.
-2. Show evidence stack: timeline, tool/model calls, state diffs, verifier results.
-3. Distinguish likely runtime failure vs state drift vs cost-inefficient retry loop.
-4. Attribute spend concentration (where cost actually went in the failed/unstable run).
-5. Produce prioritized next actions.
+### Current implementation
+1. User opens a failed trace.
+2. Error spans highlighted in Execution Path view.
+3. Step detail shows full input/output payload, error message, token counts.
+4. Tracy available for: "Why did this fail?" / "Which step caused this?" / "What should I change?"
+5. Tracy returns specific span citations, charts, and a concrete recommendation.
 
-### Exit criteria
-- one primary intervention selected with confidence and evidence links
+### Tracy questions that work today
+- "Why did my last run cost so much?"
+- "Which tool is failing most often?"
+- "What caused the failure in trace {trace_id}?"
+- "Which step took the most time?"
+- "Is my context window growing across sessions?"
 
-## 4.1) Trace Detail View Language Contract
+### Phase 1 additions
+- Auto-generated incident memo draft
+- Evidence stack: timeline, tool/model calls, state diffs, verifier results
+- Distinction between runtime failure vs. state drift vs. cost-inefficient retry loop
+- Prioritized next action list
 
-When a user opens a specific run trace for deep dive, ClawTrace should use ICP-facing labels (not tracing-engineer jargon):
+---
 
-1. `Execution Path` (source concept: Call Tree)
-2. `Actor Map` (source concept: Entity Graph)
-3. `Step Timeline` (source concept: Waterfall)
-4. `Run Efficiency` (source concept: Work Index)
+## 4.1 Trace Detail View Language Contract [SHIPPED]
 
-These labels are required in user-facing UI copy for consistency with the founder/operator ICP.
+When a user opens a specific run trace for deep dive, ClawTrace uses ICP-facing labels:
 
-Reference mapping spec: [TRACE_DETAIL_CONCEPT_RENAMING_SPEC.md](TRACE_DETAIL_CONCEPT_RENAMING_SPEC.md)
+1. **Execution Path** (source concept: Call Tree)
+2. **Actor Map** (source concept: Entity Graph)
+3. **Step Timeline** (source concept: Waterfall)
+4. **Run Efficiency** (source concept: Work Index)
 
-## F6 Action + Intervention
+All four views are implemented and live. Reference: `TRACE_DETAIL_CONCEPT_RENAMING_SPEC.md`.
+
+---
+
+## F6 Action + Intervention [SHIPPED via self-evolve]
 
 ### Goal
 Execute the safest next step with control.
 
-### Action types
-- rerun/retry with constraint
-- pause or gate mutating step
-- apply contract/policy adjustment
-- rollback/pin state version
-- escalate to manual confirmation
+### Current implementation (self-evolve path)
+1. OpenClaw agent calls `/v1/evolve/ask` with its observe key.
+2. Tracy analyzes the agent's own trajectory data and returns a specific recommendation.
+3. Agent applies the fix (e.g., truncate context, cap tool output size).
+4. Agent logs the change to MEMORY.md.
 
-### Exit criteria
-- intervention outcome recorded
-- all side effects journaled
+### Available action types today
+- Apply Tracy's recommendation (context trim, output cap, retry limit)
+- Manual code/config change informed by trace evidence
 
-## F7 Verification + Closure
+### Phase 1 additions
+- Rollback/pin state version (requires State Time Machine)
+- Contract/policy adjustment via UI
+- Explicit operator confirmation workflow with safety controls
+- Pre-mutation state snapshot
+
+---
+
+## F7 Verification + Closure [PHASE 1]
 
 ### Goal
-Prove whether the fix worked.
+Prove whether a fix worked.
 
-### UX requirements
-- show counts and breakdown: `x/y success`, `z/y fail`, `w/y unknown`
-- allow `Partially Verified` with explicit unknowns
-- preserve verifier-level evidence links
+### Planned implementation
+- Show counts and breakdown: `x/y success`, `z/y fail`, `w/y unknown`
+- Allow `Partially Verified` with explicit unknowns
+- Preserve verifier-level evidence links
+- Before/after cost comparison per control applied
 
-### Exit conditions
-- stable success -> F3
-- fail/repeat anomaly -> F8 and/or F5
+---
 
-## F8 Regression + Eval
+## F8 Regression + Eval [PHASE 2]
 
 ### Goal
 Turn incidents into prevention assets.
 
-### Core steps
+### Planned implementation
 1. Promote incident trace to regression candidate.
 2. Attach expected outcomes + trajectory constraints.
 3. Add to workflow scorecard and release gate.
 
-### Exit criteria
-- regression test/eval created and linked back to incident
+See `AGENT_EVALUATION_STRATEGY.md` for the full evaluation model.
 
-## F9 Drift + Time Machine
+---
+
+## F9 Drift + Time Machine [PHASE 1]
 
 ### Goal
 Explain long-horizon behavior drift.
 
-### Core steps
-1. Build state timeline over config/memory/soul/agent.md/skills/plugins.
-2. Diff against last-known-good run context.
-3. Identify contradiction or stale-instruction risk.
-4. Offer rollback or forward-fix.
+### Planned implementation
+1. Capture state vector on run start/end: config hash, workspace file hashes, skill versions, plugin versions.
+2. Run-to-run diff inside trace investigation.
+3. Correlation between state changes and incident onset.
+4. Last-known-good comparison view.
+5. Offer rollback or forward-fix.
 
-### Exit criteria
-- drift source identified and controlled
+See `OPENCLAW_STATE_VERSIONING_RESEARCH.md` for the full design.
 
-## F10 Conversational Automation
+---
+
+## F10 Conversational Automation [PHASE 1]
 
 ### Goal
 Let users create observability assets from natural language.
 
-### Supported outcomes
-- create dashboard from trace query
-- create alert rule from incident pattern
-- create cost guardrail alert from spend spike pattern
-- create shareable investigation brief
+### Planned outcomes
+- Create dashboard from trace query
+- Create alert rule from incident pattern
+- Create cost guardrail alert from spend spike pattern
+- Create shareable investigation brief
 
-### Exit criteria
-- artifact generated, previewed, and saved
+### Current partial implementation
+Tracy can answer these questions conversationally today. Saving answers as persistent dashboard/alert artifacts is Phase 1.
 
-## F11 Feedback Capture
+---
+
+## F11 Feedback Capture [PHASE 2]
 
 ### Goal
 Use user signal to improve reliability recommendations.
 
-### Inputs
-- explicit: thumbs up/down, "wrong diagnosis", "helpful"
-- implicit: manual override, repeated retry loops, time-to-resolution
+### Planned inputs
+- Explicit: thumbs up/down, "wrong diagnosis", "helpful"
+- Implicit: manual override, repeated retry loops, time-to-resolution
 
-### Exit criteria
-- feedback linked to run, action, and recommendation
+---
 
-## F12 Closed-Loop Improvement (2026-03-25 update)
+## F12 Closed-Loop Improvement [SHIPPED — basic]
 
 ### Goal
 Convert passive observability into safe, auditable agent improvement.
 
-### Core steps
-1. ClawTrace analyzes recent trajectories and state changes.
-2. ClawTrace produces recommendations through an API consumable by an OpenClaw skill.
-3. OpenClaw requests recommendation(s) and proposes an action:
-- resolve config/memory/skills conflict
-- downshift model tier for low-intelligence routines
-- scriptify deterministic repeated steps
-4. Before mutation, capture state snapshot and rollback pointer.
-5. Apply with explicit operator confirmation policy (Phase 1: recommendation-first).
-6. Verify quality and cost impact.
-7. Keep or rollback, then persist the result into evolution history.
+### Current implementation
+1. `/v1/evolve/ask` endpoint — agents query Tracy about their own trajectories.
+2. `clawtrace-self-evolve@1.0.1` skill on ClawHub — teaches agents to detect triggers (cost spike, failure, periodic review) and call Tracy automatically.
+3. HEARTBEAT.md integration — periodic autonomous review without user prompting.
 
-### Exit criteria
-- every accepted change has `before/after` evidence on reliability and cost
-- every failed change has rollback evidence and root-cause notes
+The agent-driven self-improvement loop is live. The auditable mutation trail (pre-mutation snapshot, rollback pointer, evolution ledger) is Phase 1.
 
-### Required safety constraints
-1. Local OpenClaw runs should be constrained to explicit workspace allowlist paths.
-2. Mutations without a pre-change snapshot are blocked.
-3. Recommendations must include confidence + expected tradeoff notes.
+### Required safety constraints (current)
+1. Recommendations require human confirmation for structural changes.
+2. Mutations tracked in MEMORY.md by the agent.
+3. Recommendations include confidence + expected tradeoff.
+
+### Phase 1 additions
+- Pre-mutation snapshot hook (block mutation without snapshot)
+- Rollback pointer and reason trail
+- Version-aware A/B evaluation before promoting a new state
+- Evolution ledger (chronological history of recommendations, applied changes, outcomes, reversions)
+
+---
 
 ## 5) Transition Map
 
 ```mermaid
 stateDiagram-v2
     [*] --> F0_Connect
-    F0_Connect --> F1_OnboardingAudit: connection ready
-    F1_OnboardingAudit --> F2_FirstValue: baseline confirmed
-    F2_FirstValue --> F3_DailyControlRoom
+    F0_Connect --> F3_DailyControlRoom: first trace appears
 
-    F3_DailyControlRoom --> F4_LiveRun: scheduled/manual run starts
-    F3_DailyControlRoom --> F5_IncidentTriage: trust degrades or alert fires
+    F3_DailyControlRoom --> F4_LiveRun: run starts
+    F3_DailyControlRoom --> F5_IncidentTriage: user opens a failed trace
 
-    F4_LiveRun --> F3_DailyControlRoom: verified success
-    F4_LiveRun --> F7_Verification: partial/unknown outcome
-    F4_LiveRun --> F5_IncidentTriage: fail/defer/block
+    F4_LiveRun --> F3_DailyControlRoom: run completes
+    F4_LiveRun --> F5_IncidentTriage: failure detected
 
-    F5_IncidentTriage --> F6_ActionIntervention: action selected
-    F6_ActionIntervention --> F7_Verification: action executed
+    F5_IncidentTriage --> F6_Action: recommendation accepted
+    F5_IncidentTriage --> F12_SelfEvolve: agent queries /v1/evolve/ask
 
-    F7_Verification --> F3_DailyControlRoom: stable success
-    F7_Verification --> F8_RegressionEval: repeated or severe failure
-    F7_Verification --> F5_IncidentTriage: unresolved failure
+    F6_Action --> F3_DailyControlRoom: change applied
+    F12_SelfEvolve --> F3_DailyControlRoom: recommendation applied + logged
 
-    F8_RegressionEval --> F3_DailyControlRoom: guardrail attached
-
-    F3_DailyControlRoom --> F9_DriftTimeMachine: behavior drift detected
-    F9_DriftTimeMachine --> F3_DailyControlRoom: drift controlled
-    F9_DriftTimeMachine --> F5_IncidentTriage: drift unresolved
-
-    F3_DailyControlRoom --> F10_ConversationalAutomation: user asks in chat
-    F10_ConversationalAutomation --> F3_DailyControlRoom: artifact saved
-
-    F3_DailyControlRoom --> F11_FeedbackCapture: user feedback event
-    F11_FeedbackCapture --> F8_RegressionEval: high-value learning
-    F11_FeedbackCapture --> F3_DailyControlRoom: normal return
+    note right of F1_Warmup: Phase 1 — guided baseline audit
+    note right of F7_Verification: Phase 1 — before/after proof
+    note right of F9_DriftTimeMachine: Phase 1 — state diff + drift detection
+    note right of F8_RegressionEval: Phase 2 — eval studio + golden datasets
 ```
 
-## 5.1) Page-to-Page Contract
+---
 
-Each page in Phase 1 must satisfy this interaction contract:
-
-1. Frame:
-Left rail with journey + sub-flow modules.
-2. Purpose:
-One page-level question ("What is happening?", "Why failed?", "Did fix work?").
-3. Decision:
-One primary action and explicit transition outcomes.
-4. Evidence:
-Known/unknown clarity plus trace/cost evidence links where relevant.
-
-This contract prevents "everything in one screen" drift and keeps each page legible for first-time users.
-
-## 6) Cost Audit and Cost Control Overlay (OpenClaw)
+## 6) Cost Audit and Cost Control Overlay
 
 Cost control is not a separate app section. It overlays the same journey and surfaces.
 
-Reference detail: [OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md](docs/OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md)
+| Cost Step | Status | User Question |
+|---|---|---|
+| C0 Connect Cost Data | **Shipped** | "Can ClawTrace see my spend?" |
+| C1 Baseline Audit | **Shipped** | "Where did spend go in this run?" |
+| C2 Leak Detection | **Phase 1** | "What is obvious waste?" |
+| C3 Root-Cause Drilldown | **Shipped** (via Tracy) | "Why is this run expensive?" |
+| C4 Control Recommendation | **Shipped** (via self-evolve) | "What should I change first?" |
+| C5 Safe Apply + Verify | **Phase 1** | "Did this reduce spend safely?" |
+| C6 Guardrails | **Phase 1** | "How do I prevent surprise bills?" |
+| C7 Weekly Loop | **Phase 2** | "Are we improving?" |
 
-| Cost Step | User Question | Primary Surface | Exit Condition |
-|---|---|---|---|
-| C0 Connect Cost Data | "Can ClawTrace read real usage?" | F0 onboarding chat | cost ingest healthy + precision class known |
-| C1 Baseline Audit | "Where did spend go last week?" | F1 warmup cards | workflow spend baseline + category split published |
-| C2 Leak Detection | "What is obvious waste?" | F2/F3 cockpit cards | top avoidable drains ranked with evidence |
-| C3 Root-Cause Drilldown | "Why is this workflow expensive?" | F3/F5 cockpit + investigation drawer | trajectory/step attribution with trigger evidence |
-| C4 Control Recommendation | "What should I change first?" | F5/F6 action cards | one primary cost control selected |
-| C5 Safe Apply + Verify | "Did this reduce spend safely?" | F6/F7 verification | delta in cost-per-success and trust state |
-| C6 Guardrail Automation | "How do I prevent surprise bills?" | F3/F10 chat + alerts | budget/rate/spike guardrails active |
-| C7 Weekly Loop | "Are we improving?" | F8/F11 scorecards | week-over-week efficiency trend confirmed |
+Reference: `OPENCLAW_COST_AUDIT_CONTROL_JOURNEY.md`.
 
-## 7) Phase 1 Build Sequence (Journey-First)
+---
 
-1. F0-F2: onboarding connect + guided audit + first-value cockpit handoff.
-2. F3-F5: daily control room + incident triage drawer.
-3. F6-F7: action execution + verification closure states.
-4. F8-F9: regression promotion + drift/time-machine.
-5. F10-F11: conversational artifact generation + feedback loop.
+## 7) Phase 1 Build Sequence
 
-Cost overlay inside the same sequence:
-1. C0-C2 inside F0-F3.
-2. C3-C5 inside F3-F7.
-3. C6-C7 inside F3/F8/F10/F11.
+1. F9: State Time Machine v0 — state vector capture + diff view inside trace detail.
+2. F3 improvement: Cost taxonomy + leak detection in cockpit.
+3. F7: Verification + closure states.
+4. F10: Conversational artifact generation (save as dashboard/alert).
+5. F4 completion: Live run monitoring with real-time span streaming.
+
+---
 
 ## 8) Product KPIs By Journey
 
-- Time to first value (F0 -> F2)
-- Daily triage time (F3)
-- MTTR incident (F5 -> F7)
+Shipped metrics (measurable today):
+- Time to first trace (F0)
+- Token/cost per run
+- Tracy session engagement rate
+- Self-evolve skill adoption rate
+
+Phase 1 metrics:
+- MTTR incident (F5 → F7)
 - Repeat-failure rate per workflow (F7/F8)
 - Cost per successful run
-- High-cost retry-loop frequency
-- Avoidable-spend ratio (`invisible_overhead + misdirected_spend` / total spend)
-- Spend explainability ratio (classified spend / total spend)
-- Verification confidence mix (`success/fail/unknown/partial`)
-- Drift-detection precision (F9)
-- User trust signal (feedback quality in F11)
+- Avoidable-spend ratio
+- Daily triage time (F3)
 
-## 9) Out of Scope For This Journey Spec
+---
+
+## 9) Out of Scope
 
 - Multi-framework onboarding beyond OpenClaw in Phase 1
-- Deep enterprise admin console design (RBAC/ABAC UX can be separate doc)
+- Deep enterprise admin console design (separate doc)
 - Autonomous self-healing without operator-visible control points

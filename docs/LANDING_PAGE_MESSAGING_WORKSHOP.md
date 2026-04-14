@@ -1,125 +1,96 @@
-# ClawTrace Landing Page Messaging Workshop
+# ClawTrace Landing Page Messaging
 
-Last updated: 2026-03-25  
-Status: Implemented in `packages/clawtrace-ui`
+Last updated: 2026-04-14
+Status: Product is live. Landing page shipped and actively updated.
 
-## 0) Final Selection
+---
 
-Selected launch headline:
+## Current State
 
-**Make your OpenClaw agents better, cheaper, and faster.**
+The waitlist phase is over. ClawTrace is live at clawtrace.ai with a full product behind it.
 
-Selected landing-page structure:
+The current landing page CTA is **"Get Started Free"** → `/login` (200 free credits, no credit card required). The waitlist form has been removed.
 
-**Sketch 3: Founder-Friendly**
+---
 
-Hero:
-- **Make your OpenClaw agents better, cheaper, and faster.**
+## Current Headline and Structure
 
-Subhead:
-- **See what failed, where spend leaked, and how to improve.**
+The live landing page follows the structure from the README rewrite (2026-04-14):
 
-Section: Better
-- Less babysitting, fewer repeated mistakes.
-- More reliable output from the agents you already run daily.
+**Opening:** Lead with the real incident — not the product.
+> "My OpenClaw agent burned ~40× its normal token budget in under an hour. Root cause: it was appending ~1,500 messages of history to every LLM call. I couldn't see it from logs. Built after that incident."
 
-Section: Cheaper
-- Know exactly why cost spiked.
-- Cut cost without guessing.
+**Install:** Three commands, immediately after.
 
-Section: Faster
-- Stop agents from looping back and forth, and get to the right fix faster.
-- Use cheaper models when possible and script repeatable steps so runs stay stable.
+**What it shows:** 4 bullets (not a feature table):
+- Token usage per step
+- Tool calls and retries
+- Execution timeline
+- Full input/output
 
-CTA:
-- **Join Waitlist** (email capture)
+**Tracy section:** Conversational AI analyst — ask questions in plain English, get answers with charts.
 
-## 1) Goal
+**Three views:** Execution Path, Actor Map, Step Timeline (screenshots after explanation, not before).
 
-Pick one primary landing-page message for the first version, then build the page around it.
+**CTA:** Get Started Free → clawtrace.ai
 
-## 2) Audience for v1
+---
 
-- OpenClaw operators
-- founder/operators running daily automations
-- teams with repeat agent failures and rising token spend
+## Messaging Principles (Updated for Live Product)
 
-## 3) Message Options
+The original workshop identified the right pain and the right framing. What changed:
 
-## Option A (Recommended): Cost Control Without Losing Quality
+1. **No more "join waitlist"** — product is live; CTA is instant signup.
+2. **Lead with the incident, not the category** — do not open with "observability platform" or "comprehensive visibility." Open with the bug.
+3. **Tracy is the key differentiator** — not dashboards. Ask a question, get an answer with charts. This is what other tools don't have.
+4. **Self-evolve loop is a real feature** — the agent that improves itself is live and working. Can be called out as a unique capability.
 
-### Hero
-Stop OpenClaw from burning budget in the background.
+Kill these phrases everywhere:
+- "end-to-end"
+- "comprehensive"
+- "observability platform"
+- "AI agents optimization"
+- "solution"
 
-### Subhead
-ClawTrace shows exactly where cost goes in each workflow, flags waste, and helps you fix it without breaking output quality.
+---
 
-### Why this could win
-- matches urgent wallet pain
-- easy to explain in one sentence
-- directly tied to your recent customer interviews and workflow pain
+## HN-Friendly Framing (2026-04-14)
 
-### Risks
-- could sound like "just a cost dashboard" if reliability story is weak
+For Show HN and YC Bookface:
 
-## Option B: Reliability Control Room
+**Problem:** My OpenClaw agent burned 40× normal token budget. Logs showed nothing useful. Built ClawTrace after that incident.
 
-### Hero
-Your OpenClaw workflow should not feel like a black box.
+**What it does:** Records every run as a tree of spans. Three views per trace. Ask Tracy (built-in AI analyst) "why did this run cost so much?" and get a specific answer.
 
-### Subhead
-See what happened, why it failed, and what to fix next in one control room.
+**Install:** `openclaw plugins install @epsilla/clawtrace && openclaw clawtrace setup`
 
-### Why this could win
-- strongest identity fit for long-term product
-- avoids being reduced to a budget tool
+**GitHub:** github.com/richard-epsilla/clawtrace
 
-### Risks
-- broad framing; may feel less urgent than direct cost pain
+---
 
-## Option C: Give Founders Their Time Back
+## Implementation Files
 
-### Hero
-Get your mornings back from babysitting OpenClaw.
-
-### Subhead
-ClawTrace catches repeat mistakes, surfaces the right fix, and helps your workflows run reliably without daily hand-holding.
-
-### Why this could win
-- emotionally strong
-- highly relatable for founder/operators
-
-### Risks
-- less concrete unless backed by hard cost/reliability proof
-
-## 4) Recommended Direction
-
-Use Option A as primary narrative, then anchor it with reliability:
-
-1. Lead with cost control.
-2. Prove with workflow-level cost attribution and leak detection.
-3. Reinforce that quality stays protected via verification and guardrails.
-
-Short framing:
-"Reduce OpenClaw waste first, then improve reliability with the same control loop."
-
-## 5) Landing Page Content Skeleton (for build)
-
-1. Hero: cost pain + promise
-2. Social proof/problem reality: black-box + hidden spend
-3. "Where your money goes" section (workflow -> run -> step)
-4. "Fix the biggest leaks first" section (guided controls)
-5. "Protect quality while cutting cost" section (verification + trust state)
-6. CTA: install or join early access
-
-## 6) Decision
-
-Landing-page message is approved and ready to build using Sketch 3.
-
-## 7) Implementation Mapping
-
-Implemented files:
 - `packages/clawtrace-ui/src/app/page.tsx`
 - `packages/clawtrace-ui/src/components/clawtrace/landing/LandingPage.tsx`
 - `packages/clawtrace-ui/src/components/clawtrace/landing/LandingPage.module.css`
-- `packages/clawtrace-ui/src/app/api/waitlist/route.ts`
+- `packages/clawtrace-ui/src/app/api/waitlist/route.ts` (waitlist endpoint still exists for legacy; not surfaced in UI)
+
+---
+
+## Original Options (For Reference)
+
+The workshop evaluated three options:
+
+**Option A (Recommended): Cost Control Without Losing Quality**
+Hero: "Stop OpenClaw from burning budget in the background."
+Status: This framing was correct. Cost is still the primary entry pain.
+
+**Option B: Reliability Control Room**
+Hero: "Your OpenClaw workflow should not feel like a black box."
+Status: Used as the secondary message layer. Reliability is the sustained value, cost is the entry point.
+
+**Option C: Give Founders Their Time Back**
+Hero: "Get your mornings back from babysitting OpenClaw."
+Status: Still emotionally strong. Used in YC Bookface and deal descriptions.
+
+The decision to lead with cost + reinforce reliability remains correct for the target ICP (founder/operators with rising token bills).
