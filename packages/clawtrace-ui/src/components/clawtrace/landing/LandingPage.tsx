@@ -228,8 +228,8 @@ export function LandingPage() {
         <a className={styles.primaryButton} href="/login">Get Started Free</a>
 
         <div className={styles.phBadge}>
-          <a href="https://www.producthunt.com/products/clawtrace-2?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-clawtrace-2" target="_blank" rel="noopener noreferrer">
-            <img alt="ClawTrace - Make your OpenClaw better, cheaper, and faster | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1123178&theme=light&t=1776140611496" />
+          <a href="https://www.producthunt.com/products/epsilla?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-clawtrace-2" target="_blank" rel="noopener noreferrer">
+            <img alt="ClawTrace - Make your OpenClaw better, cheaper, and faster | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1123178&theme=light&t=1776238097530" />
           </a>
           <a href="https://www.ycombinator.com/launches/PwR-clawtrace-make-your-openclaw-agent-better-cheaper-and-faster" target="_blank" rel="noopener noreferrer">
             <img alt="Launch YC: ClawTrace — Make Your OpenClaw Agent Better, Cheaper and Faster" src="https://www.ycombinator.com/launches/PwR-clawtrace-make-your-openclaw-agent-better-cheaper-and-faster/upvote_embed.svg" />
