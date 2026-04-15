@@ -6,6 +6,58 @@
   gap: 16px;
 }
 
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 80px 24px;
+  gap: 16px;
+}
+.emptyIcon {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background: #fdf6ee;
+  border: 1px solid #dac9b0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a4532b;
+  margin-bottom: 4px;
+}
+.emptyTitle {
+  font-size: 18px;
+  font-weight: 500;
+  color: #2f2016;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.emptyBody {
+  font-size: 14px;
+  color: #7c6050;
+  margin: 0;
+  max-width: 380px;
+  line-height: 1.6;
+}
+.emptyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 8px;
+  padding: 10px 22px;
+  border-radius: 8px;
+  background: #a4532b;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.emptyBtn:hover { background: #8c4423; }
+
 /* ── Header ─────────────────────────────────────────────────────────────── */
 .header {
   display: flex;
