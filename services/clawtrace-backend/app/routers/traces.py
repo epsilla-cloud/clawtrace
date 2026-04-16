@@ -107,13 +107,14 @@ def _safe_float(v: object) -> float:
         return 0.0
 
 
-def _classify_category(payloads: list) -> str:
-    """Classify trace category from collected span input_payload snippets."""
-    combined = " ".join(str(p) for p in payloads if p)
-    lower = combined.lower()
-    if "heartbeat" in lower or "heartbeat_ok" in lower or "heartbeat.md" in lower:
+def _classify_category(trace_category: str | None) -> str:
+    """Map trace-level category field to display label."""
+    if not trace_category:
+        return "Work"
+    c = str(trace_category).lower()
+    if "heartbeat" in c:
         return "Heartbeat"
-    if "pre-compaction" in lower or "memory flush" in lower:
+    if "compact" in c or "compaction" in c:
         return "Compact Memory"
     return "Work"
 
@@ -233,7 +234,7 @@ RETURN
   coalesce(sum(s.output_tokens), 0)         AS output_tokens,
   coalesce(sum(s.total_tokens),  0)         AS total_tokens,
   max(coalesce(s.has_error,      0))        AS has_error,
-  collect(substring(coalesce(s.input_payload, ''), 0, 600)) AS payload_snippets
+  t.category                                AS trace_category
 ORDER BY started_at_ms DESC
 LIMIT {limit + 50}
 """
@@ -250,7 +251,7 @@ LIMIT {limit + 50}
             output_tokens=_safe_int(r.get("output_tokens", 0)),
             total_tokens=_safe_int(r.get("total_tokens", 0)),
             has_error=_safe_int(r.get("has_error", 0)),
-            category=_classify_category(r.get("payload_snippets", [])),
+            category=_classify_category(r.get("trace_category")),
         )
         for r in tr_rows
     ]
