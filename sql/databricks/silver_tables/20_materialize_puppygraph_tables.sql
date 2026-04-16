@@ -79,7 +79,25 @@ USING (
     MAX(CASE WHEN event_type = 'session_start'
          THEN get_json_object(payload_json, '$.agentName') END) AS agent_name,
     MAX(CASE WHEN event_type = 'session_start'
-         THEN get_json_object(payload_json, '$.sessionKey') END) AS session_key
+         THEN get_json_object(payload_json, '$.sessionKey') END) AS session_key,
+    -- Category classification: inspect first 2000 chars of session_start and
+    -- llm_before_call payloads only — cheap substring check, no full collect().
+    CASE
+      WHEN MAX(CASE
+             WHEN event_type IN ('session_start', 'llm_before_call')
+               AND lower(substring(payload_json, 1, 2000)) LIKE '%heartbeat%'
+             THEN 1 ELSE 0 END) = 1
+      THEN 'Heartbeat'
+      WHEN MAX(CASE
+             WHEN event_type IN ('session_start', 'llm_before_call')
+               AND (
+                 lower(substring(payload_json, 1, 2000)) LIKE '%pre-compaction%'
+                 OR lower(substring(payload_json, 1, 2000)) LIKE '%memory flush%'
+               )
+             THEN 1 ELSE 0 END) = 1
+      THEN 'Compact Memory'
+      ELSE 'Work'
+    END AS category
   FROM clawtrace.silver.events_all
   WHERE trace_id IN (
     -- Only recompute traces that got new events since the last pg refresh
@@ -100,7 +118,8 @@ WHEN MATCHED THEN UPDATE SET
   event_count       = s.event_count,
   trace_date        = s.trace_date,
   agent_name        = s.agent_name,
-  session_key       = s.session_key
+  session_key       = s.session_key,
+  category          = s.category
 WHEN NOT MATCHED THEN INSERT *;
 
 -- ─────────────────────────────────────────────────────────────────────────────
