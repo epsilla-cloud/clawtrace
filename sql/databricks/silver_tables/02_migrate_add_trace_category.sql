@@ -20,7 +20,7 @@
 -- RUN ONCE in Databricks SQL Editor after deploying job 20 changes.
 
 ALTER TABLE clawtrace.silver.pg_traces
-ADD COLUMN IF NOT EXISTS category STRING;
+ADD COLUMN category STRING;
 
 -- Backfill existing rows.
 -- Only reads session_start + llm_before_call events (small subset),
