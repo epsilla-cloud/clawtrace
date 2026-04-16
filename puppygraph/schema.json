@@ -13,7 +13,6 @@
   ],
   "graph": {
     "vertices": [
-
       {
         "label": "Tenant",
         "oneToOne": {
@@ -24,12 +23,15 @@
           },
           "id": {
             "fields": [
-              { "type": "String", "field": "tenant_id", "alias": "tenant_id" }
+              {
+                "type": "String",
+                "field": "tenant_id",
+                "alias": "tenant_id"
+              }
             ]
           }
         }
       },
-
       {
         "label": "Agent",
         "oneToOne": {
@@ -40,15 +42,22 @@
           },
           "id": {
             "fields": [
-              { "type": "String", "field": "agent_id", "alias": "agent_id" }
+              {
+                "type": "String",
+                "field": "agent_id",
+                "alias": "agent_id"
+              }
             ]
           },
           "attributes": [
-            { "type": "String", "field": "tenant_id", "alias": "tenant_id" }
+            {
+              "type": "String",
+              "field": "tenant_id",
+              "alias": "tenant_id"
+            }
           ]
         }
       },
-
       {
         "label": "Trace",
         "oneToOne": {
@@ -59,23 +68,67 @@
           },
           "id": {
             "fields": [
-              { "type": "String", "field": "trace_id", "alias": "trace_id" }
+              {
+                "type": "String",
+                "field": "trace_id",
+                "alias": "trace_id"
+              }
             ]
           },
           "attributes": [
-            { "type": "String", "field": "tenant_id",         "alias": "tenant_id"         },
-            { "type": "String", "field": "agent_id",          "alias": "agent_id"          },
-            { "type": "Long",   "field": "trace_start_ts_ms", "alias": "trace_start_ts_ms" },
-            { "type": "Long",   "field": "trace_end_ts_ms",   "alias": "trace_end_ts_ms"   },
-            { "type": "Long",   "field": "duration_ms",       "alias": "duration_ms"       },
-            { "type": "Long",   "field": "event_count",       "alias": "event_count"       },
-            { "type": "Date",   "field": "trace_date",        "alias": "trace_date"        },
-            { "type": "String", "field": "agent_name",        "alias": "agent_name"        },
-            { "type": "String", "field": "session_key",       "alias": "session_key"       }
+            {
+              "type": "String",
+              "field": "tenant_id",
+              "alias": "tenant_id"
+            },
+            {
+              "type": "String",
+              "field": "agent_id",
+              "alias": "agent_id"
+            },
+            {
+              "type": "Long",
+              "field": "trace_start_ts_ms",
+              "alias": "trace_start_ts_ms"
+            },
+            {
+              "type": "Long",
+              "field": "trace_end_ts_ms",
+              "alias": "trace_end_ts_ms"
+            },
+            {
+              "type": "Long",
+              "field": "duration_ms",
+              "alias": "duration_ms"
+            },
+            {
+              "type": "Long",
+              "field": "event_count",
+              "alias": "event_count"
+            },
+            {
+              "type": "Date",
+              "field": "trace_date",
+              "alias": "trace_date"
+            },
+            {
+              "type": "String",
+              "field": "agent_name",
+              "alias": "agent_name"
+            },
+            {
+              "type": "String",
+              "field": "session_key",
+              "alias": "session_key"
+            },
+            {
+              "type": "String",
+              "field": "category",
+              "alias": "category"
+            }
           ]
         }
       },
-
       {
         "label": "Span",
         "oneToOne": {
@@ -86,32 +139,94 @@
           },
           "id": {
             "fields": [
-              { "type": "String", "field": "span_id", "alias": "span_id" }
+              {
+                "type": "String",
+                "field": "span_id",
+                "alias": "span_id"
+              }
             ]
           },
           "attributes": [
-            { "type": "String", "field": "tenant_id",        "alias": "tenant_id"        },
-            { "type": "String", "field": "agent_id",         "alias": "agent_id"         },
-            { "type": "String", "field": "trace_id",         "alias": "trace_id"         },
-            { "type": "String", "field": "parent_span_id",   "alias": "parent_span_id"   },
-            { "type": "String", "field": "actor_label",      "alias": "actor_label"      },
-            { "type": "String", "field": "actor_type",       "alias": "actor_type"       },
-            { "type": "Long",   "field": "span_start_ts_ms", "alias": "span_start_ts_ms" },
-            { "type": "Long",   "field": "span_end_ts_ms",   "alias": "span_end_ts_ms"   },
-            { "type": "Long",   "field": "duration_ms",      "alias": "duration_ms"      },
-            { "type": "Long",   "field": "input_tokens",     "alias": "input_tokens"     },
-            { "type": "Long",   "field": "output_tokens",    "alias": "output_tokens"    },
-            { "type": "Long",   "field": "total_tokens",     "alias": "total_tokens"     },
-            { "type": "Int",    "field": "has_error",        "alias": "has_error"        },
-            { "type": "String", "field": "input_payload",    "alias": "input_payload"    },
-            { "type": "String", "field": "output_payload",   "alias": "output_payload"   }
+            {
+              "type": "String",
+              "field": "tenant_id",
+              "alias": "tenant_id"
+            },
+            {
+              "type": "String",
+              "field": "agent_id",
+              "alias": "agent_id"
+            },
+            {
+              "type": "String",
+              "field": "trace_id",
+              "alias": "trace_id"
+            },
+            {
+              "type": "String",
+              "field": "parent_span_id",
+              "alias": "parent_span_id"
+            },
+            {
+              "type": "String",
+              "field": "actor_label",
+              "alias": "actor_label"
+            },
+            {
+              "type": "String",
+              "field": "actor_type",
+              "alias": "actor_type"
+            },
+            {
+              "type": "Long",
+              "field": "span_start_ts_ms",
+              "alias": "span_start_ts_ms"
+            },
+            {
+              "type": "Long",
+              "field": "span_end_ts_ms",
+              "alias": "span_end_ts_ms"
+            },
+            {
+              "type": "Long",
+              "field": "duration_ms",
+              "alias": "duration_ms"
+            },
+            {
+              "type": "Long",
+              "field": "input_tokens",
+              "alias": "input_tokens"
+            },
+            {
+              "type": "Long",
+              "field": "output_tokens",
+              "alias": "output_tokens"
+            },
+            {
+              "type": "Long",
+              "field": "total_tokens",
+              "alias": "total_tokens"
+            },
+            {
+              "type": "Int",
+              "field": "has_error",
+              "alias": "has_error"
+            },
+            {
+              "type": "String",
+              "field": "input_payload",
+              "alias": "input_payload"
+            },
+            {
+              "type": "String",
+              "field": "output_payload",
+              "alias": "output_payload"
+            }
           ]
         }
       }
-
     ],
     "edges": [
-
       {
         "label": "HAS_AGENT",
         "fromVertex": "Tenant",
@@ -123,21 +238,32 @@
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "agent_id", "alias": "edge_id" }
+            {
+              "type": "String",
+              "field": "agent_id",
+              "alias": "edge_id"
+            }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "tenant_id", "alias": "from_tenant_id" }
+            {
+              "type": "String",
+              "field": "tenant_id",
+              "alias": "from_tenant_id"
+            }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "agent_id", "alias": "to_agent_id" }
+            {
+              "type": "String",
+              "field": "agent_id",
+              "alias": "to_agent_id"
+            }
           ]
         }
       },
-
       {
         "label": "OWNS",
         "fromVertex": "Agent",
@@ -149,21 +275,32 @@
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "edge_id" }
+            {
+              "type": "String",
+              "field": "trace_id",
+              "alias": "edge_id"
+            }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "agent_id", "alias": "from_agent_id" }
+            {
+              "type": "String",
+              "field": "agent_id",
+              "alias": "from_agent_id"
+            }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "to_trace_id" }
+            {
+              "type": "String",
+              "field": "trace_id",
+              "alias": "to_trace_id"
+            }
           ]
         }
       },
-
       {
         "label": "HAS_SPAN",
         "fromVertex": "Trace",
@@ -175,21 +312,32 @@
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "span_id", "alias": "edge_id" }
+            {
+              "type": "String",
+              "field": "span_id",
+              "alias": "edge_id"
+            }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "trace_id", "alias": "from_trace_id" }
+            {
+              "type": "String",
+              "field": "trace_id",
+              "alias": "from_trace_id"
+            }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "span_id", "alias": "to_span_id" }
+            {
+              "type": "String",
+              "field": "span_id",
+              "alias": "to_span_id"
+            }
           ]
         }
       },
-
       {
         "label": "CHILD_OF",
         "fromVertex": "Span",
@@ -201,21 +349,32 @@
         },
         "id": {
           "fields": [
-            { "type": "String", "field": "span_id", "alias": "edge_id" }
+            {
+              "type": "String",
+              "field": "span_id",
+              "alias": "edge_id"
+            }
           ]
         },
         "fromId": {
           "fields": [
-            { "type": "String", "field": "span_id", "alias": "from_span_id" }
+            {
+              "type": "String",
+              "field": "span_id",
+              "alias": "from_span_id"
+            }
           ]
         },
         "toId": {
           "fields": [
-            { "type": "String", "field": "parent_span_id", "alias": "to_parent_span_id" }
+            {
+              "type": "String",
+              "field": "parent_span_id",
+              "alias": "to_parent_span_id"
+            }
           ]
         }
       }
-
     ]
   }
 }
