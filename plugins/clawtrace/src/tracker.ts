@@ -202,6 +202,16 @@ export class HookEventTracker {
   private readonly subagents = new Map<string, ActiveSpanState>();
 
   /**
+   * Recently-ended runs keyed by runId.
+   * Populated in cleanupRunState so that children spawned via sessions_spawn
+   * (which fires asynchronously AFTER the parent session_end) can still find
+   * their parent trace even though it is no longer in activeRuns.
+   * Bounded to last 50 entries to prevent unbounded growth.
+   */
+  private readonly recentlyEndedRuns = new Map<string, RunState>();
+  private static readonly RECENTLY_ENDED_MAX = 50;
+
+  /**
    * childSessionKey → parent trace link.
    * Set when subagent_spawned fires so that the child's llm_input uses the
    * parent's traceId instead of the child's own runId — keeping the entire
@@ -659,17 +669,21 @@ export class HookEventTracker {
         // Step A: exact prefix
         const stripped = childSessionKey.slice(0, lastMarker);
         const directRunId = this.sessionToRunId.get(stripped);
-        const directRun = directRunId ? this.activeRuns.get(directRunId) : undefined;
+        const directRun = directRunId
+          ? (this.activeRuns.get(directRunId) ?? this.recentlyEndedRuns.get(directRunId))
+          : undefined;
         if (directRun) return { traceId: directRun.traceId, parentSpanId: directRun.rootSpanId };
 
         // Step B: for direct children (stripped has no spawn markers),
-        // search the agent's non-spawn sessions by prefix
+        // search the agent's non-spawn sessions by prefix.
+        // Also checks recentlyEndedRuns so that children spawned via sessions_spawn
+        // (which fires asynchronously after the parent session_end) can still link.
         if (!stripped.includes(":subagent:") && !stripped.includes(":acp:")) {
           const agentPrefix = stripped + ":";
           for (const [sk, rid] of this.sessionToRunId) {
             if (!sk.startsWith(agentPrefix) || sk === childSessionKey) continue;
             if (sk.includes(":subagent:") || sk.includes(":acp:")) continue;
-            const parentRun = this.activeRuns.get(rid);
+            const parentRun = this.activeRuns.get(rid) ?? this.recentlyEndedRuns.get(rid);
             if (parentRun) return { traceId: parentRun.traceId, parentSpanId: parentRun.rootSpanId };
           }
         }
@@ -701,6 +715,16 @@ export class HookEventTracker {
     const run = this.activeRuns.get(runId);
     if (!run) return;
     this.activeRuns.delete(runId);
+
+    // Keep run info in recentlyEndedRuns so that children spawned via
+    // sessions_spawn (asynchronous, fires after parent session_end) can still
+    // link to their parent trace via resolveParentTrace.
+    this.recentlyEndedRuns.set(runId, run);
+    if (this.recentlyEndedRuns.size > HookEventTracker.RECENTLY_ENDED_MAX) {
+      const oldest = this.recentlyEndedRuns.keys().next().value;
+      if (oldest !== undefined) this.recentlyEndedRuns.delete(oldest);
+    }
+
     // Keep sessionToRunId mapping alive — late tool calls (e.g. sessions_yield
     // from announce phases) may still need it to find their parent trace.
     // The mapping is cleaned up in onSessionEnd.
