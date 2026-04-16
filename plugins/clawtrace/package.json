@@ -29,10 +29,10 @@
     "observability",
     "tracing"
   ],
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/epsilla-enterprise/clawtrace.git",
+    "url": "git+https://github.com/epsilla-cloud/clawtrace.git",
     "directory": "plugins/clawtrace"
   },
   "publishConfig": {
