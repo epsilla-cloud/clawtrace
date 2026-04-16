@@ -20,14 +20,9 @@ ALTER TABLE clawtrace.silver.pg_traces ADD COLUMN total_output_tokens BIGINT;
 ALTER TABLE clawtrace.silver.pg_traces ADD COLUMN total_tokens        BIGINT;
 ALTER TABLE clawtrace.silver.pg_traces ADD COLUMN has_error           INT;
 
--- Backfill existing rows from events_all.
-UPDATE clawtrace.silver.pg_traces AS pt
-SET
-  total_input_tokens  = agg.total_input_tokens,
-  total_output_tokens = agg.total_output_tokens,
-  total_tokens        = agg.total_tokens,
-  has_error           = agg.has_error
-FROM (
+-- Backfill existing rows from events_all using MERGE (Databricks UPDATE doesn't support FROM).
+MERGE INTO clawtrace.silver.pg_traces AS t
+USING (
   SELECT
     trace_id,
     tenant_id,
@@ -37,6 +32,11 @@ FROM (
     MAX(CASE WHEN event_type = 'error' THEN 1 ELSE 0 END)                             AS has_error
   FROM clawtrace.silver.events_all
   GROUP BY trace_id, tenant_id
-) AS agg
-WHERE pt.trace_id  = agg.trace_id
-  AND pt.tenant_id = agg.tenant_id;
+) AS s
+ON  t.trace_id  = s.trace_id
+AND t.tenant_id = s.tenant_id
+WHEN MATCHED THEN UPDATE SET
+  total_input_tokens  = s.total_input_tokens,
+  total_output_tokens = s.total_output_tokens,
+  total_tokens        = s.total_tokens,
+  has_error           = s.has_error;
