@@ -148,9 +148,13 @@ CREATE TABLE IF NOT EXISTS clawtrace.silver.pg_traces (
   duration_ms       BIGINT,
   event_count       BIGINT,
   trace_date        DATE,
-  agent_name        STRING,  -- OpenClaw agent identity (e.g. "main", "codex") parsed from sessionKey
-  session_key       STRING,  -- OpenClaw sessionKey for grouping loops by conversation
-  category          STRING   -- Heartbeat | Compact Memory | Work (classified at ingest time)
+  agent_name          STRING,  -- OpenClaw agent identity (e.g. "main", "codex") parsed from sessionKey
+  session_key         STRING,  -- OpenClaw sessionKey for grouping loops by conversation
+  total_input_tokens  BIGINT,  -- sum of input tokens across all spans (avoids OPTIONAL MATCH at query time)
+  total_output_tokens BIGINT,  -- sum of output tokens across all spans
+  total_tokens        BIGINT,  -- sum of total tokens across all spans
+  has_error           INT,     -- 1 if any span in the trace has an error, 0 otherwise
+  category            STRING   -- Heartbeat | Compact Memory | Work (classified at ingest time)
 )
 CLUSTER BY (tenant_id, agent_id, trace_id)
 TBLPROPERTIES (

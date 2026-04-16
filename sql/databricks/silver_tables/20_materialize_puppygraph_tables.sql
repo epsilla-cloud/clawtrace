@@ -80,6 +80,12 @@ USING (
          THEN get_json_object(payload_json, '$.agentName') END) AS agent_name,
     MAX(CASE WHEN event_type = 'session_start'
          THEN get_json_object(payload_json, '$.sessionKey') END) AS session_key,
+    -- Token aggregates — avoids OPTIONAL MATCH (t)-[:HAS_SPAN]->(s) at query time.
+    -- Summed from llm_after_call events (same source as pg_spans token columns).
+    COALESCE(SUM(CAST(get_json_object(payload_json, '$.usage.input')  AS BIGINT)), 0) AS total_input_tokens,
+    COALESCE(SUM(CAST(get_json_object(payload_json, '$.usage.output') AS BIGINT)), 0) AS total_output_tokens,
+    COALESCE(SUM(CAST(get_json_object(payload_json, '$.usage.total')  AS BIGINT)), 0) AS total_tokens,
+    MAX(CASE WHEN event_type = 'error' THEN 1 ELSE 0 END)                             AS has_error,
     -- Category classification: inspect first 2000 chars of session_start and
     -- llm_before_call payloads only — cheap substring check, no full collect().
     CASE
@@ -112,14 +118,18 @@ USING (
 ON  t.tenant_id = s.tenant_id
 AND t.trace_id  = s.trace_id
 WHEN MATCHED THEN UPDATE SET
-  trace_start_ts_ms = s.trace_start_ts_ms,
-  trace_end_ts_ms   = s.trace_end_ts_ms,
-  duration_ms       = s.duration_ms,
-  event_count       = s.event_count,
-  trace_date        = s.trace_date,
-  agent_name        = s.agent_name,
-  session_key       = s.session_key,
-  category          = s.category
+  trace_start_ts_ms  = s.trace_start_ts_ms,
+  trace_end_ts_ms    = s.trace_end_ts_ms,
+  duration_ms        = s.duration_ms,
+  event_count        = s.event_count,
+  trace_date         = s.trace_date,
+  agent_name         = s.agent_name,
+  session_key        = s.session_key,
+  total_input_tokens = s.total_input_tokens,
+  total_output_tokens= s.total_output_tokens,
+  total_tokens       = s.total_tokens,
+  has_error          = s.has_error,
+  category           = s.category
 WHEN NOT MATCHED THEN INSERT *;
 
 -- ─────────────────────────────────────────────────────────────────────────────

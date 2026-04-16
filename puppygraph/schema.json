@@ -125,6 +125,26 @@
               "type": "String",
               "field": "category",
               "alias": "category"
+            },
+            {
+              "type": "Long",
+              "field": "total_input_tokens",
+              "alias": "total_input_tokens"
+            },
+            {
+              "type": "Long",
+              "field": "total_output_tokens",
+              "alias": "total_output_tokens"
+            },
+            {
+              "type": "Long",
+              "field": "total_tokens",
+              "alias": "total_tokens"
+            },
+            {
+              "type": "Int",
+              "field": "has_error",
+              "alias": "has_error"
             }
           ]
         }

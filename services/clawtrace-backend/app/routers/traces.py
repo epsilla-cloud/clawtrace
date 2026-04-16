@@ -161,26 +161,26 @@ RETURN count(t) AS cnt
         )
 
     # ── 1. Metrics ────────────────────────────────────────────────────────────
+    # No OPTIONAL MATCH — token aggregates are pre-computed in pg_traces by the ETL job.
     metrics_q = f"""
 MATCH (t:Trace)
 WHERE t.agent_id   = '{agent_id}'
   AND t.tenant_id  = '{tid}'
   AND t.trace_start_ts_ms >= {from_ms}
   AND t.trace_start_ts_ms <= {to_ms}
-OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
-  count(DISTINCT elementId(t))                          AS total_traces,
-  coalesce(sum(s.total_tokens), 0)                      AS total_tokens,
-  coalesce(sum(s.input_tokens), 0)                      AS total_input_tokens,
-  coalesce(sum(s.output_tokens), 0)                     AS total_output_tokens,
-  sum(CASE WHEN s.has_error = 1 THEN 1 ELSE 0 END)      AS error_spans
+  count(elementId(t))                              AS total_traces,
+  coalesce(sum(t.total_tokens), 0)                 AS total_tokens,
+  coalesce(sum(t.total_input_tokens), 0)           AS total_input_tokens,
+  coalesce(sum(t.total_output_tokens), 0)          AS total_output_tokens,
+  sum(CASE WHEN t.has_error = 1 THEN 1 ELSE 0 END) AS error_traces
 """
     m_rows = await run_cypher(metrics_q, settings)
     m = m_rows[0] if m_rows else {}
     total_traces = _safe_int(m.get("total_traces", 0))
-    error_spans  = _safe_int(m.get("error_spans", 0))
+    error_traces = _safe_int(m.get("error_traces", 0))
     success_rate = round(
-        1.0 - min(error_spans, total_traces) / total_traces, 4
+        1.0 - min(error_traces, total_traces) / total_traces, 4
     ) if total_traces else 1.0
 
     metrics = TraceMetrics(
@@ -192,18 +192,18 @@ RETURN
     )
 
     # ── 2. Trends (per day) ───────────────────────────────────────────────────
+    # No OPTIONAL MATCH — token aggregates are pre-computed in pg_traces.
     trends_q = f"""
 MATCH (t:Trace)
 WHERE t.agent_id  = '{agent_id}'
   AND t.tenant_id = '{tid}'
   AND t.trace_start_ts_ms >= {from_ms}
   AND t.trace_start_ts_ms <= {to_ms}
-OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
-  t.trace_date                         AS date,
-  count(DISTINCT elementId(t))         AS run_count,
-  coalesce(sum(s.input_tokens), 0)     AS input_tokens,
-  coalesce(sum(s.output_tokens), 0)    AS output_tokens
+  t.trace_date                                     AS date,
+  count(elementId(t))                              AS run_count,
+  coalesce(sum(t.total_input_tokens), 0)           AS input_tokens,
+  coalesce(sum(t.total_output_tokens), 0)          AS output_tokens
 ORDER BY date
 """
     t_rows = await run_cypher(trends_q, settings)
@@ -218,23 +218,23 @@ ORDER BY date
     ]
 
     # ── 3. Trace list ─────────────────────────────────────────────────────────
+    # No OPTIONAL MATCH — all columns are pre-computed in pg_traces.
     traces_q = f"""
 MATCH (t:Trace)
 WHERE t.agent_id  = '{agent_id}'
   AND t.tenant_id = '{tid}'
   AND t.trace_start_ts_ms >= {from_ms}
   AND t.trace_start_ts_ms <= {to_ms}
-OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
 RETURN
-  elementId(t)                              AS trace_id,
-  t.trace_start_ts_ms                       AS started_at_ms,
-  t.duration_ms                             AS duration_ms,
-  t.event_count                             AS event_count,
-  coalesce(sum(s.input_tokens),  0)         AS input_tokens,
-  coalesce(sum(s.output_tokens), 0)         AS output_tokens,
-  coalesce(sum(s.total_tokens),  0)         AS total_tokens,
-  max(coalesce(s.has_error,      0))        AS has_error,
-  t.category                                AS trace_category
+  elementId(t)                    AS trace_id,
+  t.trace_start_ts_ms             AS started_at_ms,
+  t.duration_ms                   AS duration_ms,
+  t.event_count                   AS event_count,
+  t.total_input_tokens            AS input_tokens,
+  t.total_output_tokens           AS output_tokens,
+  t.total_tokens                  AS total_tokens,
+  t.has_error                     AS has_error,
+  t.category                      AS trace_category
 ORDER BY started_at_ms DESC
 LIMIT {limit + 50}
 """
