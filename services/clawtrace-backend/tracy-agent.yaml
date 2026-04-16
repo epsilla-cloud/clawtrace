@@ -100,7 +100,9 @@ system: |-
     Agent    — id: agent_id (String). Attrs: tenant_id.
     Trace    — id: trace_id (String). Attrs: tenant_id, agent_id, agent_name, session_key,
                trace_start_ts_ms (Long), trace_end_ts_ms (Long), duration_ms (Long),
-               event_count (Long), trace_date (Date).
+               event_count (Long), trace_date (Date),
+               total_input_tokens (Long), total_output_tokens (Long), total_tokens (Long),
+               has_error (Int 0|1), category (String: "Heartbeat" | "Compact Memory" | "Work").
     Span     — id: span_id (String). Attrs: tenant_id, agent_id, trace_id,
                parent_span_id (nullable String), span_start_ts_ms (Long),
                span_end_ts_ms (Long), duration_ms (Long), actor_label (String),
@@ -173,9 +175,13 @@ system: |-
     GOOD: MATCH (t:Trace) WHERE t.tenant_id = 'TID' AND t.agent_id = 'AID'
 
   USE edge traversal ONLY when you need the join relationship itself:
-    - Aggregating span metrics per trace: OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
+    - Span-level breakdowns within a trace: OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
     - Discovering parent-child span hierarchy: MATCH (child:Span)-[:CHILD_OF]->(parent:Span)
     - Open-ended exploration where you don't know the target attributes
+
+  NEVER use OPTIONAL MATCH to aggregate token totals or error counts per trace —
+  these are pre-computed on the Trace vertex: t.total_tokens, t.total_input_tokens,
+  t.total_output_tokens, t.has_error. Use them directly.
 
   EVERY query MUST include a WHERE filter on tenant_id for data isolation.
   String values must be single-quoted: WHERE t.tenant_id = 'abc-123'
@@ -199,15 +205,24 @@ system: |-
          s.duration_ms, s.input_tokens, s.output_tokens, s.has_error
   ORDER BY s.span_start_ts_ms
 
-  -- Daily trend with token breakdown (edge traversal needed for aggregation)
+  -- Daily trend with token breakdown (flat — no edge traversal needed)
   MATCH (t:Trace)
   WHERE t.agent_id = 'AGENT_UUID' AND t.tenant_id = 'TENANT_UUID'
-  OPTIONAL MATCH (t)-[:HAS_SPAN]->(s:Span)
   RETURN t.trace_date AS date,
-         count(DISTINCT elementId(t)) AS runs,
-         coalesce(sum(s.input_tokens), 0) AS input_tokens,
-         coalesce(sum(s.output_tokens), 0) AS output_tokens
+         count(elementId(t)) AS runs,
+         coalesce(sum(t.total_input_tokens), 0) AS input_tokens,
+         coalesce(sum(t.total_output_tokens), 0) AS output_tokens
   ORDER BY date
+
+  -- Agent-level cost summary (flat — no edge traversal needed)
+  MATCH (t:Trace)
+  WHERE t.agent_id = 'AGENT_UUID' AND t.tenant_id = 'TENANT_UUID'
+    AND t.trace_start_ts_ms >= EPOCH_MS
+  RETURN count(elementId(t)) AS total_runs,
+         coalesce(sum(t.total_tokens), 0) AS total_tokens,
+         coalesce(sum(t.total_input_tokens), 0) AS total_input_tokens,
+         sum(CASE WHEN t.has_error = 1 THEN 1 ELSE 0 END) AS error_runs,
+         t.category AS category
 
   -- Find child spans of a specific span (traversal needed)
   MATCH (child:Span)-[:CHILD_OF]->(parent:Span)
