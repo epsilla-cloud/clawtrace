@@ -467,16 +467,16 @@ export class HookEventTracker {
     const parentRunId = ctx.runId ?? this.sessionToRunId.get(requesterSessionKey);
     const parentRun = parentRunId ? this.activeRuns.get(parentRunId) : undefined;
 
-    // Only emit subagent_spawn if we can resolve the parent trace.
-    // If the parent is unknown, emitting would create an orphan trace.
-    // The child's own events will still merge correctly via resolveParentTrace().
-    if (!parentRun) return;
-
     const existing = this.subagents.get(event.childSessionKey);
+
+    // Skip if we can resolve neither a pre-registered span (from onSubagentSpawning)
+    // nor the parent run — otherwise we'd emit with a made-up traceId.
+    if (!existing && !parentRun) return;
+
     const span: ActiveSpanState = existing ?? {
-      traceId: parentRun.traceId,
+      traceId: parentRun!.traceId,
       spanId: this.idFactory(),
-      parentSpanId: parentRun.rootSpanId,
+      parentSpanId: parentRun!.rootSpanId,
     };
     if (!existing) this.subagents.set(event.childSessionKey, span);
 
