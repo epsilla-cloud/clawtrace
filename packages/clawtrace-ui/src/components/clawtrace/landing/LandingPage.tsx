@@ -234,6 +234,9 @@ export function LandingPage() {
           <a href="https://www.ycombinator.com/launches/PwR-clawtrace-make-your-openclaw-agent-better-cheaper-and-faster" target="_blank" rel="noopener noreferrer">
             <img alt="Launch YC: ClawTrace — Make Your OpenClaw Agent Better, Cheaper and Faster" src="https://www.ycombinator.com/launches/PwR-clawtrace-make-your-openclaw-agent-better-cheaper-and-faster/upvote_embed.svg" />
           </a>
+          <a href="https://nextbigproduct.com/product/clawtrace" target="_blank" rel="noopener noreferrer">
+            <img src="https://nextbigproduct.com/assets/badge/clawtrace.svg?theme=light" alt="Featured on NextBigProduct" width="250" height="54" />
+          </a>
         </div>
 
         <div className={styles.heroFrame} aria-label="Product preview carousel">
