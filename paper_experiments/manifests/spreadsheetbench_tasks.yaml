@@ -1,0 +1,268 @@
+snapshot_date: '2026-04-20'
+benchmark: SpreadsheetBench (sample_data_200)
+benchmark_url: https://github.com/RUCKBReasoning/SpreadsheetBench
+selection_criteria: Stratified (~62% Cell-Level, ~38% Sheet-Level to match overall distribution); filtered to supported answer_position formats (range, sheet_range, single_cell, sheet_single); deterministic
+  evenly-spaced sample by task_id.
+tasks:
+- id: SB1
+  task_id: '59196'
+  instruction_type: Cell-Level Manipulation
+  answer_position: H3:H5
+  note: 'Formula: return column header with MAX value per row'
+- id: SB2
+  task_id: '44389'
+  instruction_type: Cell-Level Manipulation
+  answer_position: P2:P7
+  note: 'Formula: return column header of smallest value given a row'
+- id: SB3
+  task_id: '47484'
+  instruction_type: Cell-Level Manipulation
+  answer_position: C2:C8
+  note: 'Formula: generate sequential number in column C'
+- id: SB4
+  task_id: 504-10
+  instruction_type: Sheet-Level Manipulation
+  answer_position: B2:E6
+  note: 'Macro: RegExp extraction'
+- id: SB5
+  task_id: 81-41
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!B2:F8'
+  note: 'Macro: remove standalone instances'
+- id: SB6
+  task_id: '13894'
+  instruction_type: Cell-Level Manipulation
+  answer_position: K3:K10
+  note: How can I create a formula in Excel that assigns a unique code number (UCODENUMB...
+- id: SB7
+  task_id: '1845'
+  instruction_type: Cell-Level Manipulation
+  answer_position: E2:E9
+  note: How can I adjust my Excel formula to maintain a balance sequence where entrances...
+- id: SB8
+  task_id: '31184'
+  instruction_type: Cell-Level Manipulation
+  answer_position: H2
+  note: I need to adjust the formula in cell H2 so that when the results spill, it doesn...
+- id: SB9
+  task_id: '32562'
+  instruction_type: Cell-Level Manipulation
+  answer_position: B2:B21
+  note: How can I use COUNTIF in Excel to count occurrences of each unique item number l...
+- id: SB10
+  task_id: '33036'
+  instruction_type: Cell-Level Manipulation
+  answer_position: D2:D74
+  note: I need a formula that will look at the text in cell C2 and output specific value...
+- id: SB11
+  task_id: '36478'
+  instruction_type: Cell-Level Manipulation
+  answer_position: F3:F7
+  note: I need assistance with a formula to match and retrieve cost information from one...
+- id: SB12
+  task_id: '40467'
+  instruction_type: Cell-Level Manipulation
+  answer_position: D1:D10
+  note: When I add a day to a date in Excel, for instance taking the date 12/31/2023 in ...
+- id: SB13
+  task_id: '41410'
+  instruction_type: Cell-Level Manipulation
+  answer_position: F4:H6
+  note: I have a table in Excel with data across various arrays that includes informatio...
+- id: SB14
+  task_id: '42034'
+  instruction_type: Cell-Level Manipulation
+  answer_position: I2:L4
+  note: How can I use Excel functions to sum a range of values in Column H based on corr...
+- id: SB15
+  task_id: '43213'
+  instruction_type: Cell-Level Manipulation
+  answer_position: B12:B15
+  note: How can I calculate the average of a changing range in Excel, where the range in...
+- id: SB16
+  task_id: '46495'
+  instruction_type: Cell-Level Manipulation
+  answer_position: G2:G13
+  note: How can I calculate the sum of amounts based on the month without adding an extr...
+- id: SB17
+  task_id: '48357'
+  instruction_type: Cell-Level Manipulation
+  answer_position: E2:E21
+  note: How can I calculate the 'Remaining OH' quantities based on 'Total OH' and 'Futur...
+- id: SB18
+  task_id: '48745'
+  instruction_type: Cell-Level Manipulation
+  answer_position: D5:D10
+  note: How can I look up multiple product codes that are located within the same cell, ...
+- id: SB19
+  task_id: '49945'
+  instruction_type: Cell-Level Manipulation
+  answer_position: G4:G6
+  note: How can I create an Excel formula that will allow me to sum the quantities in ra...
+- id: SB20
+  task_id: '51811'
+  instruction_type: Cell-Level Manipulation
+  answer_position: '''Dash''!H2'
+  note: I need a formula that can scan a range B2:Y2 in a sheet called HERE and return a...
+- id: SB21
+  task_id: '52050'
+  instruction_type: Cell-Level Manipulation
+  answer_position: BE3:BE14
+  note: I require help to streamline an existing Excel formula. My current method calcul...
+- id: SB22
+  task_id: '52305'
+  instruction_type: Cell-Level Manipulation
+  answer_position: J6:N24
+  note: How can I create a table in Excel, similar to a heat map, that will count entrie...
+- id: SB23
+  task_id: '53161'
+  instruction_type: Cell-Level Manipulation
+  answer_position: F22:AE29
+  note: I need to calculate the total sum of different categories for each time interval...
+- id: SB24
+  task_id: '53860'
+  instruction_type: Cell-Level Manipulation
+  answer_position: '''Daily''!B2:ND2'
+  note: I need to create a dynamic formula in Excel that can take a forecasted volume en...
+- id: SB25
+  task_id: '54590'
+  instruction_type: Cell-Level Manipulation
+  answer_position: GK29
+  note: How can I create a formula in cell GK29 to calculate the sum across columns GK a...
+- id: SB26
+  task_id: '55392'
+  instruction_type: Cell-Level Manipulation
+  answer_position: '''Bank Balance''!AL4:AL21'
+  note: In my Excel worksheet named 'Bank Balance', I have a cumulative formula in colum...
+- id: SB27
+  task_id: '55535'
+  instruction_type: Cell-Level Manipulation
+  answer_position: A1:A17
+  note: How can I automatically update the text in a cell to create a sequential numberi...
+- id: SB28
+  task_id: '56419'
+  instruction_type: Cell-Level Manipulation
+  answer_position: H2:H27
+  note: How can I create a single formula in Excel to pull a list of non-zero values fro...
+- id: SB29
+  task_id: '57033'
+  instruction_type: Cell-Level Manipulation
+  answer_position: '''Sheet4''!K2:K7'
+  note: How can I use a formula to perform a 3-way match in cell L2 of Sheet 4 in my Exc...
+- id: SB30
+  task_id: '57716'
+  instruction_type: Cell-Level Manipulation
+  answer_position: I4:I14
+  note: How can I create a custom calendar in Excel where each cell contains both number...
+- id: SB31
+  task_id: '58568'
+  instruction_type: Cell-Level Manipulation
+  answer_position: C1
+  note: I'm struggling to use the MATCH and INDEX functions correctly in Excel. I want t...
+- id: SB32
+  task_id: '59055'
+  instruction_type: Cell-Level Manipulation
+  answer_position: M2:M5
+  note: How do I match items located in Column L with those in Column A and find the cor...
+- id: SB33
+  task_id: '59433'
+  instruction_type: Cell-Level Manipulation
+  answer_position: B2:B7
+  note: How do I create a formula to extract a specific site code from within varying le...
+- id: SB34
+  task_id: 110-6
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Calculation''!DO14:DO330'
+  note: I have a workbook with two sheets named 'Distribution' and 'Calculation'. I came...
+- id: SB35
+  task_id: 188-39
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''result''!B2:D12'
+  note: How can I update a result sheet in Excel to display the name, contact details, a...
+- id: SB36
+  task_id: 262-17
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!A1:F14'
+  note: How can I create ranges for header values 'Task' and 'Responsibility' without ha...
+- id: SB37
+  task_id: 28-7
+  instruction_type: Sheet-Level Manipulation
+  answer_position: A1:C26
+  note: How can I delete all rows in an Excel column that occur after and including a pa...
+- id: SB38
+  task_id: 300-35
+  instruction_type: Sheet-Level Manipulation
+  answer_position: A1:F30
+  note: I have a list that requires macro automation to insert rows. I have been doing i...
+- id: SB39
+  task_id: 374-31
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!A1:D5'
+  note: How can I modify my existing VBA code to only delete the blank rows that appear ...
+- id: SB40
+  task_id: 387-16
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!A2:D18'
+  note: How can I use VBA to clear only one instance of a value in the 'Value' column wh...
+- id: SB41
+  task_id: 41-12
+  instruction_type: Sheet-Level Manipulation
+  answer_position: K12
+  note: Is there a macro that can count the number of names in the range F7:F12 that are...
+- id: SB42
+  task_id: 430-1
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''collection''!K1:S4'
+  note: How can I create a report in Excel where my original data spans from columns A t...
+- id: SB43
+  task_id: 458-24
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!F2:F11'
+  note: In column F of my worksheet, I have cells with text where I need to delete all c...
+- id: SB44
+  task_id: 488-29
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''before''!A1:B20'
+  note: In my Excel sheet, I have a situation where if the first occurrence of a value i...
+- id: SB45
+  task_id: 496-15
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!D2:D21'
+  note: How can I write VBA code to loop through all data in column E of my Excel worksh...
+- id: SB46
+  task_id: 528-20
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!A3:K15'
+  note: I have data in Excel starting from A3 to K6, followed by 5 rows of data that I d...
+- id: SB47
+  task_id: 536-37
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Results''!A4:AB21'
+  note: I have an Excel worksheet with over 7000 rows of data in column 'A'. Each cell i...
+- id: SB48
+  task_id: 581-46
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''destination''!A1:DQ8'
+  note: I have an Excel workbook containing multiple sheets with randomly named sheets. ...
+- id: SB49
+  task_id: 76-42
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!D2:D4'
+  note: I need to calculate the time difference in column D based on start times in colu...
+- id: SB50
+  task_id: CF_13984
+  instruction_type: Sheet-Level Manipulation
+  answer_position: '''Sheet1''!E2:E6'
+  note: How can I highlight the Issue Certificate column (E) in red when all three tests...
+conditions:
+- baseline_default
+- costcraft
+- A1_cost_blind
+- A2_len_matched
+models:
+  agent: openai-codex/gpt-5.4
+  refiner: claude (via claude-agent-sdk)
+  grader: deterministic (cell/sheet match)
+budget:
+  max_runs: 250
+  per_run_timeout_s: 900
