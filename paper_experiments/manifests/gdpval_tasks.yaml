@@ -1,0 +1,90 @@
+# Pre-registered GDPval tasks for CostCraft experiments.
+# Committed BEFORE baseline runs to prevent post-hoc task selection.
+# See EXPERIMENT.md §3 for selection rationale.
+
+snapshot_date: "2026-04-14"
+benchmark: "GDPval (openai/gdpval HuggingFace dataset)"
+benchmark_url: "https://huggingface.co/datasets/openai/gdpval"
+selection_criteria:
+  - "≥3 reference files OR dense reasoning task (high rubric count)"
+  - "Deliverable format one of xlsx/pdf/docx (gradable via LLM-judge + deterministic checks)"
+  - "Diverse occupations and sectors"
+  - "Non-trivial expected trace depth on OpenClaw"
+
+tasks:
+  - id: T10
+    task_id: "76418a2c-a3c0-4894-b89d-2493369135d9"
+    occupation: "Shipping, Receiving, and Inventory Clerks"
+    sector: "Manufacturing"
+    reference_files: 3
+    rubric_items: 53
+    deliverable: "xlsx"
+    note: "Sanity-runnable baseline (already verified on OpenClaw). Cleanest pipeline."
+
+  - id: T3
+    task_id: "90edba97-74f0-425a-8ff6-8b93182eb7cb"
+    occupation: "Registered Nurses"
+    sector: "Health Care and Social Assistance"
+    reference_files: 5
+    rubric_items: 71
+    deliverable: "xlsx"
+    note: "Strong redundancy potential: protocols re-read across 7 patients x 12 months."
+
+  - id: T4
+    task_id: "6a900a40-8d2b-4064-a5b1-13a60bc173d8"
+    occupation: "Sales Representatives, Wholesale and Manufacturing"
+    sector: "Wholesale Trade"
+    reference_files: 5
+    rubric_items: 32
+    deliverable: "xlsx"
+    note: "Multi-source aggregation; 3 freight PDFs + 2 xlsx."
+
+  - id: T5
+    task_id: "1752cb53-5983-46b6-92ee-58ac85a11283"
+    occupation: "First-Line Supervisors of Production and Operating Workers"
+    sector: "Manufacturing"
+    reference_files: 5
+    rubric_items: 46
+    deliverable: "xlsx"
+    note: "Multi-constraint optimization across 5 xlsx."
+
+  - id: T7
+    task_id: "76d10872-9ffa-4ede-83ee-e0f1ec5e2b8d"
+    occupation: "Child, Family, and School Social Workers"
+    sector: "Government"
+    reference_files: 4
+    rubric_items: 74
+    deliverable: "pdf"
+    note: "Granular field extraction from 4 PDFs; high rubric density."
+
+  - id: T2
+    task_id: "4520f882-715a-482d-8e87-1cb3cbdfe975"
+    occupation: "Financial Managers"
+    sector: "Finance and Insurance"
+    reference_files: 2
+    rubric_items: 88
+    deliverable: "xlsx"
+    note: "Highest rubric count. Dense CBA->formula reasoning."
+
+# Experimental conditions (each held-out task evaluated in each condition)
+conditions:
+  - name: "baseline_default"
+    description: "OpenClaw agent with the generic default professional-task skill."
+  - name: "costcraft"
+    description: "Agent with refined skill produced by full CostCraft pipeline."
+  - name: "A1_cost_blind"
+    description: "Agent with refined skill produced by CostCraft with cost fields zeroed in TraceCards."
+  - name: "A2_len_matched"
+    description: "Agent with length-matched compression of the default skill (no traces used)."
+
+# Models
+models:
+  agent:  "google/gemini-3-pro-preview"     # backbone for the task agent
+  refiner: "claude-sonnet-4-6"              # refiner LLM for CostCraft
+  grader: "claude-sonnet-4-6"               # LLM-judge for rubric grading
+
+# Budget ceilings
+budget:
+  max_runs: 60
+  max_usd: 30.0
+  per_run_timeout_s: 900

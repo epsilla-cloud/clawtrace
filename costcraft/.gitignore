@@ -1,0 +1,15 @@
+# Python build artefacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Editable-install metadata
+*.egg-link
+
+# Local dev scratch
+_rerun_archive/
+_traces/
+_workspace_backup/
+*.log
