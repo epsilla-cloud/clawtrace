@@ -1,27 +1,49 @@
 <p align="center">
-  <img src="packages/clawtrace-ui/public/clawtrace-logo.png" alt="ClawTrace" width="280" />
+  <img src="packages/clawtrace-ui/public/clawtrace-logo.png" alt="ClawTrace" width="260" />
+</p>
+
+<h3 align="center">Cost-aware tracing &amp; skill distillation for LLM agents</h3>
+
+<p align="center">
+  <a href="https://clawtrace.ai">Website</a> &nbsp;·&nbsp;
+  <a href="https://clawtrace.ai/docs">Docs</a> &nbsp;·&nbsp;
+  <a href="https://arxiv.org/abs/2604.23853">Paper</a> &nbsp;·&nbsp;
+  <a href="https://clawtrace.ai/docs/ask-tracy">Ask Tracy</a> &nbsp;·&nbsp;
+  <a href="#getting-started">Quickstart</a>
 </p>
 
 <p align="center">
-  <a href="https://clawtrace.ai">clawtrace.ai</a> &nbsp;&middot;&nbsp;
-  <a href="https://clawtrace.ai/docs">Docs</a> &nbsp;&middot;&nbsp;
-  <a href="https://clawtrace.ai/docs/ask-tracy">Ask Tracy</a>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License" />
+  <a href="https://arxiv.org/abs/2604.23853"><img src="https://img.shields.io/badge/arXiv-2604.23853-b31b1b?logo=arxiv&logoColor=white" alt="arXiv" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="License" /></a>
   <img src="https://img.shields.io/badge/OpenClaw-compatible-orange" alt="OpenClaw" />
+  <img src="https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs" alt="Next.js" />
+  <img src="https://img.shields.io/badge/FastAPI-Python-009688?logo=fastapi&logoColor=white" alt="FastAPI" />
 </p>
 
 ---
 
-My OpenClaw agent burned ~40× its normal token budget in under an hour.
+## Paper
 
-Root cause: it was appending ~1,500 messages of history to every LLM call. By the time I noticed, it had already spent a few dollars on what should have been a 3-cent task.
+> **ClawTrace: Cost-Aware Tracing for LLM Agent Skill Distillation** &nbsp;—&nbsp;
+> Boqin Yuan, Renchu Song, Yue Su, Sen Yang, Jing Qin · arXiv [2604.23853](https://arxiv.org/abs/2604.23853)
 
-I couldn't see it from logs. OpenClaw logs flatten everything into a wall of JSON. The loop was invisible.
+Skill-distillation pipelines learn reusable rules from LLM agent trajectories, but they lack a key signal — **how much each step costs**. ClawTrace records every LLM call, tool use, and sub-agent spawn during a session and compiles it into a **TraceCard**: a ~1.5 kB YAML summary with per-step USD cost, token counts, and redundancy flags. On top of TraceCards, **CostCraft** produces three patch types — *preserve*, *prune* (with counterfactual evidence), and *repair* — that improve agent skills without inflating cost.
 
-Built after that incident.
+<p align="center">
+  <img src="packages/clawtrace-ui/public/docs/images/paper-workflow.png" alt="ClawTrace + CostCraft workflow: capture, compile, distill" width="860" />
+</p>
+
+<p align="center"><sub><b>Capture → Compile → Distill.</b> ClawTrace instruments the agent (Substrate), compiles each session into a TraceCard (IR), and merges TraceCards into evolved skills via a preserve / prune / repair typology (Methodology).</sub></p>
+
+📄 **Read the paper:** <https://arxiv.org/abs/2604.23853> &nbsp;·&nbsp; [BibTeX](#citation)
+
+---
+
+## Why this exists
+
+My OpenClaw agent burned ~40× its normal token budget in under an hour. Root cause: it was appending ~1,500 messages of history to every LLM call. By the time I noticed, it had already spent a few dollars on what should have been a 3-cent task — and I couldn't see it from logs, because OpenClaw flattens everything into a wall of JSON. The loop was invisible.
+
+ClawTrace was built after that incident, and the paper above is what came out of using it at scale.
 
 ---
 
@@ -295,6 +317,20 @@ npm test
 ```
 
 ---
+
+## Citation
+
+If you use ClawTrace, TraceCards, or CostCraft in academic work, please cite:
+
+```bibtex
+@article{yuan2026clawtrace,
+  title   = {ClawTrace: Cost-Aware Tracing for LLM Agent Skill Distillation},
+  author  = {Yuan, Boqin and Song, Renchu and Su, Yue and Yang, Sen and Qin, Jing},
+  journal = {arXiv preprint arXiv:2604.23853},
+  year    = {2026},
+  url     = {https://arxiv.org/abs/2604.23853}
+}
+```
 
 ## Inspirations
 
